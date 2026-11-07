@@ -1,0 +1,138 @@
+{
+  "metadata": {
+    "project": "App Oud Visualizer",
+    "version": "1.0.0",
+    "tuning_system": "24-TET with Cents Deviation",
+    "max_neck_q_rendered": 16
+  },
+  "pitch_classes_24": [
+    { "q": 0,  "sharp": "C",   "flat": "C",   "arabic": "Rast",       "microtonal": false },
+    { "q": 1,  "sharp": "C+",  "flat": "Db-", "arabic": "Nim Rahawi", "microtonal": true  },
+    { "q": 2,  "sharp": "C#",  "flat": "Db",  "arabic": "Zirgulah",   "microtonal": false },
+    { "q": 3,  "sharp": "C#+", "flat": "D-",  "arabic": "Tik Zirg.",  "microtonal": true  },
+    { "q": 4,  "sharp": "D",   "flat": "D",   "arabic": "Dukah",      "microtonal": false },
+    { "q": 5,  "sharp": "D+",  "flat": "Eb-", "arabic": "Sikah",      "microtonal": true  },
+    { "q": 6,  "sharp": "D#",  "flat": "Eb",  "arabic": "Kurdi",      "microtonal": false },
+    { "q": 7,  "sharp": "D#+", "flat": "E-",  "arabic": "Tik Kurdi",  "microtonal": true  },
+    { "q": 8,  "sharp": "E",   "flat": "E",   "arabic": "Busalik",    "microtonal": false },
+    { "q": 9,  "sharp": "E+",  "flat": "F-",  "arabic": "Tik Bus.",   "microtonal": true  },
+    { "q": 10, "sharp": "F",   "flat": "F",   "arabic": "Jaharkah",   "microtonal": false },
+    { "q": 11, "sharp": "F+",  "flat": "Gb-", "arabic": "Nim Hijaz",  "microtonal": true  },
+    { "q": 12, "sharp": "F#",  "flat": "Gb",  "arabic": "Hijaz",      "microtonal": false },
+    { "q": 13, "sharp": "F#+", "flat": "G-",  "arabic": "Tik Hijaz",  "microtonal": true  },
+    { "q": 14, "sharp": "G",   "flat": "G",   "arabic": "Nawa",       "microtonal": false },
+    { "q": 15, "sharp": "G+",  "flat": "Ab-", "arabic": "Nim Hisar",  "microtonal": true  },
+    { "q": 16, "sharp": "G#",  "flat": "Ab",  "arabic": "Hisar",      "microtonal": false },
+    { "q": 17, "sharp": "G#+", "flat": "A-",  "arabic": "Tik Hisar",  "microtonal": true  },
+    { "q": 18, "sharp": "A",   "flat": "A",   "arabic": "Husayni",    "microtonal": false },
+    { "q": 19, "sharp": "A+",  "flat": "Bb-", "arabic": "Awj / Iraq", "microtonal": true  },
+    { "q": 20, "sharp": "A#",  "flat": "Bb",  "arabic": "Ajam",       "microtonal": false },
+    { "q": 21, "sharp": "A#+", "flat": "B-",  "arabic": "Tik Ajam",   "microtonal": true  },
+    { "q": 22, "sharp": "B",   "flat": "B",   "arabic": "Mahur",      "microtonal": false },
+    { "q": 23, "sharp": "B+",  "flat": "C-",  "arabic": "Tik Mahur",  "microtonal": true  }
+  ],
+  "tunings": [
+    {
+      "id": "syrian_arabic_c_c",
+      "name": "Árabe / Síria Padrão (C - F - A - d - g - c)",
+      "courses": [
+        { "course": 1, "label": "1ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 2, "label": "2ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 3, "label": "3ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (F2)", "abs_q": 10, "freq_hz": 87.31  },
+        { "course": 6, "label": "6ª (C2)", "abs_q": 0,  "freq_hz": 65.41  }
+      ]
+    },
+    {
+      "id": "arabic_classic_f_f",
+      "name": "Árabe Clássica (F - A - d - g - c - f)",
+      "courses": [
+        { "course": 1, "label": "1ª (f4)", "abs_q": 58, "freq_hz": 349.23 },
+        { "course": 2, "label": "2ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 3, "label": "3ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 4, "label": "4ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 5, "label": "5ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 6, "label": "6ª (F2)", "abs_q": 10, "freq_hz": 87.31  }
+      ]
+    },
+    {
+      "id": "arabic_d_c",
+      "name": "Árabe Egípcia (D - G - A - d - g - c)",
+      "courses": [
+        { "course": 1, "label": "1ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 2, "label": "2ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 3, "label": "3ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (G2)", "abs_q": 14, "freq_hz": 98.00  },
+        { "course": 6, "label": "6ª (D2)", "abs_q": 4,  "freq_hz": 73.42  }
+      ]
+    },
+    {
+      "id": "turkish_d_a",
+      "name": "Turca / Grega Padrão (D - E - A - B - e - a)",
+      "courses": [
+        { "course": 1, "label": "1ª (a3)", "abs_q": 42, "freq_hz": 220.00 },
+        { "course": 2, "label": "2ª (e3)", "abs_q": 32, "freq_hz": 164.81 },
+        { "course": 3, "label": "3ª (B2)", "abs_q": 22, "freq_hz": 123.47 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (E2)", "abs_q": 8,  "freq_hz": 82.41  },
+        { "course": 6, "label": "6ª (D2)", "abs_q": 4,  "freq_hz": 73.42  }
+      ]
+    },
+    {
+      "id": "iraqi_bashir",
+      "name": "Iraquiana / Mounir Bashir (C - D - G - c - f - f')",
+      "courses": [
+        { "course": 1, "label": "1ª (f4)", "abs_q": 58, "freq_hz": 349.23 },
+        { "course": 2, "label": "2ª (f3)", "abs_q": 34, "freq_hz": 174.61 },
+        { "course": 3, "label": "3ª (c3)", "abs_q": 24, "freq_hz": 130.81 },
+        { "course": 4, "label": "4ª (G2)", "abs_q": 14, "freq_hz": 98.00  },
+        { "course": 5, "label": "5ª (D2)", "abs_q": 4,  "freq_hz": 73.42  },
+        { "course": 6, "label": "6ª (C2)", "abs_q": 0,  "freq_hz": 65.41  }
+      ]
+    }
+  ],
+  "ajnas": [
+    { "id": "jins_rast",       "name": "Jins Rast",       "traditional_root_q": 0,  "intervals_q": [0, 4, 7, 10],      "cents_dev": [0, 0, -15, 0],    "degrees": ["1", "2", "3-", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_bayati",     "name": "Jins Bayati",     "traditional_root_q": 4,  "intervals_q": [0, 3, 6, 10],      "cents_dev": [0, -15, 0, 0],    "degrees": ["1", "2-", "b3", "4"],      "ghammaz_q": 10 },
+    { "id": "jins_sikah",      "name": "Jins Sikah",      "traditional_root_q": 5,  "intervals_q": [0, 3, 7],          "cents_dev": [15, 0, 0],        "degrees": ["1", "2", "3"],             "ghammaz_q": 7  },
+    { "id": "jins_hijaz",      "name": "Jins Hijaz",      "traditional_root_q": 4,  "intervals_q": [0, 2, 8, 10],      "cents_dev": [0, 10, -10, 0],   "degrees": ["1", "b2", "3", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_saba",       "name": "Jins Saba",       "traditional_root_q": 4,  "intervals_q": [0, 3, 6, 8],       "cents_dev": [0, -15, 0, 0],    "degrees": ["1", "2-", "b3", "b4"],     "ghammaz_q": 6  },
+    { "id": "jins_kurd",       "name": "Jins Kurd",       "traditional_root_q": 4,  "intervals_q": [0, 2, 6, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "b2", "b3", "4"],      "ghammaz_q": 10 },
+    { "id": "jins_nahawand",   "name": "Jins Nahawand",   "traditional_root_q": 0,  "intervals_q": [0, 4, 6, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "2", "b3", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_ajam",       "name": "Jins Ajam",       "traditional_root_q": 20, "intervals_q": [0, 4, 8, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "2", "3", "4"],        "ghammaz_q": 10 },
+    { "id": "jins_nikriz",     "name": "Jins Nikriz",     "traditional_root_q": 0,  "intervals_q": [0, 4, 6, 12, 14],  "cents_dev": [0, 0, 0, 0, 0],   "degrees": ["1", "2", "b3", "#4", "5"], "ghammaz_q": 14 },
+    { "id": "jins_athar_kurd", "name": "Jins Athar Kurd", "traditional_root_q": 0,  "intervals_q": [0, 2, 6, 12, 14],  "cents_dev": [0, 0, 0, 0, 0],   "degrees": ["1", "b2", "b3", "#4", "5"],"ghammaz_q": 14 }
+  ],
+  "maqamat": [
+    { "id": "maqam_rast",       "name": "Maqam Rast",       "traditional_root_q": 0,  "intervals_asc": [0, 4, 7, 10, 14, 18, 21, 24], "intervals_desc": [0, 4, 7, 10, 14, 18, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_bayati",     "name": "Maqam Bayati",     "traditional_root_q": 4,  "intervals_asc": [0, 3, 6, 10, 14, 16, 20, 24], "intervals_desc": [0, 3, 6, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_saba",       "name": "Maqam Saba",       "traditional_root_q": 4,  "intervals_asc": [0, 3, 6, 8, 14, 16, 20, 22],  "intervals_desc": [0, 3, 6, 8, 14, 16, 20, 22],  "ghammaz_q": 6  },
+    { "id": "maqam_hijaz",      "name": "Maqam Hijaz",      "traditional_root_q": 4,  "intervals_asc": [0, 2, 8, 10, 14, 17, 20, 24], "intervals_desc": [0, 2, 8, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_nahawand",   "name": "Maqam Nahawand",   "traditional_root_q": 0,  "intervals_asc": [0, 4, 6, 10, 14, 16, 22, 24], "intervals_desc": [0, 4, 6, 10, 14, 16, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_kurd",       "name": "Maqam Kurd",       "traditional_root_q": 4,  "intervals_asc": [0, 2, 6, 10, 14, 16, 20, 24], "intervals_desc": [0, 2, 6, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_sikah",      "name": "Maqam Sikah",      "traditional_root_q": 5,  "intervals_asc": [0, 3, 7, 11, 14, 17, 21, 24], "intervals_desc": [0, 3, 7, 11, 14, 17, 21, 24], "ghammaz_q": 7  },
+    { "id": "maqam_huzam",      "name": "Maqam Huzam",      "traditional_root_q": 5,  "intervals_asc": [0, 3, 7, 9, 15, 17, 21, 24],  "intervals_desc": [0, 3, 7, 9, 15, 17, 19, 24],  "ghammaz_q": 7  },
+    { "id": "maqam_nikriz",     "name": "Maqam Nikriz",     "traditional_root_q": 0,  "intervals_asc": [0, 4, 6, 12, 14, 18, 20, 24], "intervals_desc": [0, 4, 6, 12, 14, 18, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_nawa_athar", "name": "Maqam Nawa Athar", "traditional_root_q": 0,  "intervals_asc": [0, 4, 6, 12, 14, 16, 22, 24], "intervals_desc": [0, 4, 6, 12, 14, 16, 22, 24], "ghammaz_q": 14 },
+    { "id": "maqam_ajam",       "name": "Maqam Ajam",       "traditional_root_q": 20, "intervals_asc": [0, 4, 8, 10, 14, 18, 22, 24], "intervals_desc": [0, 4, 8, 10, 14, 18, 20, 24], "ghammaz_q": 14 }
+  ],
+  "scales_and_modes": [
+    { "id": "mode_ionian",          "name": "Jônio (Maior Natural)",             "category": "Greek Modes",      "intervals_q": [0, 4, 8, 10, 14, 18, 22, 24],      "bridge_maqam": "maqam_ajam"       },
+    { "id": "mode_dorian",          "name": "Dórico",                            "category": "Greek Modes",      "intervals_q": [0, 4, 6, 10, 14, 18, 20, 24],      "bridge_maqam": "maqam_nahawand"   },
+    { "id": "mode_phrygian",        "name": "Frígio",                            "category": "Greek Modes",      "intervals_q": [0, 2, 6, 10, 14, 16, 20, 24],      "bridge_maqam": "maqam_kurd"       },
+    { "id": "mode_lydian",          "name": "Lídio",                             "category": "Greek Modes",      "intervals_q": [0, 4, 8, 12, 14, 18, 22, 24],      "bridge_maqam": "maqam_nikriz"     },
+    { "id": "mode_mixolydian",      "name": "Mixolídio",                         "category": "Greek Modes",      "intervals_q": [0, 4, 8, 10, 14, 18, 20, 24],      "bridge_maqam": "maqam_ajam"       },
+    { "id": "mode_aeolian",         "name": "Eólio (Menor Natural)",             "category": "Greek Modes",      "intervals_q": [0, 4, 6, 10, 14, 16, 20, 24],      "bridge_maqam": "maqam_nahawand"   },
+    { "id": "mode_locrian",         "name": "Lócrio",                            "category": "Greek Modes",      "intervals_q": [0, 2, 6, 10, 12, 16, 20, 24],      "bridge_maqam": "maqam_saba"       },
+    { "id": "scale_harmonic_minor", "name": "Menor Harmônica",                   "category": "Altered Minors",   "intervals_q": [0, 4, 6, 10, 14, 16, 22, 24],      "bridge_maqam": "maqam_nahawand"   },
+    { "id": "scale_phrygian_dom",   "name": "Frígio Dominante",                  "category": "Altered Minors",   "intervals_q": [0, 2, 8, 10, 14, 16, 20, 24],      "bridge_maqam": "maqam_hijaz"      },
+    { "id": "scale_double_harmonic","name": "Dupla Harmônica (Bizantina)",       "category": "Altered Minors",   "intervals_q": [0, 2, 8, 10, 14, 16, 22, 24],      "bridge_maqam": "maqam_hijaz"      },
+    { "id": "scale_hungarian_minor","name": "Menor Húngara",                     "category": "Altered Minors",   "intervals_q": [0, 4, 6, 12, 14, 16, 22, 24],      "bridge_maqam": "maqam_nawa_athar" },
+    { "id": "sym_whole_tone",       "name": "Tons Inteiros (Hexatônica)",        "category": "Symmetric Scales", "intervals_q": [0, 4, 8, 12, 16, 20, 24],          "symmetry_step_q": 4               },
+    { "id": "sym_dim_wh",           "name": "Diminuta (Tom - Semitom)",          "category": "Symmetric Scales", "intervals_q": [0, 4, 6, 10, 12, 16, 18, 22, 24],  "symmetry_step_q": 6               },
+    { "id": "sym_dim_hw",           "name": "Diminuta Dom. (Semitom - Tom)",     "category": "Symmetric Scales", "intervals_q": [0, 2, 6, 8, 12, 14, 18, 20, 24],   "symmetry_step_q": 6               },
+    { "id": "sym_augmented",        "name": "Aumentada (Hexatônica)",            "category": "Symmetric Scales", "intervals_q": [0, 6, 8, 14, 16, 22, 24],          "symmetry_step_q": 8               }
+  ]
+}
