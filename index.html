@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Oud Visualizer — v1.2 (24-TET + Acordes + Cadências Modais)</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --bg-card: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --root-color: #ef4444;
+      --ghammaz-color: #f59e0b;
+      --fixed-color: #3b82f6;
+      --micro-color: #a855f7;
+      --border: #475569;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      padding: 16px;
+      line-height: 1.4;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      padding: 14px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .badge {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .audio-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background: #475569;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    button.active-toggle {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
+    }
+
+    /* Deck de Controles */
+    .control-deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .control-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      padding-bottom: 6px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    .tab-group {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 3px;
+      background: var(--bg-dark);
+      padding: 4px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 6px 2px;
+      font-size: 0.71rem;
+      text-align: center;
+      justify-content: center;
+      color: var(--text-muted);
+      border-radius: 4px;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .inline-options {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .inline-options button {
+      flex: 1;
+      justify-content: center;
+      padding: 6px 8px;
+      font-size: 0.75rem;
+    }
+
+    .inline-options button.selected {
+      background: var(--fixed-color);
+      border-color: var(--fixed-color);
+      color: #fff;
+    }
+
+    /* Barra do Sequenciador de Cadências Modais (Qafla) */
+    .cadence-bar {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .cadence-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .cadence-header-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cadence-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 10px;
+    }
+
+    .cadence-step-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+    }
+
+    .cadence-step-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .cadence-step-card.active-step {
+      background: rgba(245, 158, 11, 0.16);
+      border: 2px solid var(--accent);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+
+    .step-roman {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .step-chord-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .step-role {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+    }
+
+    /* Container do Espelho (SVG) */
+    .neck-wrapper {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .neck-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .diamond {
+      width: 11px;
+      height: 11px;
+      transform: rotate(45deg);
+      display: inline-block;
+    }
+
+    svg#oud-neck {
+      width: 100%;
+      min-width: 920px;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+
+    .note-node {
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.2s ease;
+    }
+
+    .note-node:hover {
+      filter: brightness(1.25);
+    }
+
+    /* Painel Analítico Inferior */
+    .info-panel {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 820px) {
+      .info-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .info-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .info-card h2 {
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .info-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .meta-pill {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+
+    .meta-pill strong {
+      color: var(--accent);
+    }
+
+    .bridge-box {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: rgba(59, 130, 246, 0.12);
+      border-left: 3px solid var(--fixed-color);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>App Oud Visualizer</h1>
+      <span class="badge">v1.2 — 24-TET + Acordes + Cadências Modais</span>
+    </div>
+    <div class="audio-bar">
+      <button class="primary" id="btn-play-scale" title="Executar escala, acorde ou cadência completa">
+        ▶ Tocar Escala / Maqam
+      </button>
+      <button id="btn-arp-chord" style="display:none;" title="Tocar as notas do acorde atual uma a uma (Arpejo)">
+        🎵 Arpejar Acorde Atual
+      </button>
+      <button id="btn-drone" title="Ativar/Desativar bordão contínuo na nota Tônica (Qarar)">
+        🔊 Drone na Tônica: OFF
+      </button>
+      <button id="btn-hand" title="Inverter espelho para Destro ou Canhoto">
+        ⇄ Mão: Destro
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra de Controles -->
+  <section class="control-deck">
+    <!-- Card 1: Afinação e Tônica -->
+    <div class="control-card">
+      <h3>1. Afinação & Tônica (Qarar)</h3>
+      <div>
+        <label for="select-tuning">Afinação do Oud (6ª → 1ª):</label>
+        <select id="select-tuning"></select>
+      </div>
+      <div>
+        <label for="select-root">
+          <span>Tônica / Centro Modal (Qarar):</span>
+          <a href="#" id="btn-trad-root" style="color:var(--accent); text-decoration:none; font-size:0.75rem;">Tônica Tradicional</a>
+        </label>
+        <select id="select-root"></select>
+      </div>
+    </div>
+
+    <!-- Card 2: Seleção de Maqam, Jins, Escala, Acorde ou Cadência -->
+    <div class="control-card">
+      <h3>2. Estrutura Modal / Harmonia</h3>
+      <div class="tab-group">
+        <button class="tab-btn active" data-mode="MAQAM">Maqamat</button>
+        <button class="tab-btn" data-mode="JINS">Ajnas</button>
+        <button class="tab-btn" data-mode="SCALE">Modos</button>
+        <button class="tab-btn" data-mode="CHORD">Acordes</button>
+        <button class="tab-btn" data-mode="CADENCE">Cadências</button>
+      </div>
+      <div>
+        <select id="select-entity"></select>
+      </div>
+      <div id="maqam-subcontrols" class="inline-options">
+        <button id="btn-dir-asc" class="selected" title="Caminho ascendente do Maqam">↑ Ascendente</button>
+        <button id="btn-dir-desc" title="Caminho descendente (altera o Jins superior em certos Maqamat)">↓ Descendente</button>
+      </div>
+      <div id="chord-subcontrols" class="inline-options" style="display:none;">
+        <button id="btn-chord-voicing" class="selected" title="Exibe apenas 1 nota ergonômica por corda (Voicing real tocável)">1 Nota / Corda (Voicing)</button>
+        <button id="btn-chord-all" title="Exibe todas as notas do acorde espalhadas pelo espelho (Arpejo)">Todas as Notas (Arpejo)</button>
+      </div>
+    </div>
+
+    <!-- Card 3: Shapes e Posição da Mão Esquerda -->
+    <div class="control-card">
+      <h3>3. Mapeamento de Shapes & Posição</h3>
+      <div>
+        <label for="select-shape">Região / Posição da Mão Esquerda:</label>
+        <select id="select-shape">
+          <option value="FULL_NECK">Espelho Completo (0q a 16q)</option>
+          <option value="OPEN_FIRST_POS">1ª Posição Aberta (Com Cordas Soltas)</option>
+          <option value="CLOSED_BOX">Posição Móvel Fechada (Sem Cordas Soltas)</option>
+        </select>
+      </div>
+      <div id="box-slider-group" style="display:none;">
+        <label for="slider-box">
+          <span>Posição do Dedo 1 (Caixa Móvel):</span>
+          <strong id="label-box-pos" style="color:var(--accent);">Semitom 1 (q=2)</strong>
+        </label>
+        <input type="range" id="slider-box" min="1" max="10" step="1" value="2" />
+      </div>
+      <div id="jins-filter-group">
+        <label>Isolar Regiões do Maqam:</label>
+        <div class="inline-options" style="margin-top:4px;">
+          <button class="jins-filter selected" data-filter="ALL">Completo</button>
+          <button class="jins-filter" data-filter="LOWER">1º Jins (Inf.)</button>
+          <button class="jins-filter" data-filter="UPPER">2º Jins (Sup.)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Exibição e Guias -->
+    <div class="control-card">
+      <h3>4. Rótulos & Guias do Espelho</h3>
+      <div>
+        <label for="select-label">Texto dentro das Notas:</label>
+        <select id="select-label">
+          <option value="NOTE_NAME">Nome da Nota (C, Eb-, F#)</option>
+          <option value="DEGREE">Grau / Intervalo (1, 3-, 5, b7)</option>
+          <option value="FINGER">Dedo Sugerido (0, 1, 2, 3, 4)</option>
+          <option value="ARABIC">Nome Árabe (Rast, Dukah, Sikah...)</option>
+        </select>
+      </div>
+      <div>
+        <label>Linhas-Guia Visuais (Fretless):</label>
+        <div class="inline-options" style="margin-top:4px;">
+          <button id="btn-guide-semi" class="selected">Guias 12-TET</button>
+          <button id="btn-guide-micro" class="selected">Guias 1/4 Tom</button>
+          <button id="btn-ghost-notes" class="selected">Ghost Notes</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barra Interativa de Cadências Modais (Qafla Sequencer) -->
+  <section class="cadence-bar" id="cadence-bar">
+    <div class="cadence-header">
+      <div class="cadence-header-title">
+        <span>🎼 Sequenciador de Cadência Modal (Qafla):</span>
+        <span id="cadence-active-label" style="color:#fff; font-weight:500;">Clique em cada acorde abaixo para inspecionar o shape no espelho</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-strum-step" style="padding:5px 10px; font-size:0.78rem;">🔊 Rasguear Acorde Selecionado</button>
+        <button class="primary" id="btn-play-cadence-seq" style="padding:5px 12px; font-size:0.78rem;">▶ Tocar Progressão Completa</button>
+      </div>
+    </div>
+    <div class="cadence-steps" id="cadence-steps-container"></div>
+  </section>
+
+  <!-- Área do Espelho do Oud (SVG) -->
+  <section class="neck-wrapper">
+    <div class="neck-toolbar">
+      <div class="legend">
+        <span class="legend-item"><span class="dot" style="background:var(--root-color); border:2px solid #fff;"></span> Tônica / Fundamental Atual (1)</span>
+        <span class="legend-item"><span class="dot" style="background:var(--ghammaz-color);"></span> Ghammaz / 3ª ou Nota Caract.</span>
+        <span class="legend-item"><span class="dot" style="background:var(--fixed-color);"></span> Nota Fixa (12-TET)</span>
+        <span class="legend-item"><span class="diamond" style="background:var(--micro-color);"></span> Nota Microtonal (1/4 de Tom)</span>
+      </div>
+      <span style="font-size:0.78rem; color:var(--text-muted);">💡 Clique em qualquer nota no espelho para ouvir a entonação real</span>
+    </div>
+
+    <svg id="oud-neck" viewBox="0 0 1050 330"></svg>
+  </section>
+
+  <!-- Painel Inferior de Detalhes -->
+  <section class="info-panel">
+    <div class="info-card">
+      <h2 id="info-title">Maqam Rast</h2>
+      <p id="info-desc" style="color:var(--text-muted); font-size:0.9rem;"></p>
+      <div class="info-meta" id="info-pills"></div>
+      <div id="bridge-container"></div>
+    </div>
+    <div class="info-card">
+      <h2 style="font-size:0.95rem;">Geometria da Afinação Atual</h2>
+      <p id="tuning-desc" style="color:var(--text-muted); font-size:0.84rem; margin-bottom:10px;"></p>
+      <div id="tuning-intervals-list" style="font-size:0.82rem; display:flex; flex-direction:column; gap:5px;"></div>
+    </div>
+  </section>
+
+  <script>
+    /*************************************************************************
+     * 1. BANCO DE DADOS MUSICAL (24-TET + CHORDS + MODAL CADENCES)
+     *************************************************************************/
+    const PITCH_CLASSES_24 = [
+      { q: 0,  sharp: "C",   flat: "C",   arabic: "Rast",      micro: false },
+      { q: 1,  sharp: "C+",  flat: "Db-", arabic: "Nim Rahawi",micro: true  },
+      { q: 2,  sharp: "C#",  flat: "Db",  arabic: "Zirgulah",  micro: false },
+      { q: 3,  sharp: "C#+", flat: "D-",  arabic: "Tik Zirg.", micro: true  },
+      { q: 4,  sharp: "D",   flat: "D",   arabic: "Dukah",     micro: false },
+      { q: 5,  sharp: "D+",  flat: "Eb-", arabic: "Sikah",     micro: true  },
+      { q: 6,  sharp: "D#",  flat: "Eb",  arabic: "Kurdi",     micro: false },
+      { q: 7,  sharp: "D#+", flat: "E-",  arabic: "Tik Kurdi", micro: true  },
+      { q: 8,  sharp: "E",   flat: "E",   arabic: "Busalik",   micro: false },
+      { q: 9,  sharp: "E+",  flat: "F-",  arabic: "Tik Bus.",  micro: true  },
+      { q: 10, sharp: "F",   flat: "F",   arabic: "Jaharkah",  micro: false },
+      { q: 11, sharp: "F+",  flat: "Gb-", arabic: "Nim Hijaz", micro: true  },
+      { q: 12, sharp: "F#",  flat: "Gb",  arabic: "Hijaz",     micro: false },
+      { q: 13, sharp: "F#+", flat: "G-",  arabic: "Tik Hijaz", micro: true  },
+      { q: 14, sharp: "G",   flat: "G",   arabic: "Nawa",      micro: false },
+      { q: 15, sharp: "G+",  flat: "Ab-", arabic: "Nim Hisar", micro: true  },
+      { q: 16, sharp: "G#",  flat: "Ab",  arabic: "Hisar",     micro: false },
+      { q: 17, sharp: "G#+", flat: "A-",  arabic: "Tik Hisar", micro: true  },
+      { q: 18, sharp: "A",   flat: "A",   arabic: "Husayni",   micro: false },
+      { q: 19, sharp: "A+",  flat: "Bb-", arabic: "Awj / Iraq",micro: true  },
+      { q: 20, sharp: "A#",  flat: "Bb",  arabic: "Ajam",      micro: false },
+      { q: 21, sharp: "A#+", flat: "B-",  arabic: "Tik Ajam",  micro: true  },
+      { q: 22, sharp: "B",   flat: "B",   arabic: "Mahur",     micro: false },
+      { q: 23, sharp: "B+",  flat: "C-",  arabic: "Tik Mahur", micro: true  }
+    ];
+
+    const DB = {
+      tunings: [
+        {
+          id: "syrian_arabic_c_c",
+          name: "Árabe / Síria Padrão (C - F - A - d - g - c)",
+          description: "Quatro ordens agudas em Quartas Justas (A-d-g-c), salto de Terça Maior entre F e A, e bordão grave em C.",
+          courses: [
+            { course: 1, label: "1ª (c4)", abs_q: 48, freq_hz: 261.63 },
+            { course: 2, label: "2ª (g3)", abs_q: 38, freq_hz: 196.00 },
+            { course: 3, label: "3ª (d3)", abs_q: 28, freq_hz: 146.83 },
+            { course: 4, label: "4ª (A2)", abs_q: 18, freq_hz: 110.00 },
+            { course: 5, label: "5ª (F2)", abs_q: 10, freq_hz: 87.31 },
+            { course: 6, label: "6ª (C2)", abs_q: 0,  freq_hz: 65.41 }
+          ]
+        },
+        {
+          id: "arabic_classic_f_f",
+          name: "Árabe Clássica (F - A - d - g - c - f)",
+          description: "Afinação tradicional com 1ª corda aguda em F4 e 6ª corda em F2.",
+          courses: [
+            { course: 1, label: "1ª (f4)", abs_q: 58, freq_hz: 349.23 },
+            { course: 2, label: "2ª (c4)", abs_q: 48, freq_hz: 261.63 },
+            { course: 3, label: "3ª (g3)", abs_q: 38, freq_hz: 196.00 },
+            { course: 4, label: "4ª (d3)", abs_q: 28, freq_hz: 146.83 },
+            { course: 5, label: "5ª (A2)", abs_q: 18, freq_hz: 110.00 },
+            { course: 6, label: "6ª (F2)", abs_q: 10, freq_hz: 87.31 }
+          ]
+        },
+        {
+          id: "arabic_d_c",
+          name: "Árabe Egípcia (D - G - A - d - g - c)",
+          description: "Bordões graves em D2 e G2 para ressonância simpática em Maqamat com tônica em D (Bayati, Saba, Hijaz, Kurd).",
+          courses: [
+            { course: 1, label: "1ª (c4)", abs_q: 48, freq_hz: 261.63 },
+            { course: 2, label: "2ª (g3)", abs_q: 38, freq_hz: 196.00 },
+            { course: 3, label: "3ª (d3)", abs_q: 28, freq_hz: 146.83 },
+            { course: 4, label: "4ª (A2)", abs_q: 18, freq_hz: 110.00 },
+            { course: 5, label: "5ª (G2)", abs_q: 14, freq_hz: 98.00 },
+            { course: 6, label: "6ª (D2)", abs_q: 4,  freq_hz: 73.42 }
+          ]
+        },
+        {
+          id: "turkish_d_a",
+          name: "Turca / Grega Padrão (D - E - A - B - e - a)",
+          description: "Afinação 1 tom acima do padrão clássico, com intervalo de 2ª Maior entre B-A e E-D nas graves.",
+          courses: [
+            { course: 1, label: "1ª (a3)", abs_q: 42, freq_hz: 220.00 },
+            { course: 2, label: "2ª (e3)", abs_q: 32, freq_hz: 164.81 },
+            { course: 3, label: "3ª (B2)", abs_q: 22, freq_hz: 123.47 },
+            { course: 4, label: "4ª (A2)", abs_q: 18, freq_hz: 110.00 },
+            { course: 5, label: "5ª (E2)", abs_q: 8,  freq_hz: 82.41 },
+            { course: 6, label: "6ª (D2)", abs_q: 4,  freq_hz: 73.42 }
+          ]
+        },
+        {
+          id: "iraqi_bashir",
+          name: "Iraquiana / Mounir Bashir (C - D - G - c - f - f')",
+          description: "Foco em quartas justas da 5ª à 2ª corda e oitava aguda ressonante em F4.",
+          courses: [
+            { course: 1, label: "1ª (f4)", abs_q: 58, freq_hz: 349.23 },
+            { course: 2, label: "2ª (f3)", abs_q: 34, freq_hz: 174.61 },
+            { course: 3, label: "3ª (c3)", abs_q: 24, freq_hz: 130.81 },
+            { course: 4, label: "4ª (G2)", abs_q: 14, freq_hz: 98.00 },
+            { course: 5, label: "5ª (D2)", abs_q: 4,  freq_hz: 73.42 },
+            { course: 6, label: "6ª (C2)", abs_q: 0,  freq_hz: 65.41 }
+          ]
+        }
+      ],
+
+      ajnas: [
+        { id: "jins_rast", name: "Jins Rast (Tetracorde)", traditional_root_q: 0, intervals_q: [0, 4, 7, 10], cents_dev: [0, 0, -15, 0], degrees: ["1", "2", "3-", "4"], ghammaz_q: 10, description: "Tetracorde fundamental da família Rast, caracterizado pela 3ª neutra (Sikah ~335 cents)." },
+        { id: "jins_bayati", name: "Jins Bayati (Tetracorde)", traditional_root_q: 4, intervals_q: [0, 3, 6, 10], cents_dev: [0, -15, 0, 0], degrees: ["1", "2-", "b3", "4"], ghammaz_q: 10, description: "Tetracorde lírico e central na música árabe, iniciando com intervalo de 3/4 de tom." },
+        { id: "jins_sikah", name: "Jins Sikah (Tricorde)", traditional_root_q: 5, intervals_q: [0, 3, 7], cents_dev: [+15, 0, 0], degrees: ["1", "2", "3"], ghammaz_q: 7, description: "Tricorde cuja própria tônica repousa sobre uma nota microtonal (Eb-)." },
+        { id: "jins_hijaz", name: "Jins Hijaz (Tetracorde)", traditional_root_q: 4, intervals_q: [0, 2, 8, 10], cents_dev: [0, +10, -10, 0], degrees: ["1", "b2", "3", "4"], ghammaz_q: 10, description: "Tetracorde com salto expressivo de 2ª aumentada (6 quartos de tom) entre o 2º e 3º graus." },
+        { id: "jins_saba", name: "Jins Saba (Tetracorde Diminuto)", traditional_root_q: 4, intervals_q: [0, 3, 6, 8], cents_dev: [0, -15, 0, 0], degrees: ["1", "2-", "b3", "b4"], ghammaz_q: 6, description: "Tetracorde comprimido (4ª diminuta no 4º grau), com Ghammaz no 3º grau." },
+        { id: "jins_kurd", name: "Jins Kurd (Tetracorde)", traditional_root_q: 4, intervals_q: [0, 2, 6, 10], cents_dev: [0, 0, 0, 0], degrees: ["1", "b2", "b3", "4"], ghammaz_q: 10, description: "Tetracorde sem quartos de tom (Semitom - Tom - Tom), idêntico ao tetracorde Frígio." },
+        { id: "jins_nahawand", name: "Jins Nahawand (Tetracorde)", traditional_root_q: 0, intervals_q: [0, 4, 6, 10], cents_dev: [0, 0, 0, 0], degrees: ["1", "2", "b3", "4"], ghammaz_q: 10, description: "Tetracorde menor ocidental (Tom - Semitom - Tom)." },
+        { id: "jins_ajam", name: "Jins Ajam (Tetracorde)", traditional_root_q: 20, intervals_q: [0, 4, 8, 10], cents_dev: [0, 0, 0, 0], degrees: ["1", "2", "3", "4"], ghammaz_q: 10, description: "Tetracorde maior ocidental (Tom - Tom - Semitom)." },
+        { id: "jins_nikriz", name: "Jins Nikriz (Pentacorde)", traditional_root_q: 0, intervals_q: [0, 4, 6, 12, 14], cents_dev: [0, 0, 0, 0, 0], degrees: ["1", "2", "b3", "#4", "5"], ghammaz_q: 14, description: "Pentacorde menor com salto de 2ª aumentada entre b3 e #4." },
+        { id: "jins_athar_kurd", name: "Jins Athar Kurd (Pentacorde)", traditional_root_q: 0, intervals_q: [0, 2, 6, 12, 14], cents_dev: [0, 0, 0, 0, 0], degrees: ["1", "b2", "b3", "#4", "5"], ghammaz_q: 14, description: "Combinação híbrida de Jins Kurd na base com salto de #4 do Nikriz." }
+      ],
+
+      maqamat: [
+        {
+          id: "maqam_rast", name: "Maqam Rast", traditional_root_q: 0, linked_cadence: "cad_rast",
+          lower_jins: "Jins Rast (no 1º grau)", upper_jins_asc: "Jins Rast (no 5º grau)", upper_jins_desc: "Jins Nahawand (no 5º grau)",
+          intervals_asc: [0, 4, 7, 10, 14, 18, 21, 24],
+          intervals_desc: [0, 4, 7, 10, 14, 18, 20, 24],
+          degrees_asc: ["1", "2", "3-", "4", "5", "6", "7-", "8"],
+          degrees_desc: ["1", "2", "3-", "4", "5", "6", "b7", "8"],
+          cents_dev: { 7: -15, 21: -15 },
+          ghammaz_q: 14, lower_limit_q: 10,
+          description: "O pilar central do sistema de Maqamat. Usa 7ª neutra (Awj) na subida e 7ª menor (Ajam) na descida."
+        },
+        {
+          id: "maqam_bayati", name: "Maqam Bayati", traditional_root_q: 4, linked_cadence: "cad_bayati",
+          lower_jins: "Jins Bayati (no 1º grau)", upper_jins_asc: "Jins Nahawand (no 4º grau)", upper_jins_desc: "Jins Nahawand (no 4º grau)",
+          intervals_asc: [0, 3, 6, 10, 14, 16, 20, 24],
+          intervals_desc: [0, 3, 6, 10, 14, 16, 20, 24],
+          degrees_asc: ["1", "2-", "b3", "4", "5", "b6", "b7", "8"],
+          degrees_desc: ["1", "2-", "b3", "4", "5", "b6", "b7", "8"],
+          cents_dev: { 3: -15 },
+          ghammaz_q: 10, lower_limit_q: 10,
+          description: "Maqam profundamente expressivo baseado em D (Dukah), com 2º grau microtonal (Eb-) e Ghammaz no 4º grau (G)."
+        },
+        {
+          id: "maqam_saba", name: "Maqam Saba", traditional_root_q: 4, linked_cadence: "cad_saba",
+          lower_jins: "Jins Saba (no 1º grau)", upper_jins_asc: "Jins Hijaz (no 3º grau)", upper_jins_desc: "Jins Hijaz (no 3º grau)",
+          intervals_asc: [0, 3, 6, 8, 14, 16, 20, 22],
+          intervals_desc: [0, 3, 6, 8, 14, 16, 20, 22],
+          degrees_asc: ["1", "2-", "b3", "b4", "5", "b6", "b7", "b8"],
+          degrees_desc: ["1", "2-", "b3", "b4", "5", "b6", "b7", "b8"],
+          cents_dev: { 3: -15 },
+          ghammaz_q: 6, lower_limit_q: 8,
+          description: "Conhecido pela atmosfera melancólica e espiritual; não fecha na oitava justa no primeiro tetracorde (possui 4ª diminuta)."
+        },
+        {
+          id: "maqam_hijaz", name: "Maqam Hijaz", traditional_root_q: 4, linked_cadence: "cad_hijaz",
+          lower_jins: "Jins Hijaz (no 1º grau)", upper_jins_asc: "Jins Rast (no 4º grau)", upper_jins_desc: "Jins Nahawand (no 4º grau)",
+          intervals_asc: [0, 2, 8, 10, 14, 17, 20, 24],
+          intervals_desc: [0, 2, 8, 10, 14, 16, 20, 24],
+          degrees_asc: ["1", "b2", "3", "4", "5", "6-", "b7", "8"],
+          degrees_desc: ["1", "b2", "3", "4", "5", "b6", "b7", "8"],
+          cents_dev: { 17: -15 },
+          ghammaz_q: 10, lower_limit_q: 10,
+          description: "Combina Jins Hijaz inferior com Jins Rast na subida (com 6ª neutra) e Jins Nahawand na descida (equivalente ao Frígio Dominante)."
+        },
+        {
+          id: "maqam_nahawand", name: "Maqam Nahawand", traditional_root_q: 0, linked_cadence: "cad_nahawand",
+          lower_jins: "Jins Nahawand (no 1º grau)", upper_jins_asc: "Jins Hijaz (no 5º grau)", upper_jins_desc: "Jins Kurd (no 5º grau)",
+          intervals_asc: [0, 4, 6, 10, 14, 16, 22, 24],
+          intervals_desc: [0, 4, 6, 10, 14, 16, 20, 24],
+          degrees_asc: ["1", "2", "b3", "4", "5", "b6", "7", "8"],
+          degrees_desc: ["1", "2", "b3", "4", "5", "b6", "b7", "8"],
+          cents_dev: {},
+          ghammaz_q: 14, lower_limit_q: 10,
+          description: "Isento de quartos de tom; alterna entre Menor Harmônica (ascendente) e Eólio/Menor Natural (descendente)."
+        },
+        {
+          id: "maqam_kurd", name: "Maqam Kurd", traditional_root_q: 4, linked_cadence: "cad_kurd",
+          lower_jins: "Jins Kurd (no 1º grau)", upper_jins_asc: "Jins Nahawand (no 4º grau)", upper_jins_desc: "Jins Nahawand (no 4º grau)",
+          intervals_asc: [0, 2, 6, 10, 14, 16, 20, 24],
+          intervals_desc: [0, 2, 6, 10, 14, 16, 20, 24],
+          degrees_asc: ["1", "b2", "b3", "4", "5", "b6", "b7", "8"],
+          degrees_desc: ["1", "b2", "b3", "4", "5", "b6", "b7", "8"],
+          cents_dev: {},
+          ghammaz_q: 10, lower_limit_q: 10,
+          description: "Equivalente estrutural ao Modo Frígio, mas articulado através da resolução entre Jins Kurd (D) e Jins Nahawand (G)."
+        },
+        {
+          id: "maqam_sikah", name: "Maqam Sikah", traditional_root_q: 5, linked_cadence: "cad_sikah",
+          lower_jins: "Jins Sikah (no 1º grau)", upper_jins_asc: "Jins Rast (no 3º grau)", upper_jins_desc: "Jins Rast (no 3º grau)",
+          intervals_asc: [0, 3, 7, 11, 14, 17, 21, 24],
+          intervals_desc: [0, 3, 7, 11, 14, 17, 21, 24],
+          degrees_asc: ["1", "2", "3", "4", "5-", "6", "7", "8"],
+          degrees_desc: ["1", "2", "3", "4", "5-", "6", "7", "8"],
+          cents_dev: { 0: +15 },
+          ghammaz_q: 7, lower_limit_q: 7,
+          description: "Tônica posicionada sobre o quarto de tom Sikah (Eb-). O Ghammaz fica na 3ª (G natural)."
+        },
+        {
+          id: "maqam_huzam", name: "Maqam Huzam", traditional_root_q: 5, linked_cadence: "cad_sikah",
+          lower_jins: "Jins Sikah (no 1º grau)", upper_jins_asc: "Jins Hijaz (no 3º grau)", upper_jins_desc: "Jins Rast (no 3º grau)",
+          intervals_asc: [0, 3, 7, 9, 15, 17, 21, 24],
+          intervals_desc: [0, 3, 7, 9, 15, 17, 19, 24],
+          degrees_asc: ["1", "2", "3", "b4", "5", "6", "7", "8"],
+          degrees_desc: ["1", "2", "3", "b4", "5", "6", "b7", "8"],
+          cents_dev: { 0: +15 },
+          ghammaz_q: 7, lower_limit_q: 7,
+          description: "Membro mais popular da família Sikah; une a tônica microtonal em Eb- ao Jins Hijaz sobre G."
+        },
+        {
+          id: "maqam_nikriz", name: "Maqam Nikriz", traditional_root_q: 0, linked_cadence: "cad_nikriz",
+          lower_jins: "Jins Nikriz (no 1º grau)", upper_jins_asc: "Jins Nahawand (no 5º grau)", upper_jins_desc: "Jins Nahawand (no 5º grau)",
+          intervals_asc: [0, 4, 6, 12, 14, 18, 20, 24],
+          intervals_desc: [0, 4, 6, 12, 14, 18, 20, 24],
+          degrees_asc: ["1", "2", "b3", "#4", "5", "6", "b7", "8"],
+          degrees_desc: ["1", "2", "b3", "#4", "5", "6", "b7", "8"],
+          cents_dev: {},
+          ghammaz_q: 14, lower_limit_q: 14,
+          description: "Equivalente ao modo Dórico #4 (4º grau da Menor Harmônica), com pentacorde Nikriz na base."
+        },
+        {
+          id: "maqam_nawa_athar", name: "Maqam Nawa Athar", traditional_root_q: 0, linked_cadence: "cad_nawa_athar",
+          lower_jins: "Jins Nikriz (no 1º grau)", upper_jins_asc: "Jins Hijaz (no 5º grau)", upper_jins_desc: "Jins Hijaz (no 5º grau)",
+          intervals_asc: [0, 4, 6, 12, 14, 16, 22, 24],
+          intervals_desc: [0, 4, 6, 12, 14, 16, 22, 24],
+          degrees_asc: ["1", "2", "b3", "#4", "5", "b6", "7", "8"],
+          degrees_desc: ["1", "2", "b3", "#4", "5", "b6", "7", "8"],
+          cents_dev: {},
+          ghammaz_q: 14, lower_limit_q: 14,
+          description: "Dois saltos de 2ª aumentada na mesma oitava (Nikriz + Hijaz). Idêntico à Escala Menor Húngara."
+        },
+        {
+          id: "maqam_ajam", name: "Maqam Ajam", traditional_root_q: 20, linked_cadence: "cad_ajam",
+          lower_jins: "Jins Ajam (no 1º grau)", upper_jins_asc: "Jins Ajam (no 5º grau)", upper_jins_desc: "Jins Nahawand (no 5º grau)",
+          intervals_asc: [0, 4, 8, 10, 14, 18, 22, 24],
+          intervals_desc: [0, 4, 8, 10, 14, 18, 20, 24],
+          degrees_asc: ["1", "2", "3", "4", "5", "6", "7", "8"],
+          degrees_desc: ["1", "2", "3", "4", "5", "6", "b7", "8"],
+          cents_dev: {},
+          ghammaz_q: 14, lower_limit_q: 10,
+          description: "Equivalente à Escala Maior (Jônio) na subida, frequentemente flexionando a 7ª menor (Mixolídio) em cadências descendentes."
+        }
+      ],
+
+      scales: [
+        { id: "mode_ionian", name: "[Modo Grego] Jônio (Maior Natural)", traditional_root_q: 0, intervals_q: [0, 4, 8, 10, 14, 18, 22, 24], degrees: ["1", "2", "3", "4", "5", "6", "7", "8"], ghammaz_q: 10, bridge_maqam: "maqam_ajam", bridge_text: "Maqam Ajam (Subida)", description: "Modo Maior padrão. Nota característica: 4ª Justa." },
+        { id: "mode_dorian", name: "[Modo Grego] Dórico", traditional_root_q: 4, intervals_q: [0, 4, 6, 10, 14, 18, 20, 24], degrees: ["1", "2", "b3", "4", "5", "6", "b7", "8"], ghammaz_q: 18, bridge_maqam: "maqam_nahawand", bridge_text: "Maqam Nahawand (Variante 6M)", description: "Modo menor com 6ª Maior característica (18q)." },
+        { id: "mode_phrygian", name: "[Modo Grego] Frígio", traditional_root_q: 4, intervals_q: [0, 2, 6, 10, 14, 16, 20, 24], degrees: ["1", "b2", "b3", "4", "5", "b6", "b7", "8"], ghammaz_q: 2, bridge_maqam: "maqam_kurd", bridge_text: "Maqam Kurd (Idêntico)", description: "Modo menor com 2ª menor (b2) característica. Espelho exato do Maqam Kurd." },
+        { id: "mode_lydian", name: "[Modo Grego] Lídio", traditional_root_q: 10, intervals_q: [0, 4, 8, 12, 14, 18, 22, 24], degrees: ["1", "2", "3", "#4", "5", "6", "7", "8"], ghammaz_q: 12, bridge_maqam: "maqam_nikriz", bridge_text: "Maqam Nikriz (compartilha #4)", description: "Modo maior com 4ª aumentada (#4) característica." },
+        { id: "mode_mixolydian", name: "[Modo Grego] Mixolídio", traditional_root_q: 14, intervals_q: [0, 4, 8, 10, 14, 18, 20, 24], degrees: ["1", "2", "3", "4", "5", "6", "b7", "8"], ghammaz_q: 20, bridge_maqam: "maqam_ajam", bridge_text: "Maqam Ajam (Descendente)", description: "Modo maior com 7ª menor (b7). Corresponde ao caminho descendente do Maqam Ajam." },
+        { id: "mode_aeolian", name: "[Modo Grego] Eólio (Menor Natural)", traditional_root_q: 0, intervals_q: [0, 4, 6, 10, 14, 16, 20, 24], degrees: ["1", "2", "b3", "4", "5", "b6", "b7", "8"], ghammaz_q: 16, bridge_maqam: "maqam_nahawand", bridge_text: "Maqam Nahawand (Descendente)", description: "Escala menor natural com b6 característica." },
+        { id: "mode_locrian", name: "[Modo Grego] Lócrio", traditional_root_q: 4, intervals_q: [0, 2, 6, 10, 12, 16, 20, 24], degrees: ["1", "b2", "b3", "4", "b5", "b6", "b7", "8"], ghammaz_q: 12, bridge_maqam: "maqam_saba", bridge_text: "Maqam Saba (afim pela 4ª dim / b5)", description: "Modo meio-diminuto com b2 e b5." },
+        { id: "scale_harmonic_minor", name: "[Menor Alterada] Menor Harmônica", traditional_root_q: 0, intervals_q: [0, 4, 6, 10, 14, 16, 22, 24], degrees: ["1", "2", "b3", "4", "5", "b6", "7", "8"], ghammaz_q: 22, bridge_maqam: "maqam_nahawand", bridge_text: "Maqam Nahawand (Ascendente)", description: "Idêntica ao Maqam Nahawand ascendente (Jins Nahawand + Jins Hijaz)." },
+        { id: "scale_phrygian_dom", name: "[Menor Alterada] Frígio Dominante", traditional_root_q: 4, intervals_q: [0, 2, 8, 10, 14, 16, 20, 24], degrees: ["1", "b2", "3", "4", "5", "b6", "b7", "8"], ghammaz_q: 8, bridge_maqam: "maqam_hijaz", bridge_text: "Maqam Hijaz (Descendente)", description: "5º modo da Menor Harmônica. Estrutura exata do Maqam Hijaz sem quarto de tom." },
+        { id: "scale_double_harmonic", name: "[Menor Alterada] Dupla Harmônica (Bizantina)", traditional_root_q: 0, intervals_q: [0, 2, 8, 10, 14, 16, 22, 24], degrees: ["1", "b2", "3", "4", "5", "b6", "7", "8"], ghammaz_q: 22, bridge_maqam: "maqam_hijaz", bridge_text: "Maqam Hijaz Kar (Hijaz + Hijaz)", description: "Dois tetracordes Hijaz simétricos (1 - b2 - 3 - 4 - 5 - b6 - 7)." },
+        { id: "scale_hungarian_minor", name: "[Menor Alterada] Menor Húngara", traditional_root_q: 0, intervals_q: [0, 4, 6, 12, 14, 16, 22, 24], degrees: ["1", "2", "b3", "#4", "5", "b6", "7", "8"], ghammaz_q: 12, bridge_maqam: "maqam_nawa_athar", bridge_text: "Maqam Nawa Athar (Idêntico)", description: "Menor harmônica com #4. Equivalente exato do Maqam Nawa Athar." },
+        { id: "sym_whole_tone", name: "[Simétrica] Tons Inteiros (Hexatônica)", traditional_root_q: 0, intervals_q: [0, 4, 8, 12, 16, 20, 24], degrees: ["1", "2", "3", "#4", "#5", "b7", "8"], symmetry_step_q: 4, description: "Simetria contínua a cada 1 tom (4 quartos de tom). Gera shapes diagonais uniformes nas ordens em 4ª justa." },
+        { id: "sym_dim_wh", name: "[Simétrica] Diminuta (Tom - Semitom)", traditional_root_q: 0, intervals_q: [0, 4, 6, 10, 12, 16, 18, 22, 24], degrees: ["1", "2", "b3", "4", "b5", "b6", "6", "7", "8"], symmetry_step_q: 6, description: "Escala octatônica simétrica a cada 1,5 tom (6 quartos de tom = 3ª menor). Eixos destacados em dourado." },
+        { id: "sym_dim_hw", name: "[Simétrica] Diminuta Dom. (Semitom - Tom)", traditional_root_q: 4, intervals_q: [0, 2, 6, 8, 12, 14, 18, 20, 24], degrees: ["1", "b2", "#2", "3", "#4", "5", "6", "b7", "8"], symmetry_step_q: 6, bridge_maqam: "maqam_saba", bridge_text: "Jins Saba Zamzama (primeiros 4 graus)", description: "Octatônica dominante. Os 4 primeiros graus formam o Jins Saba Zamzama." },
+        { id: "sym_augmented", name: "[Simétrica] Aumentada (Hexatônica)", traditional_root_q: 0, intervals_q: [0, 6, 8, 14, 16, 22, 24], degrees: ["1", "#2", "3", "5", "b6", "7", "8"], symmetry_step_q: 8, description: "Simétrica a cada 3ª Maior (8 quartos de tom). Excelente para explorar o salto F-A entre a 5ª e 4ª cordas." },
+        { id: "sym_chromatic_12", name: "[Simétrica] Cromática Ocidental (12-TET)", traditional_root_q: 0, intervals_q: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24], degrees: ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7", "8"], symmetry_step_q: 24, description: "Todas as 12 notas fixas temperadas para treino mecânico de 4 dedos por corda." },
+        { id: "sym_arab_24", name: "[Simétrica] Grade Microtonal Completa (24-TET)", traditional_root_q: 0, intervals_q: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24], degrees: ["1","1+","b2","2-","2","2+","b3","3-","3","4-","4","4+","b5","5-","5","5+","b6","6-","6","6+","b7","7-","7","8-","8"], symmetry_step_q: 24, description: "Mapa completo com todos os 24 quartos de tom por oitava." }
+      ],
+
+      chords: [
+        { id: "chord_oud_power", short_symbol: "5", name: "[Modal Oud] Quinta Aberta / Bordão (1 - 5 - 8)", traditional_root_q: 0, intervals_q: [0, 14], degrees: ["1", "5"], cents_dev: [0, 0], ghammaz_q: 14, bridge_maqam: "maqam_rast", bridge_text: "Universal (Todos os Maqamat)", description: "Voicing tradicional de acompanhamento no Oud (sem terça), preservando a pureza microtonal da melodia." },
+        { id: "chord_rast_triad", short_symbol: "Rast", name: "[Microtonal] Acorde Rast Neutro (1 - 3- - 5)", traditional_root_q: 0, intervals_q: [0, 7, 14], degrees: ["1", "3-", "5"], cents_dev: [0, -15, 0], ghammaz_q: 7, bridge_maqam: "maqam_rast", bridge_text: "Maqam Rast / Jins Rast", description: "Tríade com Terça Neutra (Sikah em 7q / ~335 cents). Nem maior nem menor — sonoridade autêntica do Maqam Rast." },
+        { id: "chord_rast_7", short_symbol: "Rast7-", name: "[Microtonal] Rast com 7ª Neutra (1 - 3- - 5 - 7-)", traditional_root_q: 0, intervals_q: [0, 7, 14, 21], degrees: ["1", "3-", "5", "7-"], cents_dev: [0, -15, 0, -15], ghammaz_q: 7, bridge_maqam: "maqam_rast", bridge_text: "Maqam Rast (Subida com Awj)", description: "Tétrade microtonal unindo a 3ª neutra (Sikah) e a 7ª neutra (Awj)." },
+        { id: "chord_bayati_modal", short_symbol: "Bayati", name: "[Microtonal] Cluster Modal Bayati (1 - 2- - 4 - 5)", traditional_root_q: 4, intervals_q: [0, 3, 10, 14], degrees: ["1", "2-", "4", "5"], cents_dev: [0, -15, 0, 0], ghammaz_q: 10, bridge_maqam: "maqam_bayati", bridge_text: "Maqam Bayati", description: "Voicing suspenso com 2ª neutra (3q) e 4ª justa (Ghammaz), ideal para cadências em Bayati." },
+        { id: "chord_hijaz_modal", short_symbol: "Hijaz", name: "[Modal Oud] Acorde Hijaz (1 - b2 - 3 - 5)", traditional_root_q: 4, intervals_q: [0, 2, 8, 14], degrees: ["1", "b2", "3", "5"], cents_dev: [0, +10, -10, 0], ghammaz_q: 8, bridge_maqam: "maqam_hijaz", bridge_text: "Maqam Hijaz", description: "Tríade Maior adicionada da 2ª menor (b2), destacando o intervalo de 2ª aumentada característico do Hijaz." },
+        { id: "chord_saba_modal", short_symbol: "Saba", name: "[Microtonal] Acorde Saba Diminuto (1 - 2- - b3 - b4)", traditional_root_q: 4, intervals_q: [0, 3, 6, 8], degrees: ["1", "2-", "b3", "b4"], cents_dev: [0, -15, 0, 0], ghammaz_q: 6, bridge_maqam: "maqam_saba", bridge_text: "Maqam Saba", description: "Voicing dramático contendo a 2ª neutra (3q), 3ª menor (6q) e a 4ª diminuta (8q = Ghammaz)." },
+        { id: "chord_sikah_modal", short_symbol: "Sikah", name: "[Microtonal] Acorde Sikah / Huzam (1 - 3- - 5-)", traditional_root_q: 5, intervals_q: [0, 7, 14], degrees: ["1", "3", "5"], cents_dev: [+15, 0, 0], ghammaz_q: 7, bridge_maqam: "maqam_huzam", bridge_text: "Maqam Sikah / Huzam", description: "Acorde construído sobre a tônica microtonal Sikah (Eb-) com G natural (7q) e Bb natural (14q)." },
+        { id: "chord_sus4", short_symbol: "sus4", name: "[Modal Oud] Suspenso Sus4 (1 - 4 - 5)", traditional_root_q: 4, intervals_q: [0, 10, 14], degrees: ["1", "4", "5"], cents_dev: [0, 0, 0], ghammaz_q: 10, bridge_maqam: "maqam_kurd", bridge_text: "Acompanhamento neutro p/ Bayati, Kurd e Rast", description: "Substitui a terça pela 4ª justa, evitando choque com os quartos de tom da melodia." },
+        { id: "chord_sus2", short_symbol: "sus2", name: "[Modal Oud] Suspenso Sus2 (1 - 2 - 5)", traditional_root_q: 0, intervals_q: [0, 4, 14], degrees: ["1", "2", "5"], cents_dev: [0, 0, 0], ghammaz_q: 4, bridge_maqam: "maqam_nahawand", bridge_text: "Acompanhamento aberto p/ Nahawand e Rast", description: "Sonoridade aberta em quintas e segundas, muito idiomática nas cordas soltas do Oud." },
+        { id: "chord_quartal", short_symbol: "4tal", name: "[Modal Oud] Quartal (1 - 4 - b7)", traditional_root_q: 4, intervals_q: [0, 10, 20], degrees: ["1", "4", "b7"], cents_dev: [0, 0, 0], ghammaz_q: 10, description: "Empilhamento de quartas justas; aproveita a simetria natural das ordens do Oud." },
+        { id: "chord_maj", short_symbol: "", name: "[Tríade] Maior (1 - 3 - 5)", traditional_root_q: 0, intervals_q: [0, 8, 14], degrees: ["1", "3", "5"], cents_dev: [0, 0, 0], ghammaz_q: 8, bridge_maqam: "maqam_ajam", bridge_text: "Maqam Ajam / Jins Ajam", description: "Tríade maior fundamental (Tônica, 3ª Maior em 8q e 5ª Justa em 14q)." },
+        { id: "chord_min", short_symbol: "m", name: "[Tríade] Menor (1 - b3 - 5)", traditional_root_q: 0, intervals_q: [0, 6, 14], degrees: ["1", "b3", "5"], cents_dev: [0, 0, 0], ghammaz_q: 6, bridge_maqam: "maqam_nahawand", bridge_text: "Maqam Nahawand / Kurd", description: "Tríade menor fundamental (Tônica, 3ª Menor em 6q e 5ª Justa em 14q)." },
+        { id: "chord_dim", short_symbol: "dim", name: "[Tríade] Diminuta (1 - b3 - b5)", traditional_root_q: 4, intervals_q: [0, 6, 12], degrees: ["1", "b3", "b5"], cents_dev: [0, 0, 0], ghammaz_q: 12, bridge_maqam: "maqam_saba", bridge_text: "Jins Saba Zamzama / Lócrio", description: "Tríade simétrica de terças menores (0q, 6q, 12q)." },
+        { id: "chord_aug", short_symbol: "aug", name: "[Tríade] Aumentada (1 - 3 - #5)", traditional_root_q: 0, intervals_q: [0, 8, 16], degrees: ["1", "3", "#5"], cents_dev: [0, 0, 0], ghammaz_q: 16, description: "Tríade simétrica de terças maiores (0q, 8q, 16q)." },
+        { id: "chord_dom7", short_symbol: "7", name: "[Tétrade] 7ª Dominante — 7 (1 - 3 - 5 - b7)", traditional_root_q: 4, intervals_q: [0, 8, 14, 20], degrees: ["1", "3", "5", "b7"], cents_dev: [0, 0, 0, 0], ghammaz_q: 8, bridge_maqam: "maqam_hijaz", bridge_text: "Maqam Hijaz (Harmonia da Tônica)", description: "Tétrade dominante maior com 7ª menor. Base harmônica direta para o Jins Hijaz." },
+        { id: "chord_maj7", short_symbol: "maj7", name: "[Tétrade] 7ª Maior — Maj7 (1 - 3 - 5 - 7)", traditional_root_q: 0, intervals_q: [0, 8, 14, 22], degrees: ["1", "3", "5", "7"], cents_dev: [0, 0, 0, 0], ghammaz_q: 22, bridge_maqam: "maqam_ajam", bridge_text: "Maqam Ajam", description: "Tétrade maior com 7ª maior (22q)." },
+        { id: "chord_min7", short_symbol: "m7", name: "[Tétrade] Menor com 7ª — m7 (1 - b3 - 5 - b7)", traditional_root_q: 0, intervals_q: [0, 6, 14, 20], degrees: ["1", "b3", "5", "b7"], cents_dev: [0, 0, 0, 0], ghammaz_q: 6, bridge_maqam: "maqam_nahawand", bridge_text: "Maqam Nahawand (Descendente) / Kurd", description: "Tétrade menor com 7ª menor." },
+        { id: "chord_m7b5", short_symbol: "m7b5", name: "[Tétrade] Meio-Diminuto — m7b5 (1 - b3 - b5 - b7)", traditional_root_q: 4, intervals_q: [0, 6, 12, 20], degrees: ["1", "b3", "b5", "b7"], cents_dev: [0, 0, 0, 0], ghammaz_q: 12, bridge_maqam: "maqam_saba", bridge_text: "Maqam Lami / Saba", description: "Acorde meio-diminuto, ideal para harmonizar cadências em Saba e Lami." }
+      ],
+
+      cadences: [
+        {
+          id: "cad_rast",
+          name: "Qafla Maqam Rast (I - IV - V - bVII - I)",
+          traditional_root_q: 0,
+          bridge_maqam: "maqam_rast",
+          bridge_text: "Maqam Rast",
+          description: "Cadência modal clássica do Maqam Rast: parte da tríade neutra na tônica (Rast), passa pelo 4º grau (Jaharkah), toca o Ghammaz no 5º grau (Nawa) e utiliza o acorde Maior da 7ª menor descendente (Ajam) para resolver no Qarar.",
+          steps: [
+            { roman: "I (Qarar)", offset_q: 0, chord_id: "chord_rast_triad", role: "Tônica c/ 3ª Neutra" },
+            { roman: "IV", offset_q: 10, chord_id: "chord_maj", role: "Subdominante (Jaharkah)" },
+            { roman: "V (Ghammaz)", offset_q: 14, chord_id: "chord_rast_triad", role: "Pivô Modal (Nawa)" },
+            { roman: "bVII (Desc.)", offset_q: 20, chord_id: "chord_maj", role: "Subtônica (Ajam)" },
+            { roman: "I (Qafla)", offset_q: 0, chord_id: "chord_rast_triad", role: "Resolução Final" }
+          ]
+        },
+        {
+          id: "cad_bayati",
+          name: "Qafla Maqam Bayati (I - iv - bVII - v - I)",
+          traditional_root_q: 4,
+          bridge_maqam: "maqam_bayati",
+          bridge_text: "Maqam Bayati",
+          description: "Cadência tradicional do Bayati: afirma o cluster microtonal na tônica (Dukah), sobe para o Jins Nahawand no 4º grau (Ghammaz em G), apoia na subtônica maior um tom abaixo (C) e resolve com suspensão modal.",
+          steps: [
+            { roman: "I (Qarar)", offset_q: 0, chord_id: "chord_bayati_modal", role: "Tônica Bayati" },
+            { roman: "iv (Ghammaz)", offset_q: 10, chord_id: "chord_min", role: "2º Jins (Nahawand)" },
+            { roman: "bVII (Rast)", offset_q: 20, chord_id: "chord_maj", role: "Apoio Subtônico" },
+            { roman: "v (Sus4)", offset_q: 14, chord_id: "chord_sus4", role: "Suspensão Dominante" },
+            { roman: "I (Qafla)", offset_q: 0, chord_id: "chord_bayati_modal", role: "Repouso (Dukah)" }
+          ]
+        },
+        {
+          id: "cad_hijaz",
+          name: "Qafla Maqam Hijaz / Andaluza (iv - bIII - bII - I)",
+          traditional_root_q: 4,
+          bridge_maqam: "maqam_hijaz",
+          bridge_text: "Maqam Hijaz",
+          description: "Progressão descendente icônica da família Hijaz e do repertório Mediterrâneo/Andaluz: desce em graus conjuntos a partir do Ghammaz (4º grau menor) passando pelo bII Napolitano até repousar na tônica Maior/Hijaz.",
+          steps: [
+            { roman: "I (Estab.)", offset_q: 0, chord_id: "chord_hijaz_modal", role: "Centro Hijaz" },
+            { roman: "iv (Ghammaz)", offset_q: 10, chord_id: "chord_min", role: "Pivô no 4º Grau" },
+            { roman: "bIII", offset_q: 6, chord_id: "chord_maj", role: "Descida Modal" },
+            { roman: "bII", offset_q: 2, chord_id: "chord_maj", role: "Tensão b2 (Frígia)" },
+            { roman: "I (Qafla)", offset_q: 0, chord_id: "chord_maj", role: "Resolução Maior/Hijaz" }
+          ]
+        },
+        {
+          id: "cad_saba",
+          name: "Qafla Maqam Saba (i° - bIII - bII - i°)",
+          traditional_root_q: 4,
+          bridge_maqam: "maqam_saba",
+          bridge_text: "Maqam Saba",
+          description: "Reflete a tensão única do Maqam Saba: parte do tetracorde comprimido (com 4ª diminuta), ilumina o Ghammaz no 3º grau menor (Jins Hijaz em F) e retorna pelo bII para o acorde Saba na tônica.",
+          steps: [
+            { roman: "i° (Saba)", offset_q: 0, chord_id: "chord_saba_modal", role: "Tônica Saba" },
+            { roman: "bIII (Ghammaz)", offset_q: 6, chord_id: "chord_hijaz_modal", role: "Jins Hijaz no 3º Grau" },
+            { roman: "bVII", offset_q: 20, chord_id: "chord_min", role: "Passagem Grave" },
+            { roman: "bII", offset_q: 2, chord_id: "chord_maj", role: "Aproximação Semitonal" },
+            { roman: "i° (Qafla)", offset_q: 0, chord_id: "chord_saba_modal", role: "Resolução Saba" }
+          ]
+        },
+        {
+          id: "cad_nahawand",
+          name: "Qafla Maqam Nahawand (i - iv - bVI - V7 - i)",
+          traditional_root_q: 0,
+          bridge_maqam: "maqam_nahawand",
+          bridge_text: "Maqam Nahawand",
+          description: "Cadência dramática do Maqam Nahawand: explora a subdominante menor, o grau bVI e utiliza o Jins Hijaz no 5º grau (acorde V7 com sensível) para cravar a resolução na tônica menor.",
+          steps: [
+            { roman: "i (Qarar)", offset_q: 0, chord_id: "chord_min", role: "Tônica Nahawand" },
+            { roman: "iv", offset_q: 10, chord_id: "chord_min", role: "Subdominante Menor" },
+            { roman: "bVI", offset_q: 16, chord_id: "chord_maj", role: "Expansão Lírica" },
+            { roman: "V7 (Ghammaz)", offset_q: 14, chord_id: "chord_dom7", role: "Jins Hijaz Dominante" },
+            { roman: "i (Qafla)", offset_q: 0, chord_id: "chord_min", role: "Resolução Menor" }
+          ]
+        },
+        {
+          id: "cad_kurd",
+          name: "Qafla Maqam Kurd / Frígia (i - iv - bIII - bII - i)",
+          traditional_root_q: 4,
+          bridge_maqam: "maqam_kurd",
+          bridge_text: "Maqam Kurd",
+          description: "Cadência suave sem quartos de tom caracterizada pelo movimento do acorde bII Maior (um semitom acima da tônica) resolvendo sobre o acorde menor/sus4 do Qarar.",
+          steps: [
+            { roman: "i (Qarar)", offset_q: 0, chord_id: "chord_min", role: "Tônica Kurd" },
+            { roman: "iv (Ghammaz)", offset_q: 10, chord_id: "chord_min", role: "Pivô no 4º Grau" },
+            { roman: "bVII", offset_q: 20, chord_id: "chord_maj", role: "Apoio Modal" },
+            { roman: "bII (Kurdi)", offset_q: 2, chord_id: "chord_maj", role: "Cadência b2 → 1" },
+            { roman: "i (Qafla)", offset_q: 0, chord_id: "chord_min", role: "Repouso Kurd" }
+          ]
+        },
+        {
+          id: "cad_sikah",
+          name: "Qafla Maqam Sikah / Huzam (I- - III - II - I-)",
+          traditional_root_q: 5,
+          bridge_maqam: "maqam_huzam",
+          bridge_text: "Maqam Sikah / Huzam",
+          description: "Cadência com tônica sobre quarto de tom (Eb-): articula o Ghammaz na 3ª (G natural com Jins Hijaz/Rast), passa pelo grau inteiro F maior (Dukah/Jaharkah) e resolve na tônica microtonal Sikah.",
+          steps: [
+            { roman: "I- (Sikah)", offset_q: 0, chord_id: "chord_sikah_modal", role: "Tônica em 1/4 de Tom" },
+            { roman: "III (Ghammaz)", offset_q: 7, chord_id: "chord_hijaz_modal", role: "Pivô em G (Nawa)" },
+            { roman: "II", offset_q: 3, chord_id: "chord_maj", role: "Apoio F Maior" },
+            { roman: "bVII-", offset_q: 19, chord_id: "chord_oud_power", role: "Subtônica Grave" },
+            { roman: "I- (Qafla)", offset_q: 0, chord_id: "chord_sikah_modal", role: "Resolução Sikah" }
+          ]
+        },
+        {
+          id: "cad_nikriz",
+          name: "Qafla Maqam Nikriz (i - II7 - iv - v - i)",
+          traditional_root_q: 0,
+          bridge_maqam: "maqam_nikriz",
+          bridge_text: "Maqam Nikriz",
+          description: "Destaca a 4ª aumentada (#4) característica do pentacorde Nikriz por meio do acorde Maior/Dominante sobre o 2º grau (II7) combinado ao Ghammaz menor no 5º grau.",
+          steps: [
+            { roman: "i (Qarar)", offset_q: 0, chord_id: "chord_min", role: "Tônica Nikriz" },
+            { roman: "II7 (#4)", offset_q: 4, chord_id: "chord_dom7", role: "Destaque da #4" },
+            { roman: "v (Ghammaz)", offset_q: 14, chord_id: "chord_min", role: "Jins Nahawand no 5º" },
+            { roman: "bVII", offset_q: 20, chord_id: "chord_maj", role: "Cadência Descendente" },
+            { roman: "i (Qafla)", offset_q: 0, chord_id: "chord_min", role: "Repouso Final" }
+          ]
+        },
+        {
+          id: "cad_nawa_athar",
+          name: "Qafla Maqam Nawa Athar (i - #iv° - V - bVI - V7 - i)",
+          traditional_root_q: 0,
+          bridge_maqam: "maqam_nawa_athar",
+          bridge_text: "Maqam Nawa Athar",
+          description: "Explora a dupla segunda aumentada (Nikriz + Hijaz): cria forte atração cromática entre o #4 diminuto e o 5º grau com Jins Hijaz antes de resolver na tônica menor.",
+          steps: [
+            { roman: "i (Qarar)", offset_q: 0, chord_id: "chord_min", role: "Tônica Nawa Athar" },
+            { roman: "#iv°", offset_q: 12, chord_id: "chord_dim", role: "Sensível do Ghammaz" },
+            { roman: "V (Ghammaz)", offset_q: 14, chord_id: "chord_hijaz_modal", role: "Jins Hijaz no 5º Grau" },
+            { roman: "bVI", offset_q: 16, chord_id: "chord_maj", role: "Engano Modal (Hisar)" },
+            { roman: "i (Qafla)", offset_q: 0, chord_id: "chord_min", role: "Resolução Dramática" }
+          ]
+        },
+        {
+          id: "cad_ajam",
+          name: "Qafla Maqam Ajam (I - IV - bVII - V7 - I)",
+          traditional_root_q: 20,
+          bridge_maqam: "maqam_ajam",
+          bridge_text: "Maqam Ajam",
+          description: "Combina o brilho do modo maior com a flexão característica da 7ª menor descendente (acorde bVII) antes da preparação dominante final.",
+          steps: [
+            { roman: "I (Qarar)", offset_q: 0, chord_id: "chord_maj", role: "Tônica Ajam" },
+            { roman: "IV", offset_q: 10, chord_id: "chord_maj", role: "Subdominante" },
+            { roman: "bVII (Desc.)", offset_q: 20, chord_id: "chord_maj", role: "Flexão Descendente" },
+            { roman: "V7 (Ghammaz)", offset_q: 14, chord_id: "chord_dom7", role: "Dominante (5º Grau)" },
+            { roman: "I (Qafla)", offset_q: 0, chord_id: "chord_maj", role: "Resolução Maior" }
+          ]
+        }
+      ]
+    };
+
+    /*************************************************************************
+     * 2. ESTADO REATIVO DA APLICAÇÃO
+     *************************************************************************/
+    const state = {
+      tuningId: "syrian_arabic_c_c",
+      mode: "MAQAM",            // "MAQAM" | "JINS" | "SCALE" | "CHORD" | "CADENCE"
+      entityId: "maqam_rast",
+      rootQ: 0,                 // Tônica global (0 = C)
+      cadenceStepIndex: 0,      // Índice do acorde atualmente selecionado na barra de Cadência (0 a 4)
+      direction: "ASC",         // "ASC" | "DESC"
+      chordVoicingOnly: true,   // true = 1 nota ergonômica por corda (Voicing); false = Todas as notas (Arpejo)
+      shapeMode: "FULL_NECK",   // "FULL_NECK" | "OPEN_FIRST_POS" | "CLOSED_BOX"
+      boxAnchorQ: 2,            // Quarto de tom inicial do Dedo 1 no modo CLOSED_BOX
+      jinsFilter: "ALL",        // "ALL" | "LOWER" | "UPPER"
+      labelMode: "NOTE_NAME",   // "NOTE_NAME" | "DEGREE" | "FINGER" | "ARABIC"
+      showSemiGuides: true,
+      showMicroGuides: true,
+      showGhostNotes: true,
+      leftHanded: false,
+      droneActive: false
+    };
+
+    let currentChordVoicingFreqs = [];
+    let cadenceSequenceTimers = [];
+
+    /*************************************************************************
+     * 3. MOTOR DE ÁUDIO MICROTONAL (WEB AUDIO API)
+     *************************************************************************/
+    let audioCtx = null;
+    let droneOsc = null;
+    let droneGain = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function clearCadenceTimers() {
+      cadenceSequenceTimers.forEach(t => clearTimeout(t));
+      cadenceSequenceTimers = [];
+    }
+
+    function playPluckedNote(freqHz, duration = 1.25) {
+      initAudio();
+      const now = audioCtx.currentTime;
+
+      const osc1 = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+
+      osc1.type = "triangle";
+      osc2.type = "sawtooth";
+
+      osc1.frequency.setValueAtTime(freqHz, now);
+      osc2.frequency.setValueAtTime(freqHz * Math.pow(2, 1.5 / 1200), now);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(freqHz * 6, now);
+      filter.frequency.exponentialRampToValueAtTime(freqHz * 1.4, now + duration * 0.7);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.24, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
+    }
+
+    function toggleDrone() {
+      initAudio();
+      const btn = document.getElementById("btn-drone");
+      if (state.droneActive) {
+        if (droneOsc) {
+          droneOsc.stop();
+          droneOsc.disconnect();
+          droneOsc = null;
+        }
+        state.droneActive = false;
+        btn.textContent = "🔊 Drone na Tônica: OFF";
+        btn.classList.remove("active-toggle");
+      } else {
+        const rootFreq = 65.41 * Math.pow(2, (state.rootQ * 50) / 1200) * 2;
+        droneOsc = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        droneGain = audioCtx.createGain();
+
+        droneOsc.type = "sawtooth";
+        droneOsc.frequency.setValueAtTime(rootFreq, audioCtx.currentTime);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(rootFreq * 2.5, audioCtx.currentTime);
+
+        droneGain.gain.setValueAtTime(0.10, audioCtx.currentTime);
+
+        droneOsc.connect(filter);
+        filter.connect(droneGain);
+        droneGain.connect(audioCtx.destination);
+        droneOsc.start();
+
+        state.droneActive = true;
+        btn.textContent = `🔊 Drone (${PITCH_CLASSES_24[state.rootQ].flat}): ON`;
+        btn.classList.add("active-toggle");
+      }
+    }
+
+    function updateDroneFreqIfActive() {
+      if (state.droneActive && droneOsc && audioCtx) {
+        const rootFreq = 65.41 * Math.pow(2, (state.rootQ * 50) / 1200) * 2;
+        droneOsc.frequency.setValueAtTime(rootFreq, audioCtx.currentTime);
+        document.getElementById("btn-drone").textContent = `🔊 Drone (${PITCH_CLASSES_24[state.rootQ].flat}): ON`;
+      }
+    }
+
+    /*************************************************************************
+     * 4. LÓGICA GEOMÉTRICA E RESOLUÇÃO MODAL / ACORDES / CADÊNCIAS
+     *************************************************************************/
+    const MAX_NECK_Q = 16;
+
+    function getPhysicalX(qFromNut, nutX, neckLengthPx, isLeftHanded) {
+      if (qFromNut === 0) return nutX;
+      const ratio = (q) => 1 - Math.pow(2, -q / 24);
+      const norm = ratio(qFromNut) / ratio(MAX_NECK_Q);
+      return isLeftHanded ? (nutX - norm * neckLengthPx) : (nutX + norm * neckLengthPx);
+    }
+
+    /**
+     * Resolve a estrutura ativa. No modo CADENCE, resolve o acorde correspondente ao passo atual (cadenceStepIndex).
+     */
+    function getActiveStructure() {
+      if (state.mode === "MAQAM") {
+        const m = DB.maqamat.find(x => x.id === state.entityId) || DB.maqamat[0];
+        const rawIntervals = state.direction === "ASC" ? m.intervals_asc : m.intervals_desc;
+        const rawDegrees = state.direction === "ASC" ? m.degrees_asc : m.degrees_desc;
+
+        let filteredIndices = rawIntervals.map((_, i) => i);
+        if (state.jinsFilter === "LOWER") {
+          filteredIndices = filteredIndices.filter(i => rawIntervals[i] <= m.lower_limit_q);
+        } else if (state.jinsFilter === "UPPER") {
+          filteredIndices = filteredIndices.filter(i => rawIntervals[i] >= m.ghammaz_q);
+        }
+
+        return {
+          entity: m,
+          effectiveRootQ: state.rootQ,
+          intervals: filteredIndices.map(i => rawIntervals[i]),
+          degrees: filteredIndices.map(i => rawDegrees[i]),
+          centsMap: m.cents_dev || {},
+          ghammazOffsets: [m.ghammaz_q]
+        };
+      } else if (state.mode === "JINS") {
+        const j = DB.ajnas.find(x => x.id === state.entityId) || DB.ajnas[0];
+        const centsMap = {};
+        j.intervals_q.forEach((intQ, idx) => {
+          if (j.cents_dev[idx]) centsMap[intQ] = j.cents_dev[idx];
+        });
+        return {
+          entity: j,
+          effectiveRootQ: state.rootQ,
+          intervals: j.intervals_q,
+          degrees: j.degrees,
+          centsMap,
+          ghammazOffsets: [j.ghammaz_q]
+        };
+      } else if (state.mode === "CHORD") {
+        const c = DB.chords.find(x => x.id === state.entityId) || DB.chords[0];
+        const centsMap = {};
+        c.intervals_q.forEach((intQ, idx) => {
+          if (c.cents_dev && c.cents_dev[idx]) centsMap[intQ] = c.cents_dev[idx];
+        });
+        return {
+          entity: c,
+          effectiveRootQ: state.rootQ,
+          intervals: c.intervals_q,
+          degrees: c.degrees,
+          centsMap,
+          ghammazOffsets: c.ghammaz_q !== undefined ? [c.ghammaz_q] : []
+        };
+      } else if (state.mode === "CADENCE") {
+        const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
+        const stepIdx = Math.min(state.cadenceStepIndex, cad.steps.length - 1);
+        const stepObj = cad.steps[stepIdx];
+        const chordObj = DB.chords.find(c => c.id === stepObj.chord_id) || DB.chords[0];
+        const effectiveRootQ = (state.rootQ + stepObj.offset_q) % 24;
+
+        const centsMap = {};
+        chordObj.intervals_q.forEach((intQ, idx) => {
+          if (chordObj.cents_dev && chordObj.cents_dev[idx]) centsMap[intQ] = chordObj.cents_dev[idx];
+        });
+
+        return {
+          entity: cad,
+          stepObj,
+          chordObj,
+          effectiveRootQ,
+          intervals: chordObj.intervals_q,
+          degrees: chordObj.degrees,
+          centsMap,
+          ghammazOffsets: chordObj.ghammaz_q !== undefined ? [chordObj.ghammaz_q] : []
+        };
+      } else {
+        const s = DB.scales.find(x => x.id === state.entityId) || DB.scales[0];
+        let ghammazOffsets = [];
+        if (s.symmetry_step_q && s.symmetry_step_q < 24) {
+          for (let q = s.symmetry_step_q; q < 24; q += s.symmetry_step_q) {
+            ghammazOffsets.push(q);
+          }
+        } else if (s.ghammaz_q !== undefined) {
+          ghammazOffsets = [s.ghammaz_q];
+        }
+        return {
+          entity: s,
+          effectiveRootQ: state.rootQ,
+          intervals: s.intervals_q,
+          degrees: s.degrees,
+          centsMap: {},
+          ghammazOffsets
+        };
+      }
+    }
+
+    function evaluateShapeAndFinger(qFromNut) {
+      if (state.shapeMode === "FULL_NECK") {
+        const defaultFinger = qFromNut === 0 ? 0 : Math.min(4, Math.ceil(qFromNut / 2));
+        return { inBox: true, finger: defaultFinger };
+      }
+      if (state.shapeMode === "OPEN_FIRST_POS") {
+        const inBox = qFromNut >= 0 && qFromNut <= 8;
+        const finger = qFromNut === 0 ? 0 : Math.ceil(qFromNut / 2);
+        return { inBox, finger };
+      }
+      const minQ = state.boxAnchorQ;
+      const maxQ = minQ + 7;
+      const inBox = qFromNut >= minQ && qFromNut <= maxQ;
+      const finger = inBox ? Math.min(4, Math.floor((qFromNut - minQ) / 2) + 1) : "-";
+      return { inBox, finger };
+    }
+
+    function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ) {
+      const selectedByCourse = {};
+      const minQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
+      const maxQ = state.shapeMode === "CLOSED_BOX" ? (state.boxAnchorQ + 7) : 8;
+
+      let lowestNoteFound = false;
+
+      for (let cIdx = 5; cIdx >= 0; cIdx--) {
+        const cObj = tuning.courses[cIdx];
+        const candidates = [];
+
+        for (let qFromNut = minQ; qFromNut <= maxQ; qFromNut++) {
+          const absQ = cObj.abs_q + qFromNut;
+          const pitchClassQ = ((absQ % 24) + 24) % 24;
+          const offsetFromRoot = ((pitchClassQ - effectiveRootQ) % 24 + 24) % 24;
+
+          if (activeOffsetMap.has(offsetFromRoot)) {
+            let score = 100 - qFromNut * 3;
+            if (qFromNut === 0 && state.shapeMode !== "CLOSED_BOX") score += 25;
+            if (!lowestNoteFound && offsetFromRoot === 0) score += 60;
+            if (cIdx <= 3 && offsetFromRoot !== 0 && offsetFromRoot !== 14) score += 20;
+
+            candidates.push({ qFromNut, offsetFromRoot, score });
+          }
+        }
+
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => b.score - a.score);
+          selectedByCourse[cObj.course] = candidates[0].qFromNut;
+          if (candidates[0].offsetFromRoot === 0) lowestNoteFound = true;
+        } else {
+          selectedByCourse[cObj.course] = null;
+        }
+      }
+
+      return selectedByCourse;
+    }
+
+    /*************************************************************************
+     * 5. RENDERIZAÇÃO DA BARRA DE CADÊNCIAS E DO ESPELHO EM SVG
+     *************************************************************************/
+    function renderCadenceBar() {
+      const bar = document.getElementById("cadence-bar");
+      const container = document.getElementById("cadence-steps-container");
+      if (state.mode !== "CADENCE") {
+        bar.style.display = "none";
+        return;
+      }
+
+      bar.style.display = "flex";
+      container.innerHTML = "";
+
+      const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
+
+      cad.steps.forEach((step, idx) => {
+        const chordObj = DB.chords.find(c => c.id === step.chord_id) || DB.chords[0];
+        const chordRootQ = (state.rootQ + step.offset_q) % 24;
+        const rootName = PITCH_CLASSES_24[chordRootQ].flat;
+
+        const card = document.createElement("div");
+        card.className = `cadence-step-card ${idx === state.cadenceStepIndex ? "active-step" : ""}`;
+        card.innerHTML = `
+          <div class="step-roman">
+            <span>Passo ${idx + 1}: ${step.roman}</span>
+            <span>${idx === state.cadenceStepIndex ? "● ATIVO" : ""}</span>
+          </div>
+          <div class="step-chord-name">${rootName}${chordObj.short_symbol ? " " + chordObj.short_symbol : " Maior"}</div>
+          <div class="step-role">${step.role}</div>
+        `;
+
+        card.addEventListener("click", () => {
+          clearCadenceTimers();
+          state.cadenceStepIndex = idx;
+          refreshAll();
+          strumCurrentChordVoicing();
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderOudNeck() {
+      const svg = document.getElementById("oud-neck");
+      svg.innerHTML = "";
+      currentChordVoicingFreqs = [];
+
+      const tuning = DB.tunings.find(t => t.id === state.tuningId);
+      const activeStruct = getActiveStructure();
+      const effectiveRootQ = activeStruct.effectiveRootQ;
+
+      const nutX = state.leftHanded ? 930 : 120;
+      const neckEndX = state.leftHanded ? 60 : 990;
+      const neckLengthPx = Math.abs(neckEndX - nutX);
+      const topY = 42;
+      const bottomY = 278;
+
+      const activeOffsetMap = new Map();
+      activeStruct.intervals.forEach((intQ, idx) => {
+        const modQ = ((intQ % 24) + 24) % 24;
+        if (!activeOffsetMap.has(modQ)) {
+          activeOffsetMap.set(modQ, {
+            degree: activeStruct.degrees[idx],
+            centsDev: activeStruct.centsMap[intQ] || 0,
+            rawInterval: intQ
+          });
+        }
+      });
+
+      const isChordLikeMode = state.mode === "CHORD" || state.mode === "CADENCE";
+      const isChordVoicingActive = isChordLikeMode && state.chordVoicingOnly;
+      const chordVoicingMap = isChordVoicingActive
+        ? selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ)
+        : null;
+
+      // 1. Fundo do Espelho
+      const nutTopY = topY - 12;
+      const nutBotY = bottomY + 12;
+      const bodyTopY = topY - 22;
+      const bodyBotY = bottomY + 22;
+
+      const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      neckPolygon.setAttribute("points", `${nutX},${nutTopY} ${neckEndX},${bodyTopY} ${neckEndX},${bodyBotY} ${nutX},${nutBotY}`);
+      neckPolygon.setAttribute("fill", "#18181b");
+      neckPolygon.setAttribute("stroke", "#3f3f46");
+      neckPolygon.setAttribute("stroke-width", "2");
+      svg.appendChild(neckPolygon);
+
+      // 2. Caixa de Destaque do Shape ou Voicing
+      if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
+        const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
+        const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
+        const x1 = getPhysicalX(startQ, nutX, neckLengthPx, state.leftHanded);
+        const x2 = getPhysicalX(endQ, nutX, neckLengthPx, state.leftHanded);
+        const rectX = Math.min(x1, x2) - 16;
+        const rectW = Math.abs(x2 - x1) + 32;
+
+        const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        boxRect.setAttribute("x", rectX);
+        boxRect.setAttribute("y", bodyTopY + 2);
+        boxRect.setAttribute("width", rectW);
+        boxRect.setAttribute("height", bodyBotY - bodyTopY - 4);
+        boxRect.setAttribute("rx", "8");
+        boxRect.setAttribute("fill", "rgba(245, 158, 11, 0.07)");
+        boxRect.setAttribute("stroke", "rgba(245, 158, 11, 0.45)");
+        boxRect.setAttribute("stroke-dasharray", "6,4");
+        svg.appendChild(boxRect);
+      }
+
+      // 3. Pestana (Nut)
+      const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      nutLine.setAttribute("x1", nutX);
+      nutLine.setAttribute("y1", nutTopY);
+      nutLine.setAttribute("x2", nutX);
+      nutLine.setAttribute("y2", nutBotY);
+      nutLine.setAttribute("stroke", "#fde68a");
+      nutLine.setAttribute("stroke-width", "7");
+      svg.appendChild(nutLine);
+
+      // 4. Linhas-Guia
+      for (let q = 1; q <= MAX_NECK_Q; q++) {
+        const isMicro = q % 2 !== 0;
+        if (isMicro && !state.showMicroGuides) continue;
+        if (!isMicro && !state.showSemiGuides) continue;
+
+        const gx = getPhysicalX(q, nutX, neckLengthPx, state.leftHanded);
+        const gLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        gLine.setAttribute("x1", gx);
+        gLine.setAttribute("y1", nutTopY + 2);
+        gLine.setAttribute("x2", gx);
+        gLine.setAttribute("y2", nutBotY - 2);
+        gLine.setAttribute("stroke", isMicro ? "rgba(168, 85, 247, 0.22)" : "rgba(148, 163, 184, 0.28)");
+        gLine.setAttribute("stroke-width", isMicro ? "1" : "1.5");
+        if (isMicro) gLine.setAttribute("stroke-dasharray", "3,4");
+        svg.appendChild(gLine);
+
+        if (!isMicro || state.showMicroGuides) {
+          const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          lbl.setAttribute("x", gx);
+          lbl.setAttribute("y", bodyBotY + 18);
+          lbl.setAttribute("text-anchor", "middle");
+          lbl.setAttribute("fill", isMicro ? "#a855f7" : "#94a3b8");
+          lbl.setAttribute("font-size", isMicro ? "10" : "11");
+          lbl.textContent = isMicro ? `${q}q` : `S${q / 2}`;
+          svg.appendChild(lbl);
+        }
+      }
+
+      // 5. Ordens de Cordas e Notas
+      const courseSpacing = (bottomY - topY) / 5;
+
+      tuning.courses.forEach((cObj, cIdx) => {
+        const cy = topY + cIdx * courseSpacing;
+
+        const courseLabelX = state.leftHanded ? nutX + 58 : nutX - 58;
+        const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        cText.setAttribute("x", courseLabelX);
+        cText.setAttribute("y", cy + 4);
+        cText.setAttribute("text-anchor", "middle");
+        cText.setAttribute("fill", "#e2e8f0");
+        cText.setAttribute("font-size", "12");
+        cText.setAttribute("font-weight", "600");
+        cText.textContent = cObj.label;
+        svg.appendChild(cText);
+
+        if (isChordVoicingActive && chordVoicingMap[cObj.course] === null) {
+          const muteX = state.leftHanded ? nutX + 20 : nutX - 20;
+          const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          mText.setAttribute("x", muteX);
+          mText.setAttribute("y", cy + 5);
+          mText.setAttribute("text-anchor", "middle");
+          mText.setAttribute("fill", "#ef4444");
+          mText.setAttribute("font-size", "14");
+          mText.setAttribute("font-weight", "800");
+          mText.textContent = "✕";
+          svg.appendChild(mText);
+        }
+
+        [-1.5, 1.5].forEach((offsetY) => {
+          const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          sLine.setAttribute("x1", nutX);
+          sLine.setAttribute("y1", cy + offsetY);
+          sLine.setAttribute("x2", neckEndX);
+          sLine.setAttribute("y2", cy + offsetY);
+          sLine.setAttribute("stroke", cIdx >= 4 ? "#d97706" : "#cbd5e1");
+          sLine.setAttribute("stroke-width", cIdx >= 4 ? "1.6" : "1.1");
+          sLine.setAttribute("opacity", "0.75");
+          svg.appendChild(sLine);
+        });
+
+        for (let qFromNut = 0; qFromNut <= MAX_NECK_Q; qFromNut++) {
+          const absQ = cObj.abs_q + qFromNut;
+          const pitchClassQ = ((absQ % 24) + 24) % 24;
+          const offsetFromRoot = ((pitchClassQ - effectiveRootQ) % 24 + 24) % 24;
+
+          if (!activeOffsetMap.has(offsetFromRoot)) continue;
+
+          const noteInfo = activeOffsetMap.get(offsetFromRoot);
+          const pcData = PITCH_CLASSES_24[pitchClassQ];
+          const shapeEval = evaluateShapeAndFinger(qFromNut);
+
+          let isSelectedActiveNote = shapeEval.inBox;
+          if (isChordVoicingActive) {
+            isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut);
+          }
+
+          if (!isSelectedActiveNote && !state.showGhostNotes) continue;
+
+          const noteFreq = cObj.freq_hz * Math.pow(2, (qFromNut * 50 + noteInfo.centsDev) / 1200);
+
+          if (isChordVoicingActive && isSelectedActiveNote) {
+            currentChordVoicingFreqs.push({ course: cObj.course, freq: noteFreq });
+          }
+
+          const nx = getPhysicalX(qFromNut, nutX, neckLengthPx, state.leftHanded);
+          const isRoot = offsetFromRoot === 0;
+          const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
+          const isMicroNote = pcData.micro;
+
+          let fillColor = "var(--fixed-color)";
+          if (isRoot) fillColor = "var(--root-color)";
+          else if (isGhammaz) fillColor = "var(--ghammaz-color)";
+          else if (isMicroNote) fillColor = "var(--micro-color)";
+
+          const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          group.setAttribute("class", "note-node");
+          group.setAttribute("opacity", isSelectedActiveNote ? "1.0" : "0.16");
+
+          group.addEventListener("click", () => playPluckedNote(noteFreq, 1.3));
+
+          if (isMicroNote) {
+            const size = isRoot ? 15 : 13;
+            const diamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            diamond.setAttribute("points", `${nx},${cy - size} ${nx + size},${cy} ${nx},${cy + size} ${nx - size},${cy}`);
+            diamond.setAttribute("fill", fillColor);
+            diamond.setAttribute("stroke", isRoot ? "#ffffff" : "#1e1b4b");
+            diamond.setAttribute("stroke-width", isRoot ? "2.5" : "1.5");
+            group.appendChild(diamond);
+          } else {
+            const radius = isRoot ? 14 : (isGhammaz ? 13 : 12);
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", nx);
+            circle.setAttribute("cy", cy);
+            circle.setAttribute("r", radius);
+            circle.setAttribute("fill", fillColor);
+            circle.setAttribute("stroke", isRoot ? "#ffffff" : "#0f172a");
+            circle.setAttribute("stroke-width", isRoot ? "2.5" : "1.5");
+            group.appendChild(circle);
+          }
+
+          let displayText = pcData.flat;
+          if (state.labelMode === "DEGREE") displayText = noteInfo.degree;
+          else if (state.labelMode === "FINGER") displayText = String(shapeEval.finger);
+          else if (state.labelMode === "ARABIC") displayText = pcData.arabic.slice(0, 5);
+
+          const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textEl.setAttribute("x", nx);
+          textEl.setAttribute("y", cy + 4);
+          textEl.setAttribute("text-anchor", "middle");
+          textEl.setAttribute("fill", "#ffffff");
+          textEl.setAttribute("font-size", state.labelMode === "ARABIC" ? "8.5" : "10.5");
+          textEl.setAttribute("font-weight", "700");
+          textEl.setAttribute("pointer-events", "none");
+          textEl.textContent = displayText;
+          group.appendChild(textEl);
+
+          svg.appendChild(group);
+        }
+      });
+
+      currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
+    }
+
+    /*************************************************************************
+     * 6. ATUALIZAÇÃO DO PAINEL INFORMATIVO E PONTE MODAL / CADENCIAL
+     *************************************************************************/
+    function updateInfoPanel() {
+      const activeStruct = getActiveStructure();
+      const entity = activeStruct.entity;
+      const globalRootName = PITCH_CLASSES_24[state.rootQ].flat;
+      const effectiveRootName = PITCH_CLASSES_24[activeStruct.effectiveRootQ].flat;
+
+      if (state.mode === "CADENCE") {
+        document.getElementById("info-title").textContent = `${entity.name} — Centro Modal em ${globalRootName}`;
+      } else {
+        document.getElementById("info-title").textContent = `${entity.name} — Fundamental em ${effectiveRootName}`;
+      }
+      document.getElementById("info-desc").textContent = entity.description;
+
+      const pillsEl = document.getElementById("info-pills");
+      pillsEl.innerHTML = "";
+
+      const noteNamesList = activeStruct.intervals.map(intQ => {
+        const pc = PITCH_CLASSES_24[(activeStruct.effectiveRootQ + intQ) % 24];
+        return pc.flat;
+      });
+
+      const addPill = (label, val) => {
+        const div = document.createElement("div");
+        div.className = "meta-pill";
+        div.innerHTML = `<strong>${label}:</strong> ${val}`;
+        pillsEl.appendChild(div);
+      };
+
+      if (state.mode === "CADENCE") {
+        addPill("Acorde do Passo Atual", `${effectiveRootName} (${activeStruct.chordObj.name})`);
+        addPill("Grau Funcional", `${activeStruct.stepObj.roman} — ${activeStruct.stepObj.role}`);
+      }
+
+      addPill("Notas no Espelho", noteNamesList.join(" – "));
+      addPill("Fórmula (Graus)", activeStruct.degrees.join(" · "));
+
+      if (state.mode === "MAQAM") {
+        addPill("Jins Inferior", entity.lower_jins);
+        addPill("Jins Superior", state.direction === "ASC" ? entity.upper_jins_asc : entity.upper_jins_desc);
+      }
+
+      const bridgeContainer = document.getElementById("bridge-container");
+      bridgeContainer.innerHTML = "";
+
+      // Se estiver em MAQAM e houver uma Cadência associada, oferece atalho direto para praticar a Qafla
+      if (state.mode === "MAQAM" && entity.linked_cadence) {
+        const box = document.createElement("div");
+        box.className = "bridge-box";
+        box.innerHTML = `
+          <span>🎼 <strong>Cadência Modal (Qafla):</strong> Pratique a progressão de acordes típica para finalizar o <strong>${entity.name}</strong></span>
+          <button id="btn-jump-cadence" class="primary" style="padding:5px 12px; font-size:0.78rem;">Abrir Cadência (Qafla)</button>
+        `;
+        bridgeContainer.appendChild(box);
+        document.getElementById("btn-jump-cadence").addEventListener("click", () => {
+          state.mode = "CADENCE";
+          state.entityId = entity.linked_cadence;
+          state.cadenceStepIndex = 0;
+          if (state.shapeMode === "FULL_NECK") {
+            state.shapeMode = "OPEN_FIRST_POS";
+            document.getElementById("select-shape").value = "OPEN_FIRST_POS";
+          }
+          syncControlsWithState();
+          refreshAll();
+        });
+      }
+
+      // Ponte de retorno para o Maqam quando em SCALE, CHORD ou CADENCE
+      if ((state.mode === "SCALE" || state.mode === "CHORD" || state.mode === "CADENCE") && entity.bridge_maqam) {
+        const box = document.createElement("div");
+        box.className = "bridge-box";
+        box.innerHTML = `
+          <span>🔗 <strong>Matriz Modal:</strong> Estrutura conectada diretamente ao <strong>${entity.bridge_text}</strong></span>
+          <button id="btn-jump-maqam" style="padding:4px 10px; font-size:0.78rem;">Ver Escala do Maqam</button>
+        `;
+        bridgeContainer.appendChild(box);
+        document.getElementById("btn-jump-maqam").addEventListener("click", () => {
+          clearCadenceTimers();
+          state.mode = "MAQAM";
+          state.entityId = entity.bridge_maqam;
+          syncControlsWithState();
+          refreshAll();
+        });
+      }
+
+      const tuning = DB.tunings.find(t => t.id === state.tuningId);
+      document.getElementById("tuning-desc").textContent = tuning.description;
+      const listEl = document.getElementById("tuning-intervals-list");
+      listEl.innerHTML = "";
+
+      for (let i = 5; i > 0; i--) {
+        const lowC = tuning.courses[i];
+        const highC = tuning.courses[i - 1];
+        const diffQ = highC.abs_q - lowC.abs_q;
+        let intName = `${diffQ / 2} semitons`;
+        if (diffQ === 10) intName = "Quarta Justa (10q / 5 semitons)";
+        else if (diffQ === 8) intName = "⚠️ Terça Maior (8q / 4 semitons — Salto de Shape)";
+        else if (diffQ === 4) intName = "Segunda Maior (4q / 1 tom)";
+        else if (diffQ === 24) intName = "Oitava Justa (24q)";
+
+        const item = document.createElement("div");
+        item.style.padding = "4px 8px";
+        item.style.background = diffQ === 8 ? "rgba(245, 158, 11, 0.15)" : "rgba(255,255,255,0.03)";
+        item.style.borderRadius = "4px";
+        item.innerHTML = `<strong>${lowC.label} → ${highC.label}:</strong> ${intName}`;
+        listEl.appendChild(item);
+      }
+    }
+
+    /*************************************************************************
+     * 7. EXECUÇÃO SONORA (ESCALA, RASGUEADO DE ACORDE E SEQUENCIADOR QAFLA)
+     *************************************************************************/
+    function strumCurrentChordVoicing() {
+      initAudio();
+      if (currentChordVoicingFreqs.length > 0) {
+        currentChordVoicingFreqs.forEach((item, idx) => {
+          setTimeout(() => {
+            playPluckedNote(item.freq, 1.8);
+          }, idx * 55);
+        });
+      }
+    }
+
+    function playFullCadenceProgression() {
+      initAudio();
+      clearCadenceTimers();
+      const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
+
+      cad.steps.forEach((_, idx) => {
+        const timer = setTimeout(() => {
+          state.cadenceStepIndex = idx;
+          refreshAll();
+          strumCurrentChordVoicing();
+        }, idx * 1450); // 1.45s por acorde para acompanhar visualmente no espelho
+        cadenceSequenceTimers.push(timer);
+      });
+    }
+
+    function playActivePrimaryAction() {
+      initAudio();
+      clearCadenceTimers();
+
+      if (state.mode === "CADENCE") {
+        playFullCadenceProgression();
+        return;
+      }
+
+      if (state.mode === "CHORD" && currentChordVoicingFreqs.length > 0) {
+        strumCurrentChordVoicing();
+        return;
+      }
+
+      const activeStruct = getActiveStructure();
+      const baseRootFreq = 130.81 * Math.pow(2, (activeStruct.effectiveRootQ * 50) / 1200);
+      activeStruct.intervals.forEach((intQ, idx) => {
+        const centsDev = activeStruct.centsMap[intQ] || 0;
+        const freq = baseRootFreq * Math.pow(2, (intQ * 50 + centsDev) / 1200);
+        setTimeout(() => {
+          playPluckedNote(freq, 0.9);
+        }, idx * 280);
+      });
+    }
+
+    function playChordArpeggio() {
+      initAudio();
+      if (currentChordVoicingFreqs.length > 0) {
+        currentChordVoicingFreqs.forEach((item, idx) => {
+          setTimeout(() => {
+            playPluckedNote(item.freq, 1.3);
+          }, idx * 250);
+        });
+      }
+    }
+
+    /*************************************************************************
+     * 8. INICIALIZAÇÃO DE CONTROLES E EVENTOS
+     *************************************************************************/
+    function populateEntitySelect() {
+      const sel = document.getElementById("select-entity");
+      sel.innerHTML = "";
+      let list = DB.maqamat;
+      if (state.mode === "JINS") list = DB.ajnas;
+      else if (state.mode === "SCALE") list = DB.scales;
+      else if (state.mode === "CHORD") list = DB.chords;
+      else if (state.mode === "CADENCE") list = DB.cadences;
+
+      list.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.name;
+        sel.appendChild(opt);
+      });
+
+      if (!list.some(x => x.id === state.entityId)) {
+        state.entityId = list[0].id;
+      }
+      sel.value = state.entityId;
+    }
+
+    function syncControlsWithState() {
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === state.mode);
+      });
+      populateEntitySelect();
+
+      const isChordLike = state.mode === "CHORD" || state.mode === "CADENCE";
+      document.getElementById("maqam-subcontrols").style.display = state.mode === "MAQAM" ? "flex" : "none";
+      document.getElementById("jins-filter-group").style.display = state.mode === "MAQAM" ? "block" : "none";
+      document.getElementById("chord-subcontrols").style.display = isChordLike ? "flex" : "none";
+      document.getElementById("box-slider-group").style.display = state.shapeMode === "CLOSED_BOX" ? "block" : "none";
+
+      const btnPlay = document.getElementById("btn-play-scale");
+      const btnArp = document.getElementById("btn-arp-chord");
+      if (state.mode === "CADENCE") {
+        btnPlay.textContent = "▶ Tocar Cadência Completa";
+        btnArp.style.display = "inline-flex";
+      } else if (state.mode === "CHORD") {
+        btnPlay.textContent = "▶ Rasguear Acorde (Risha)";
+        btnArp.style.display = "inline-flex";
+      } else {
+        btnPlay.textContent = "▶ Tocar Escala / Maqam";
+        btnArp.style.display = "none";
+      }
+    }
+
+    function refreshAll() {
+      renderCadenceBar();
+      renderOudNeck();
+      updateInfoPanel();
+      updateDroneFreqIfActive();
+    }
+
+    function initApp() {
+      const selTuning = document.getElementById("select-tuning");
+      DB.tunings.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = t.name;
+        selTuning.appendChild(opt);
+      });
+      selTuning.value = state.tuningId;
+      selTuning.addEventListener("change", (e) => {
+        state.tuningId = e.target.value;
+        refreshAll();
+      });
+
+      const selRoot = document.getElementById("select-root");
+      PITCH_CLASSES_24.forEach(pc => {
+        const opt = document.createElement("option");
+        opt.value = pc.q;
+        opt.textContent = `${pc.flat} ${pc.micro ? "(1/4 Tom - " + pc.arabic + ")" : "(" + pc.arabic + ")"}`;
+        selRoot.appendChild(opt);
+      });
+      selRoot.value = state.rootQ;
+      selRoot.addEventListener("change", (e) => {
+        state.rootQ = parseInt(e.target.value, 10);
+        refreshAll();
+      });
+
+      document.getElementById("btn-trad-root").addEventListener("click", (e) => {
+        e.preventDefault();
+        const active = getActiveStructure().entity;
+        if (active.traditional_root_q !== undefined) {
+          state.rootQ = active.traditional_root_q;
+          selRoot.value = state.rootQ;
+          refreshAll();
+        }
+      });
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          clearCadenceTimers();
+          state.mode = btn.dataset.mode;
+          state.cadenceStepIndex = 0;
+          if ((state.mode === "CHORD" || state.mode === "CADENCE") && state.shapeMode === "FULL_NECK") {
+            state.shapeMode = "OPEN_FIRST_POS";
+            document.getElementById("select-shape").value = "OPEN_FIRST_POS";
+          }
+          syncControlsWithState();
+          const active = getActiveStructure().entity;
+          if (active.traditional_root_q !== undefined) {
+            state.rootQ = active.traditional_root_q;
+            selRoot.value = state.rootQ;
+          }
+          refreshAll();
+        });
+      });
+
+      document.getElementById("select-entity").addEventListener("change", (e) => {
+        clearCadenceTimers();
+        state.entityId = e.target.value;
+        state.cadenceStepIndex = 0;
+        const active = getActiveStructure().entity;
+        if (active.traditional_root_q !== undefined) {
+          state.rootQ = active.traditional_root_q;
+          selRoot.value = state.rootQ;
+        }
+        refreshAll();
+      });
+
+      const btnVoicing = document.getElementById("btn-chord-voicing");
+      const btnChordAll = document.getElementById("btn-chord-all");
+      btnVoicing.addEventListener("click", () => {
+        state.chordVoicingOnly = true;
+        btnVoicing.classList.add("selected");
+        btnChordAll.classList.remove("selected");
+        refreshAll();
+      });
+      btnChordAll.addEventListener("click", () => {
+        state.chordVoicingOnly = false;
+        btnChordAll.classList.add("selected");
+        btnVoicing.classList.remove("selected");
+        refreshAll();
+      });
+
+      const btnAsc = document.getElementById("btn-dir-asc");
+      const btnDesc = document.getElementById("btn-dir-desc");
+      btnAsc.addEventListener("click", () => {
+        state.direction = "ASC";
+        btnAsc.classList.add("selected");
+        btnDesc.classList.remove("selected");
+        refreshAll();
+      });
+      btnDesc.addEventListener("click", () => {
+        state.direction = "DESC";
+        btnDesc.classList.add("selected");
+        btnAsc.classList.remove("selected");
+        refreshAll();
+      });
+
+      const selShape = document.getElementById("select-shape");
+      selShape.addEventListener("change", (e) => {
+        state.shapeMode = e.target.value;
+        if (state.shapeMode === "CLOSED_BOX") {
+          state.labelMode = "FINGER";
+          document.getElementById("select-label").value = "FINGER";
+        }
+        syncControlsWithState();
+        refreshAll();
+      });
+
+      const sliderBox = document.getElementById("slider-box");
+      const labelBoxPos = document.getElementById("label-box-pos");
+      sliderBox.addEventListener("input", (e) => {
+        state.boxAnchorQ = parseInt(e.target.value, 10);
+        const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
+        labelBoxPos.textContent = `Semitom ${semiApprox} (q=${state.boxAnchorQ})`;
+        refreshAll();
+      });
+
+      document.querySelectorAll(".jins-filter").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.jinsFilter = btn.dataset.filter;
+          document.querySelectorAll(".jins-filter").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          refreshAll();
+        });
+      });
+
+      document.getElementById("select-label").addEventListener("change", (e) => {
+        state.labelMode = e.target.value;
+        refreshAll();
+      });
+
+      const btnSemi = document.getElementById("btn-guide-semi");
+      btnSemi.addEventListener("click", () => {
+        state.showSemiGuides = !state.showSemiGuides;
+        btnSemi.classList.toggle("selected", state.showSemiGuides);
+        refreshAll();
+      });
+
+      const btnMicro = document.getElementById("btn-guide-micro");
+      btnMicro.addEventListener("click", () => {
+        state.showMicroGuides = !state.showMicroGuides;
+        btnMicro.classList.toggle("selected", state.showMicroGuides);
+        refreshAll();
+      });
+
+      const btnGhost = document.getElementById("btn-ghost-notes");
+      btnGhost.addEventListener("click", () => {
+        state.showGhostNotes = !state.showGhostNotes;
+        btnGhost.classList.toggle("selected", state.showGhostNotes);
+        refreshAll();
+      });
+
+      document.getElementById("btn-play-scale").addEventListener("click", playActivePrimaryAction);
+      document.getElementById("btn-arp-chord").addEventListener("click", playChordArpeggio);
+      document.getElementById("btn-strum-step").addEventListener("click", strumCurrentChordVoicing);
+      document.getElementById("btn-play-cadence-seq").addEventListener("click", playFullCadenceProgression);
+      document.getElementById("btn-drone").addEventListener("click", toggleDrone);
+      document.getElementById("btn-hand").addEventListener("click", (e) => {
+        state.leftHanded = !state.leftHanded;
+        e.target.textContent = state.leftHanded ? "⇄ Mão: Canhoto" : "⇄ Mão: Destro";
+        refreshAll();
+      });
+
+      syncControlsWithState();
+      refreshAll();
+    }
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
