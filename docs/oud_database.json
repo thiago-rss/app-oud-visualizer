@@ -1,0 +1,291 @@
+{
+  "metadata": {
+    "project": "App Oud Visualizer",
+    "version": "1.2.0",
+    "tuning_system": "24-TET with Cents Deviation",
+    "max_neck_q_rendered": 16,
+    "modules": ["tunings", "pitch_classes_24", "ajnas", "maqamat", "scales_and_modes", "chords", "cadences"]
+  },
+  "pitch_classes_24": [
+    { "q": 0,  "sharp": "C",   "flat": "C",   "arabic": "Rast",       "microtonal": false },
+    { "q": 1,  "sharp": "C+",  "flat": "Db-", "arabic": "Nim Rahawi", "microtonal": true  },
+    { "q": 2,  "sharp": "C#",  "flat": "Db",  "arabic": "Zirgulah",   "microtonal": false },
+    { "q": 3,  "sharp": "C#+", "flat": "D-",  "arabic": "Tik Zirg.",  "microtonal": true  },
+    { "q": 4,  "sharp": "D",   "flat": "D",   "arabic": "Dukah",      "microtonal": false },
+    { "q": 5,  "sharp": "D+",  "flat": "Eb-", "arabic": "Sikah",      "microtonal": true  },
+    { "q": 6,  "sharp": "D#",  "flat": "Eb",  "arabic": "Kurdi",      "microtonal": false },
+    { "q": 7,  "sharp": "D#+", "flat": "E-",  "arabic": "Tik Kurdi",  "microtonal": true  },
+    { "q": 8,  "sharp": "E",   "flat": "E",   "arabic": "Busalik",    "microtonal": false },
+    { "q": 9,  "sharp": "E+",  "flat": "F-",  "arabic": "Tik Bus.",   "microtonal": true  },
+    { "q": 10, "sharp": "F",   "flat": "F",   "arabic": "Jaharkah",   "microtonal": false },
+    { "q": 11, "sharp": "F+",  "flat": "Gb-", "arabic": "Nim Hijaz",  "microtonal": true  },
+    { "q": 12, "sharp": "F#",  "flat": "Gb",  "arabic": "Hijaz",      "microtonal": false },
+    { "q": 13, "sharp": "F#+", "flat": "G-",  "arabic": "Tik Hijaz",  "microtonal": true  },
+    { "q": 14, "sharp": "G",   "flat": "G",   "arabic": "Nawa",       "microtonal": false },
+    { "q": 15, "sharp": "G+",  "flat": "Ab-", "arabic": "Nim Hisar",  "microtonal": true  },
+    { "q": 16, "sharp": "G#",  "flat": "Ab",  "arabic": "Hisar",      "microtonal": false },
+    { "q": 17, "sharp": "G#+", "flat": "A-",  "arabic": "Tik Hisar",  "microtonal": true  },
+    { "q": 18, "sharp": "A",   "flat": "A",   "arabic": "Husayni",    "microtonal": false },
+    { "q": 19, "sharp": "A+",  "flat": "Bb-", "arabic": "Awj / Iraq", "microtonal": true  },
+    { "q": 20, "sharp": "A#",  "flat": "Bb",  "arabic": "Ajam",       "microtonal": false },
+    { "q": 21, "sharp": "A#+", "flat": "B-",  "arabic": "Tik Ajam",   "microtonal": true  },
+    { "q": 22, "sharp": "B",   "flat": "B",   "arabic": "Mahur",      "microtonal": false },
+    { "q": 23, "sharp": "B+",  "flat": "C-",  "arabic": "Tik Mahur",  "microtonal": true  }
+  ],
+  "tunings": [
+    {
+      "id": "syrian_arabic_c_c",
+      "name": "Árabe / Síria Padrão (C - F - A - d - g - c)",
+      "courses": [
+        { "course": 1, "label": "1ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 2, "label": "2ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 3, "label": "3ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (F2)", "abs_q": 10, "freq_hz": 87.31  },
+        { "course": 6, "label": "6ª (C2)", "abs_q": 0,  "freq_hz": 65.41  }
+      ]
+    },
+    {
+      "id": "arabic_classic_f_f",
+      "name": "Árabe Clássica (F - A - d - g - c - f)",
+      "courses": [
+        { "course": 1, "label": "1ª (f4)", "abs_q": 58, "freq_hz": 349.23 },
+        { "course": 2, "label": "2ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 3, "label": "3ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 4, "label": "4ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 5, "label": "5ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 6, "label": "6ª (F2)", "abs_q": 10, "freq_hz": 87.31  }
+      ]
+    },
+    {
+      "id": "arabic_d_c",
+      "name": "Árabe Egípcia (D - G - A - d - g - c)",
+      "courses": [
+        { "course": 1, "label": "1ª (c4)", "abs_q": 48, "freq_hz": 261.63 },
+        { "course": 2, "label": "2ª (g3)", "abs_q": 38, "freq_hz": 196.00 },
+        { "course": 3, "label": "3ª (d3)", "abs_q": 28, "freq_hz": 146.83 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (G2)", "abs_q": 14, "freq_hz": 98.00  },
+        { "course": 6, "label": "6ª (D2)", "abs_q": 4,  "freq_hz": 73.42  }
+      ]
+    },
+    {
+      "id": "turkish_d_a",
+      "name": "Turca / Grega Padrão (D - E - A - B - e - a)",
+      "courses": [
+        { "course": 1, "label": "1ª (a3)", "abs_q": 42, "freq_hz": 220.00 },
+        { "course": 2, "label": "2ª (e3)", "abs_q": 32, "freq_hz": 164.81 },
+        { "course": 3, "label": "3ª (B2)", "abs_q": 22, "freq_hz": 123.47 },
+        { "course": 4, "label": "4ª (A2)", "abs_q": 18, "freq_hz": 110.00 },
+        { "course": 5, "label": "5ª (E2)", "abs_q": 8,  "freq_hz": 82.41  },
+        { "course": 6, "label": "6ª (D2)", "abs_q": 4,  "freq_hz": 73.42  }
+      ]
+    },
+    {
+      "id": "iraqi_bashir",
+      "name": "Iraquiana / Mounir Bashir (C - D - G - c - f - f')",
+      "courses": [
+        { "course": 1, "label": "1ª (f4)", "abs_q": 58, "freq_hz": 349.23 },
+        { "course": 2, "label": "2ª (f3)", "abs_q": 34, "freq_hz": 174.61 },
+        { "course": 3, "label": "3ª (c3)", "abs_q": 24, "freq_hz": 130.81 },
+        { "course": 4, "label": "4ª (G2)", "abs_q": 14, "freq_hz": 98.00  },
+        { "course": 5, "label": "5ª (D2)", "abs_q": 4,  "freq_hz": 73.42  },
+        { "course": 6, "label": "6ª (C2)", "abs_q": 0,  "freq_hz": 65.41  }
+      ]
+    }
+  ],
+  "ajnas": [
+    { "id": "jins_rast",       "name": "Jins Rast",       "traditional_root_q": 0,  "intervals_q": [0, 4, 7, 10],      "cents_dev": [0, 0, -15, 0],    "degrees": ["1", "2", "3-", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_bayati",     "name": "Jins Bayati",     "traditional_root_q": 4,  "intervals_q": [0, 3, 6, 10],      "cents_dev": [0, -15, 0, 0],    "degrees": ["1", "2-", "b3", "4"],      "ghammaz_q": 10 },
+    { "id": "jins_sikah",      "name": "Jins Sikah",      "traditional_root_q": 5,  "intervals_q": [0, 3, 7],          "cents_dev": [15, 0, 0],        "degrees": ["1", "2", "3"],             "ghammaz_q": 7  },
+    { "id": "jins_hijaz",      "name": "Jins Hijaz",      "traditional_root_q": 4,  "intervals_q": [0, 2, 8, 10],      "cents_dev": [0, 10, -10, 0],   "degrees": ["1", "b2", "3", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_saba",       "name": "Jins Saba",       "traditional_root_q": 4,  "intervals_q": [0, 3, 6, 8],       "cents_dev": [0, -15, 0, 0],    "degrees": ["1", "2-", "b3", "b4"],     "ghammaz_q": 6  },
+    { "id": "jins_kurd",       "name": "Jins Kurd",       "traditional_root_q": 4,  "intervals_q": [0, 2, 6, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "b2", "b3", "4"],      "ghammaz_q": 10 },
+    { "id": "jins_nahawand",   "name": "Jins Nahawand",   "traditional_root_q": 0,  "intervals_q": [0, 4, 6, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "2", "b3", "4"],       "ghammaz_q": 10 },
+    { "id": "jins_ajam",       "name": "Jins Ajam",       "traditional_root_q": 20, "intervals_q": [0, 4, 8, 10],      "cents_dev": [0, 0, 0, 0],      "degrees": ["1", "2", "3", "4"],        "ghammaz_q": 10 },
+    { "id": "jins_nikriz",     "name": "Jins Nikriz",     "traditional_root_q": 0,  "intervals_q": [0, 4, 6, 12, 14],  "cents_dev": [0, 0, 0, 0, 0],   "degrees": ["1", "2", "b3", "#4", "5"], "ghammaz_q": 14 },
+    { "id": "jins_athar_kurd", "name": "Jins Athar Kurd", "traditional_root_q": 0,  "intervals_q": [0, 2, 6, 12, 14],  "cents_dev": [0, 0, 0, 0, 0],   "degrees": ["1", "b2", "b3", "#4", "5"],"ghammaz_q": 14 }
+  ],
+  "maqamat": [
+    { "id": "maqam_rast",       "name": "Maqam Rast",       "traditional_root_q": 0,  "linked_cadence": "cad_rast",       "intervals_asc": [0, 4, 7, 10, 14, 18, 21, 24], "intervals_desc": [0, 4, 7, 10, 14, 18, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_bayati",     "name": "Maqam Bayati",     "traditional_root_q": 4,  "linked_cadence": "cad_bayati",     "intervals_asc": [0, 3, 6, 10, 14, 16, 20, 24], "intervals_desc": [0, 3, 6, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_saba",       "name": "Maqam Saba",       "traditional_root_q": 4,  "linked_cadence": "cad_saba",       "intervals_asc": [0, 3, 6, 8, 14, 16, 20, 22],  "intervals_desc": [0, 3, 6, 8, 14, 16, 20, 22],  "ghammaz_q": 6  },
+    { "id": "maqam_hijaz",      "name": "Maqam Hijaz",      "traditional_root_q": 4,  "linked_cadence": "cad_hijaz",      "intervals_asc": [0, 2, 8, 10, 14, 17, 20, 24], "intervals_desc": [0, 2, 8, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_nahawand",   "name": "Maqam Nahawand",   "traditional_root_q": 0,  "linked_cadence": "cad_nahawand",   "intervals_asc": [0, 4, 6, 10, 14, 16, 22, 24], "intervals_desc": [0, 4, 6, 10, 14, 16, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_kurd",       "name": "Maqam Kurd",       "traditional_root_q": 4,  "linked_cadence": "cad_kurd",       "intervals_asc": [0, 2, 6, 10, 14, 16, 20, 24], "intervals_desc": [0, 2, 6, 10, 14, 16, 20, 24], "ghammaz_q": 10 },
+    { "id": "maqam_sikah",      "name": "Maqam Sikah",      "traditional_root_q": 5,  "linked_cadence": "cad_sikah",      "intervals_asc": [0, 3, 7, 11, 14, 17, 21, 24], "intervals_desc": [0, 3, 7, 11, 14, 17, 21, 24], "ghammaz_q": 7  },
+    { "id": "maqam_huzam",      "name": "Maqam Huzam",      "traditional_root_q": 5,  "linked_cadence": "cad_sikah",      "intervals_asc": [0, 3, 7, 9, 15, 17, 21, 24],  "intervals_desc": [0, 3, 7, 9, 15, 17, 19, 24],  "ghammaz_q": 7  },
+    { "id": "maqam_nikriz",     "name": "Maqam Nikriz",     "traditional_root_q": 0,  "linked_cadence": "cad_nikriz",     "intervals_asc": [0, 4, 6, 12, 14, 18, 20, 24], "intervals_desc": [0, 4, 6, 12, 14, 18, 20, 24], "ghammaz_q": 14 },
+    { "id": "maqam_nawa_athar", "name": "Maqam Nawa Athar", "traditional_root_q": 0,  "linked_cadence": "cad_nawa_athar", "intervals_asc": [0, 4, 6, 12, 14, 16, 22, 24], "intervals_desc": [0, 4, 6, 12, 14, 16, 22, 24], "ghammaz_q": 14 },
+    { "id": "maqam_ajam",       "name": "Maqam Ajam",       "traditional_root_q": 20, "linked_cadence": "cad_ajam",       "intervals_asc": [0, 4, 8, 10, 14, 18, 22, 24], "intervals_desc": [0, 4, 8, 10, 14, 18, 20, 24], "ghammaz_q": 14 }
+  ],
+  "scales_and_modes": [
+    { "id": "mode_ionian",           "name": "Jônio (Maior Natural)",       "category": "Greek Modes",      "intervals_q": [0, 4, 8, 10, 14, 18, 22, 24],     "bridge_maqam": "maqam_ajam"       },
+    { "id": "mode_dorian",           "name": "Dórico",                      "category": "Greek Modes",      "intervals_q": [0, 4, 6, 10, 14, 18, 20, 24],     "bridge_maqam": "maqam_nahawand"   },
+    { "id": "mode_phrygian",         "name": "Frígio",                      "category": "Greek Modes",      "intervals_q": [0, 2, 6, 10, 14, 16, 20, 24],     "bridge_maqam": "maqam_kurd"       },
+    { "id": "mode_lydian",           "name": "Lídio",                       "category": "Greek Modes",      "intervals_q": [0, 4, 8, 12, 14, 18, 22, 24],     "bridge_maqam": "maqam_nikriz"     },
+    { "id": "mode_mixolydian",       "name": "Mixolídio",                   "category": "Greek Modes",      "intervals_q": [0, 4, 8, 10, 14, 18, 20, 24],     "bridge_maqam": "maqam_ajam"       },
+    { "id": "mode_aeolian",          "name": "Eólio (Menor Natural)",       "category": "Greek Modes",      "intervals_q": [0, 4, 6, 10, 14, 16, 20, 24],     "bridge_maqam": "maqam_nahawand"   },
+    { "id": "mode_locrian",          "name": "Lócrio",                      "category": "Greek Modes",      "intervals_q": [0, 2, 6, 10, 12, 16, 20, 24],     "bridge_maqam": "maqam_saba"       },
+    { "id": "scale_harmonic_minor",  "name": "Menor Harmônica",             "category": "Altered Minors",   "intervals_q": [0, 4, 6, 10, 14, 16, 22, 24],     "bridge_maqam": "maqam_nahawand"   },
+    { "id": "scale_phrygian_dom",    "name": "Frígio Dominante",            "category": "Altered Minors",   "intervals_q": [0, 2, 8, 10, 14, 16, 20, 24],     "bridge_maqam": "maqam_hijaz"      },
+    { "id": "scale_double_harmonic", "name": "Dupla Harmônica (Bizantina)", "category": "Altered Minors",   "intervals_q": [0, 2, 8, 10, 14, 16, 22, 24],     "bridge_maqam": "maqam_hijaz"      },
+    { "id": "scale_hungarian_minor", "name": "Menor Húngara",               "category": "Altered Minors",   "intervals_q": [0, 4, 6, 12, 14, 16, 22, 24],     "bridge_maqam": "maqam_nawa_athar" },
+    { "id": "sym_whole_tone",        "name": "Tons Inteiros (Hexatônica)",  "category": "Symmetric Scales", "intervals_q": [0, 4, 8, 12, 16, 20, 24],         "symmetry_step_q": 4               },
+    { "id": "sym_dim_wh",            "name": "Diminuta (Tom - Semitom)",    "category": "Symmetric Scales", "intervals_q": [0, 4, 6, 10, 12, 16, 18, 22, 24], "symmetry_step_q": 6               },
+    { "id": "sym_dim_hw",            "name": "Diminuta Dom. (Semitom - Tom)","category": "Symmetric Scales","intervals_q": [0, 2, 6, 8, 12, 14, 18, 20, 24],  "symmetry_step_q": 6               },
+    { "id": "sym_augmented",         "name": "Aumentada (Hexatônica)",      "category": "Symmetric Scales", "intervals_q": [0, 6, 8, 14, 16, 22, 24],         "symmetry_step_q": 8               }
+  ],
+  "chords": [
+    { "id": "chord_oud_power",    "short_symbol": "5",      "name": "Quinta Aberta / Bordão (1 - 5 - 8)",        "category": "Modal & Microtonal", "traditional_root_q": 0, "intervals_q": [0, 14],         "degrees": ["1", "5"],           "cents_dev": [0, 0],           "ghammaz_q": 14, "bridge_maqam": "maqam_rast"     },
+    { "id": "chord_rast_triad",   "short_symbol": "Rast",   "name": "Acorde Rast Neutro (1 - 3- - 5)",           "category": "Modal & Microtonal", "traditional_root_q": 0, "intervals_q": [0, 7, 14],      "degrees": ["1", "3-", "5"],     "cents_dev": [0, -15, 0],      "ghammaz_q": 7,  "bridge_maqam": "maqam_rast"     },
+    { "id": "chord_rast_7",       "short_symbol": "Rast7-", "name": "Rast com 7ª Neutra (1 - 3- - 5 - 7-)",      "category": "Modal & Microtonal", "traditional_root_q": 0, "intervals_q": [0, 7, 14, 21],  "degrees": ["1", "3-", "5", "7-"],"cents_dev": [0, -15, 0, -15], "ghammaz_q": 7,  "bridge_maqam": "maqam_rast"     },
+    { "id": "chord_bayati_modal", "short_symbol": "Bayati", "name": "Cluster Modal Bayati (1 - 2- - 4 - 5)",     "category": "Modal & Microtonal", "traditional_root_q": 4, "intervals_q": [0, 3, 10, 14],  "degrees": ["1", "2-", "4", "5"],"cents_dev": [0, -15, 0, 0],   "ghammaz_q": 10, "bridge_maqam": "maqam_bayati"   },
+    { "id": "chord_hijaz_modal",  "short_symbol": "Hijaz",  "name": "Acorde Hijaz (1 - b2 - 3 - 5)",             "category": "Modal & Microtonal", "traditional_root_q": 4, "intervals_q": [0, 2, 8, 14],   "degrees": ["1", "b2", "3", "5"],"cents_dev": [0, 10, -10, 0],  "ghammaz_q": 8,  "bridge_maqam": "maqam_hijaz"    },
+    { "id": "chord_saba_modal",   "short_symbol": "Saba",   "name": "Acorde Saba Diminuto (1 - 2- - b3 - b4)",   "category": "Modal & Microtonal", "traditional_root_q": 4, "intervals_q": [0, 3, 6, 8],    "degrees": ["1", "2-", "b3","b4"],"cents_dev": [0, -15, 0, 0],  "ghammaz_q": 6,  "bridge_maqam": "maqam_saba"     },
+    { "id": "chord_sikah_modal",  "short_symbol": "Sikah",  "name": "Acorde Sikah / Huzam (1 - 3- - 5-)",        "category": "Modal & Microtonal", "traditional_root_q": 5, "intervals_q": [0, 7, 14],      "degrees": ["1", "3", "5"],      "cents_dev": [15, 0, 0],       "ghammaz_q": 7,  "bridge_maqam": "maqam_huzam"    },
+    { "id": "chord_sus4",         "short_symbol": "sus4",   "name": "Suspenso Sus4 (1 - 4 - 5)",                 "category": "Modal & Microtonal", "traditional_root_q": 4, "intervals_q": [0, 10, 14],     "degrees": ["1", "4", "5"],      "cents_dev": [0, 0, 0],        "ghammaz_q": 10, "bridge_maqam": "maqam_kurd"     },
+    { "id": "chord_sus2",         "short_symbol": "sus2",   "name": "Suspenso Sus2 (1 - 2 - 5)",                 "category": "Modal & Microtonal", "traditional_root_q": 0, "intervals_q": [0, 4, 14],      "degrees": ["1", "2", "5"],      "cents_dev": [0, 0, 0],        "ghammaz_q": 4,  "bridge_maqam": "maqam_nahawand" },
+    { "id": "chord_quartal",      "short_symbol": "4tal",   "name": "Quartal (1 - 4 - b7)",                      "category": "Modal & Microtonal", "traditional_root_q": 4, "intervals_q": [0, 10, 20],     "degrees": ["1", "4", "b7"],     "cents_dev": [0, 0, 0],        "ghammaz_q": 10                                  },
+    { "id": "chord_maj",          "short_symbol": "",       "name": "Tríade Maior (1 - 3 - 5)",                  "category": "12-TET Triads",      "traditional_root_q": 0, "intervals_q": [0, 8, 14],      "degrees": ["1", "3", "5"],      "cents_dev": [0, 0, 0],        "ghammaz_q": 8,  "bridge_maqam": "maqam_ajam"     },
+    { "id": "chord_min",          "short_symbol": "m",      "name": "Tríade Menor (1 - b3 - 5)",                 "category": "12-TET Triads",      "traditional_root_q": 0, "intervals_q": [0, 6, 14],      "degrees": ["1", "b3", "5"],     "cents_dev": [0, 0, 0],        "ghammaz_q": 6,  "bridge_maqam": "maqam_nahawand" },
+    { "id": "chord_dim",          "short_symbol": "dim",    "name": "Tríade Diminuta (1 - b3 - b5)",             "category": "12-TET Triads",      "traditional_root_q": 4, "intervals_q": [0, 6, 12],      "degrees": ["1", "b3", "b5"],    "cents_dev": [0, 0, 0],        "ghammaz_q": 12, "bridge_maqam": "maqam_saba"     },
+    { "id": "chord_aug",          "short_symbol": "aug",    "name": "Tríade Aumentada (1 - 3 - #5)",             "category": "12-TET Triads",      "traditional_root_q": 0, "intervals_q": [0, 8, 16],      "degrees": ["1", "3", "#5"],     "cents_dev": [0, 0, 0],        "ghammaz_q": 16                                  },
+    { "id": "chord_dom7",         "short_symbol": "7",      "name": "7ª Dominante — 7 (1 - 3 - 5 - b7)",         "category": "12-TET Tetrads",     "traditional_root_q": 4, "intervals_q": [0, 8, 14, 20],  "degrees": ["1", "3", "5", "b7"],"cents_dev": [0, 0, 0, 0],     "ghammaz_q": 8,  "bridge_maqam": "maqam_hijaz"    },
+    { "id": "chord_maj7",         "short_symbol": "maj7",   "name": "7ª Maior — Maj7 (1 - 3 - 5 - 7)",           "category": "12-TET Tetrads",     "traditional_root_q": 0, "intervals_q": [0, 8, 14, 22],  "degrees": ["1", "3", "5", "7"], "cents_dev": [0, 0, 0, 0],     "ghammaz_q": 22, "bridge_maqam": "maqam_ajam"     },
+    { "id": "chord_min7",         "short_symbol": "m7",     "name": "Menor com 7ª — m7 (1 - b3 - 5 - b7)",       "category": "12-TET Tetrads",     "traditional_root_q": 0, "intervals_q": [0, 6, 14, 20],  "degrees": ["1", "b3", "5","b7"],"cents_dev": [0, 0, 0, 0],     "ghammaz_q": 6,  "bridge_maqam": "maqam_nahawand" },
+    { "id": "chord_m7b5",         "short_symbol": "m7b5",   "name": "Meio-Diminuto — m7b5 (1 - b3 - b5 - b7)",   "category": "12-TET Tetrads",     "traditional_root_q": 4, "intervals_q": [0, 6, 12, 20],  "degrees": ["1", "b3","b5","b7"],"cents_dev": [0, 0, 0, 0],     "ghammaz_q": 12, "bridge_maqam": "maqam_saba"     }
+  ],
+  "cadences": [
+    {
+      "id": "cad_rast",
+      "name": "Qafla Maqam Rast (I - IV - V - bVII - I)",
+      "traditional_root_q": 0,
+      "bridge_maqam": "maqam_rast",
+      "steps": [
+        { "roman": "I (Qarar)",    "offset_q": 0,  "chord_id": "chord_rast_triad", "role": "Tônica c/ 3ª Neutra" },
+        { "roman": "IV",           "offset_q": 10, "chord_id": "chord_maj",        "role": "Subdominante (Jaharkah)" },
+        { "roman": "V (Ghammaz)",  "offset_q": 14, "chord_id": "chord_rast_triad", "role": "Pivô Modal (Nawa)" },
+        { "roman": "bVII (Desc.)", "offset_q": 20, "chord_id": "chord_maj",        "role": "Subtônica (Ajam)" },
+        { "roman": "I (Qafla)",    "offset_q": 0,  "chord_id": "chord_rast_triad", "role": "Resolução Final" }
+      ]
+    },
+    {
+      "id": "cad_bayati",
+      "name": "Qafla Maqam Bayati (I - iv - bVII - v - I)",
+      "traditional_root_q": 4,
+      "bridge_maqam": "maqam_bayati",
+      "steps": [
+        { "roman": "I (Qarar)",    "offset_q": 0,  "chord_id": "chord_bayati_modal", "role": "Tônica Bayati" },
+        { "roman": "iv (Ghammaz)", "offset_q": 10, "chord_id": "chord_min",          "role": "2º Jins (Nahawand)" },
+        { "roman": "bVII (Rast)",  "offset_q": 20, "chord_id": "chord_maj",          "role": "Apoio Subtônico" },
+        { "roman": "v (Sus4)",     "offset_q": 14, "chord_id": "chord_sus4",         "role": "Suspensão Dominante" },
+        { "roman": "I (Qafla)",    "offset_q": 0,  "chord_id": "chord_bayati_modal", "role": "Repouso (Dukah)" }
+      ]
+    },
+    {
+      "id": "cad_hijaz",
+      "name": "Qafla Maqam Hijaz / Andaluza (I - iv - bIII - bII - I)",
+      "traditional_root_q": 4,
+      "bridge_maqam": "maqam_hijaz",
+      "steps": [
+        { "roman": "I (Estab.)",   "offset_q": 0,  "chord_id": "chord_hijaz_modal", "role": "Centro Hijaz" },
+        { "roman": "iv (Ghammaz)", "offset_q": 10, "chord_id": "chord_min",         "role": "Pivô no 4º Grau" },
+        { "roman": "bIII",         "offset_q": 6,  "chord_id": "chord_maj",         "role": "Descida Modal" },
+        { "roman": "bII",          "offset_q": 2,  "chord_id": "chord_maj",         "role": "Tensão b2 (Frígia)" },
+        { "roman": "I (Qafla)",    "offset_q": 0,  "chord_id": "chord_maj",         "role": "Resolução Maior/Hijaz" }
+      ]
+    },
+    {
+      "id": "cad_saba",
+      "name": "Qafla Maqam Saba (i° - bIII - bVII - bII - i°)",
+      "traditional_root_q": 4,
+      "bridge_maqam": "maqam_saba",
+      "steps": [
+        { "roman": "i° (Saba)",      "offset_q": 0,  "chord_id": "chord_saba_modal",  "role": "Tônica Saba" },
+        { "roman": "bIII (Ghammaz)", "offset_q": 6,  "chord_id": "chord_hijaz_modal", "role": "Jins Hijaz no 3º Grau" },
+        { "roman": "bVII",           "offset_q": 20, "chord_id": "chord_min",         "role": "Passagem Grave" },
+        { "roman": "bII",            "offset_q": 2,  "chord_id": "chord_maj",         "role": "Aproximação Semitonal" },
+        { "roman": "i° (Qafla)",     "offset_q": 0,  "chord_id": "chord_saba_modal",  "role": "Resolução Saba" }
+      ]
+    },
+    {
+      "id": "cad_nahawand",
+      "name": "Qafla Maqam Nahawand (i - iv - bVI - V7 - i)",
+      "traditional_root_q": 0,
+      "bridge_maqam": "maqam_nahawand",
+      "steps": [
+        { "roman": "i (Qarar)",    "offset_q": 0,  "chord_id": "chord_min",  "role": "Tônica Nahawand" },
+        { "roman": "iv",           "offset_q": 10, "chord_id": "chord_min",  "role": "Subdominante Menor" },
+        { "roman": "bVI",          "offset_q": 16, "chord_id": "chord_maj",  "role": "Expansão Lírica" },
+        { "roman": "V7 (Ghammaz)", "offset_q": 14, "chord_id": "chord_dom7", "role": "Jins Hijaz Dominante" },
+        { "roman": "i (Qafla)",    "offset_q": 0,  "chord_id": "chord_min",  "role": "Resolução Menor" }
+      ]
+    },
+    {
+      "id": "cad_kurd",
+      "name": "Qafla Maqam Kurd / Frígia (i - iv - bVII - bII - i)",
+      "traditional_root_q": 4,
+      "bridge_maqam": "maqam_kurd",
+      "steps": [
+        { "roman": "i (Qarar)",    "offset_q": 0,  "chord_id": "chord_min", "role": "Tônica Kurd" },
+        { "roman": "iv (Ghammaz)", "offset_q": 10, "chord_id": "chord_min", "role": "Pivô no 4º Grau" },
+        { "roman": "bVII",         "offset_q": 20, "chord_id": "chord_maj", "role": "Apoio Modal" },
+        { "roman": "bII (Kurdi)",  "offset_q": 2,  "chord_id": "chord_maj", "role": "Cadência b2 -> 1" },
+        { "roman": "i (Qafla)",    "offset_q": 0,  "chord_id": "chord_min", "role": "Repouso Kurd" }
+      ]
+    },
+    {
+      "id": "cad_sikah",
+      "name": "Qafla Maqam Sikah / Huzam (I- - III - II - bVII- - I-)",
+      "traditional_root_q": 5,
+      "bridge_maqam": "maqam_huzam",
+      "steps": [
+        { "roman": "I- (Sikah)",    "offset_q": 0,  "chord_id": "chord_sikah_modal", "role": "Tônica em 1/4 de Tom" },
+        { "roman": "III (Ghammaz)", "offset_q": 7,  "chord_id": "chord_hijaz_modal", "role": "Pivô em G (Nawa)" },
+        { "roman": "II",            "offset_q": 3,  "chord_id": "chord_maj",         "role": "Apoio F Maior" },
+        { "roman": "bVII-",         "offset_q": 19, "chord_id": "chord_oud_power",   "role": "Subtônica Grave" },
+        { "roman": "I- (Qafla)",    "offset_q": 0,  "chord_id": "chord_sikah_modal", "role": "Resolução Sikah" }
+      ]
+    },
+    {
+      "id": "cad_nikriz",
+      "name": "Qafla Maqam Nikriz (i - II7 - v - bVII - i)",
+      "traditional_root_q": 0,
+      "bridge_maqam": "maqam_nikriz",
+      "steps": [
+        { "roman": "i (Qarar)",   "offset_q": 0,  "chord_id": "chord_min",  "role": "Tônica Nikriz" },
+        { "roman": "II7 (#4)",    "offset_q": 4,  "chord_id": "chord_dom7", "role": "Destaque da #4" },
+        { "roman": "v (Ghammaz)", "offset_q": 14, "chord_id": "chord_min",  "role": "Jins Nahawand no 5º" },
+        { "roman": "bVII",        "offset_q": 20, "chord_id": "chord_maj",  "role": "Cadência Descendente" },
+        { "roman": "i (Qafla)",   "offset_q": 0,  "chord_id": "chord_min",  "role": "Repouso Final" }
+      ]
+    },
+    {
+      "id": "cad_nawa_athar",
+      "name": "Qafla Maqam Nawa Athar (i - #iv° - V - bVI - i)",
+      "traditional_root_q": 0,
+      "bridge_maqam": "maqam_nawa_athar",
+      "steps": [
+        { "roman": "i (Qarar)",   "offset_q": 0,  "chord_id": "chord_min",         "role": "Tônica Nawa Athar" },
+        { "roman": "#iv°",        "offset_q": 12, "chord_id": "chord_dim",         "role": "Sensível do Ghammaz" },
+        { "roman": "V (Ghammaz)", "offset_q": 14, "chord_id": "chord_hijaz_modal", "role": "Jins Hijaz no 5º Grau" },
+        { "roman": "bVI",         "offset_q": 16, "chord_id": "chord_maj",         "role": "Engano Modal (Hisar)" },
+        { "roman": "i (Qafla)",   "offset_q": 0,  "chord_id": "chord_min",         "role": "Resolução Dramática" }
+      ]
+    },
+    {
+      "id": "cad_ajam",
+      "name": "Qafla Maqam Ajam (I - IV - bVII - V7 - I)",
+      "traditional_root_q": 20,
+      "bridge_maqam": "maqam_ajam",
+      "steps": [
+        { "roman": "I (Qarar)",    "offset_q": 0,  "chord_id": "chord_maj",  "role": "Tônica Ajam" },
+        { "roman": "IV",           "offset_q": 10, "chord_id": "chord_maj",  "role": "Subdominante" },
+        { "roman": "bVII (Desc.)", "offset_q": 20, "chord_id": "chord_maj",  "role": "Flexão Descendente" },
+        { "roman": "V7 (Ghammaz)", "offset_q": 14, "chord_id": "chord_dom7", "role": "Dominante (5º Grau)" },
+        { "roman": "I (Qafla)",    "offset_q": 0,  "chord_id": "chord_maj",  "role": "Resolução Maior" }
+      ]
+    }
+  ]
+}
