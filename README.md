@@ -10,7 +10,7 @@ O **App Oud Visualizer** é uma aplicação web interativa e sem dependências e
 
 O sistema combina geometria logarítmica de precisão em **24 divisões por oitava (24-TET)** com síntese sonora microtonal em tempo real (**Web Audio API** com compensação em *cents*), permitindo visualizar e ouvir **Maqamat**, **Ajnas** (tricordes, tetracordes e pentacordes), **Modos Gregos**, **Escalas Simétricas**, **Dicionário de Acordes Ergonômicos** e **Cadências Modais (*Qafla*)** em diferentes afinações e posições da mão esquerda.
 
-🔗 **[Acessar Demonstração Online (GitHub Pages)](https://SEU-USUARIO.github.io/app-oud-visualizer/)**
+🔗 **[Acessar Demonstração Online (GitHub Pages)](https://thiago-rss.github.io/app-oud-visualizer/)**
 
 ---
 
@@ -92,4 +92,4 @@ Utilize as 5 abas para alternar o motor musical:
 
 1. Clone este repositório:
    ```bash
-   git clone [https://github.com/SEU-USUARIO/app-oud-visualizer.git](https://github.com/SEU-USUARIO/app-oud-visualizer.git)
+   git clone [https://github.com/thiago-rss/app-oud-visualizer.git](https://github.com/thiago-rss/app-oud-visualizer.git)
