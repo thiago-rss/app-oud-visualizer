@@ -1,95 +1,90 @@
-# 🪕 App Oud Visualizer — 24-TET Fretless Engine, Chords & Modal Cadences
+# 🪕 App Oud Visualizer — 24-TET Fretless Studio, Interactive Staff & Modal Method
 
-![Version](https://img.shields.io/badge/version-1.2.0-amber.svg)
-![Architecture](https://img.shields.io/badge/tuning_engine-24--TET_%2B_Cents-purple.svg)
-![Harmony](https://img.shields.io/badge/harmony-Modal_Chords_%26_Qafla_Sequencer-emerald.svg)
-![Tech](https://img.shields.io/badge/stack-Vanilla_JS_%7C_SVG_%7C_Web_Audio_API-blue.svg)
+![Version](https://img.shields.io/badge/version-2.6.0_Studio_Edition-amber.svg)
+![Tuning Engine](https://img.shields.io/badge/tuning_engine-24--TET_%2B_Cents-purple.svg)
+![Notation](https://img.shields.io/badge/notation-Interactive_24--TET_Staff_8vb-cyan.svg)
+![Architecture](https://img.shields.io/badge/stack-Native_ES_Modules_%7C_JSDoc_%7C_SVG_%7C_Web_Audio-blue.svg)
+![Bilingual](https://img.shields.io/badge/i18n-Portugu%C3%AAs_%7C_English-emerald.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-O **App Oud Visualizer** é uma aplicação web interativa e sem dependências externas projetada para o estudo avançado, mapeamento mecânico, harmonia modal e visualização no espelho (braço sem trastes) do **Oud** (alaúde árabe/sírio, turco e iraquiano).
+**[🇧🇷 Português](#-português) | [🇺🇸 English](#-english)**
 
-O sistema combina geometria logarítmica de precisão em **24 divisões por oitava (24-TET)** com síntese sonora microtonal em tempo real (**Web Audio API** com compensação em *cents*), permitindo visualizar e ouvir **Maqamat**, **Ajnas** (tricordes, tetracordes e pentacordes), **Modos Gregos**, **Escalas Simétricas**, **Dicionário de Acordes Ergonômicos** e **Cadências Modais (*Qafla*)** em diferentes afinações e posições da mão esquerda.
-
-🔗 **[Acessar Demonstração Online (GitHub Pages)](https://thiago-rss.github.io/app-oud-visualizer/)**
+🔗 **[Acessar Aplicação Online / Live Demo (GitHub Pages)](https://thiago-rss.github.io/app-oud-visualizer/)**
 
 ---
 
-## ✨ Principais Funcionalidades (v1.2.0)
+## 🇧🇷 Português
 
-* **Geometria Fretless Realista (SVG):** Cálculo exato da posição física de semitons e quartos de tom na mensura da corda seguindo a progressão logarítmica acústica $d(q) = L \cdot (1 - 2^{-q/24})$.
-* **Diferenciação Visual Dupla (Cor + Forma):** Identificação imediata entre notas temperadas fixas (**círculos**) e notas microtonais de quarto de tom (**losangos/diamantes**), garantindo leitura rápida durante o estudo e improviso (*Taqsim*).
-* **Dicionário de Acordes para Oud (Voicings & Arpejos):** 18 estruturas harmônicas divididas entre **Acordes Modais/Microtonais** (Rast com 3ª neutra, Bayati Cluster, Hijaz, Saba, Sikah, Quartal, Sus2/Sus4 e Power Chords de bordão), **Tríades** e **Tétrades 12-TET**, com cálculo automático de *voicing* ergonômico (1 nota tocável por corda e indicação `✕` para cordas abafadas).
-* **Sequenciador de Cadências Modais (*Qafla*):** 10 progressões harmônico-modais completas para finalizar os principais *Maqamat*, com transposição automática em 24-TET, visualização passo a passo no espelho e execução sequencial com rasgueado de *risha*.
-* **Múltiplas Afinações com Recálculo Automático:** Suporte nativo às afinações Síria/Árabe (`C-F-A-d-g-c`), Árabe Clássica (`F-A-d-g-c-f`), Egípcia (`D-G-A-d-g-c`), Turca/Grega (`D-E-A-B-e-a`) e Iraquiana/Mounir Bashir (`C-D-G-c-f-f'`).
-* **Sistema de Shapes Fechados (Closed-Position Box):** Filtro que oculta as cordas soltas e cria uma caixa ergonômica móvel de 4 dedos (cobrindo 4 semitons / 8 quartos de tom), facilitando a transposição mecânica pelas 6 ordens do instrumento.
-* **Ponte Modal e Cadencial Interativa:** Conexão direta entre Maqamat, Modos Gregos, Acordes e suas respectivas Cadências (*Qafla*).
-* **Sintetizador Microtonal & Bordão (Drone):** Reprodução de notas individuais ao clicar no espelho, rasgueado de acordes (*strum*), arpejos e gerador de **Drone contínuo na Tônica (*Qarar*)**.
+O **App Oud Visualizer (v2.6)** é um estúdio web interativo, modular e sem dependências externas projetado para o estudo aprofundado, leitura musical, mapeamento mecânico e improvisação modal (*Taqsim*) no **Oud** (alaúde árabe/sírio, egípcio, iraquiano e turco).
 
----
+A plataforma une geometria logarítmica de precisão em **24 divisões por oitava (24-TET)**, síntese sonora microtonal em tempo real (**Web Audio API** com compensação em *cents*), **partitura interativa sincronizada com o espelho**, motor rítmico de **Iqa'at** (Darbuka & Riq), glossário terminológico (*Al-Mu'jam*) e compartilhamento direto por URL.
 
-## 📖 Manual de Instruções do Usuário
+### ✨ Principais Recursos (v2.6)
 
-A interface do aplicativo é dividida em **4 Cartões de Controle** no topo, a **Barra de Sequenciamento de Cadências** (quando ativa), o **Espelho Interativo** no centro e o **Painel Analítico** na base.
-
-### 1. Barra Superior de Áudio e Orientação
-Localizada no cabeçalho do aplicativo:
-* **`▶ Tocar Escala / Rasguear Acorde / Tocar Cadência Completa`:** O botão principal adapta sua função automaticamente ao modo selecionado:
-  * Nos modos *Maqamat*, *Ajnas* e *Modos*: executa a escala melodicamente respeitando os desvios em *cents*.
-  * No modo *Acordes*: simula o **rasgueado da risha** (da 6ª à 1ª ordem) tocando apenas as notas ativas do *voicing* atual.
-  * No modo *Cadências*: executa todos os acordes da progressão em sequência temporal, atualizando o desenho no espelho do Oud em tempo real.
-* **`🎵 Arpejar Acorde Atual`:** Visível nos modos *Acordes* e *Cadências*; toca as notas do *voicing* ativo corda por corda.
-* **`🔊 Drone na Tônica (ON/OFF)`:** Ativa ou desativa um bordão contínuo afinado na **Tônica (*Qarar*)** global.
-* **`⇄ Mão: Destro / Canhoto`:** Espelha horizontalmente o braço do instrumento.
+* **Partitura Interativa 24-TET (`js/ui/staffRenderer.js`):**
+  * **Clave de Sol Transpositora ($G_2^{8vb}$ — Padrão Oud):** Escrita na Clave de Sol soando uma oitava abaixo, com glifos vetoriais para acidentes árabes (**Meio-Bemol / Nim-Sikah** $\flat\!\!\!/$ e **Meio-Sustenido / Tik**) e armaduras modais (*Maqam Key Signatures*).
+  * **Sincronização Bidirecional (Pauta ↔ Espelho):** Clicar em qualquer nota da pauta ilumina todas as posições equivalentes no braço do Oud (com indicação de corda e dedo); clicar em qualquer joia no braço exibe sua altura exata no **Compasso Inspetor** da pauta.
+* **Visualizador de Trajeto Melódico (*Sayr*) & Frases de *Taqsim*:**
+  * Trilhas vetoriais curvas em fio de ouro (`① → ② → ③`) conectando as notas tocáveis dentro da posição ativa para **Istihlal** (abertura), **Ghammaz** (desenvolvimento) e **Qafla** (resolução), com execução em *rubato* e iluminação passo a passo.
+* **Motor Rítmico Árabe (*Iqa'at Engine*):**
+  * Síntese percussiva de **Darbuka** (*Dum*, *Tak*, *Kah*) e **Riq** (*Zill*) com visor luminoso de subdivisões para **Maqsum (4/4)**, **Baladi (4/4)**, **Saidi (4/4)**, **Samai Thaqil (10/8 — `3+2+2+3`)**, **Aqsaq (9/8 — `2+2+2+3`)**, **Jurjina (10/16)** e **Malfuf (2/4)**.
+* **Dicionário de Acordes & Sequenciador de Cadências (*Qafla*):**
+  * 18 estruturas harmônicas (incluindo tríades e tétrades microtonais de *Rast*, *Bayati*, *Hijaz*, *Saba* e *Sikah*) com cálculo ergonômico de *voicing* (1 nota por ordem) e 10 cadências modais completas.
+* **3 Tradições de Luthieria & Modo Vertical Mobile:**
+  * Paletas históricas de **Damasco** (Nogueira & Sadaf), **Cairo / Bagdá** (Cedro & Raqma) e **Istambul** (Abeto & Ébano), com anatomia completa (*Shamsiyya*, *Raqma*, *Bajak*, *Anf*), modo **Destro / Canhoto** e alternância automática/manual entre **Espelho Horizontal** e **Espelho Vertical** (otimizado para celulares e estantes).
+* **Glossário Modal & Luthieria (*Al-Mu'jam al-Musiqi*) & Sistema Bilíngue (`PT | EN`):**
+  * Gaveta lateral pesquisável com 18 verbetes em árabe, transliteração, tradução literal e aplicação prática, além de troca instantânea de idioma e compartilhamento completo do estudo via hash da URL.
 
 ---
 
-### 2. Cartão 1: Afinação & Tônica (Qarar)
-* **Afinação do Oud (6ª → 1ª):** Escolha a configuração das 6 ordens de cordas. Ao alterar a afinação, todos os shapes de escalas e *voicings* de acordes são recalculados instantaneamente.
-* **Tônica / Centro Modal (Qarar):** Permite transpor qualquer *Maqam*, *Jins*, *Modo*, *Acorde* ou *Cadência* para qualquer um dos **24 quartos de tom** da oitava.
-* **Atalho `Tônica Tradicional`:** Retorna a estrutura selecionada para o seu grau de repouso histórico tradicional no Oud (ex: `C` para *Rast/Nahawand*, `D` para *Bayati/Hijaz/Saba/Kurd*, `Eb-` para *Sikah/Huzam*, `Bb` para *Ajam*).
+## 🇺🇸 English
+
+**App Oud Visualizer (v2.6)** is a zero-dependency, modular web studio designed for advanced study, sight-reading, mechanical fingerboard mapping, and modal improvisation (*Taqsim*) on the **Oud** (Syrian/Arabic, Egyptian, Iraqi, and Turkish traditions).
+
+It combines logarithmic **24-tone equal temperament (24-TET)** geometry, real-time microtonal **Web Audio API** synthesis (with exact *cents* inflection), an **interactive 24-TET musical staff synchronized with the neck**, an **Iqa'at rhythm engine** (Darbuka & Riq), a searchable Arabic music glossary (*Al-Mu'jam*), and instant URL-state study sharing.
+
+### ✨ Key Features (v2.6)
+
+* **Interactive 24-TET Musical Staff (`js/ui/staffRenderer.js`):**
+  * **Oud-Standard Transposing Treble Clef ($G_2^{8vb}$):** Written in Treble Clef sounding one octave lower, featuring custom vector glyphs for Arabic microtonal accidentals (**Half-Flat / Nim-Sikah** and **Half-Sharp / Tik**) and modal key signatures.
+  * **Bidirectional Sync (Staff ↔ Fingerboard):** Clicking any note on the staff highlights all playable locations across the Oud courses (displaying course & finger coordinates); clicking any jewel on the fingerboard displays its exact pitch and ledger lines in the staff's **Inspector Measure**.
+* **Melodic Path (*Sayr*) Visualizer & *Taqsim* Phrases:**
+  * Curved golden vector trails (`① → ② → ③`) mapping idiomatic phrasing across the active hand shape for **Istihlal** (opening), **Ghammaz** (pivot development), and **Qafla** (cadential resolution), complete with rubato playback and live note illumination.
+* **Arabic Rhythm Engine (*Iqa'at* — Darbuka & Riq):**
+  * Synthesized **Darbuka** (*Dum*, *Tak*, *Kah*) and **Riq** (*Zill*) percussion with a live beat grid for **Maqsum (4/4)**, **Baladi (4/4)**, **Saidi (4/4)**, **Samai Thaqil (10/8 — `3+2+2+3`)**, **Aqsaq (9/8 — `2+2+2+3`)**, **Jurjina (10/16)**, and **Malfuf (2/4)**.
+* **Oud Chord Dictionary & *Qafla* Cadence Sequencer:**
+  * 18 harmonic structures (including microtonal *Rast*, *Bayati*, *Hijaz*, *Saba*, and *Sikah* voicings) with ergonomic 1-note-per-course calculation and 10 step-by-step modal cadences.
+* **3 Luthierie Traditions & Mobile Vertical Mode:**
+  * Visual palettes for **Damascus** (Walnut & Sadaf), **Cairo / Baghdad** (Cedar & Raqma), and **Istanbul** (Spruce & Ebony), featuring realistic Oud anatomy (*Shamsiyya* rosettes, *Raqma* pickguard, *Bajak* pegbox, *Anf* nut), **Right/Left-Handed** mirroring, and **Horizontal / Vertical** orientation switching.
+* **Bilingual Interface (`PT | EN`) & *Al-Mu'jam* Glossary:**
+  * Instant language switching, searchable 18-entry Arabic music & luthierie glossary with contextual `ⓘ` triggers, and zero-backend study sharing via URL hash serialization.
 
 ---
 
-### 3. Cartão 2: Estrutura Modal / Harmonia (5 Abas)
-Utilize as 5 abas para alternar o motor musical:
-1. **`Maqamat`:** Escalas completas com suporte a caminho **`↑ Ascendente`** e **`↓ Descendente`** (*Sayr*) e botão direto no painel inferior para abrir a **Cadência Modal (*Qafla*)** daquele Maqam.
-2. **`Ajnas`:** Tricordes, tetracordes e pentacordes fundamentais isolados para treino de vocabulário e modulação.
-3. **`Modos`:** Modos Gregos, Escalas Menores Alteradas (Harmônica, Frígio Dominante, Dupla Harmônica, Húngara) e Escalas Simétricas.
-4. **`Acordes`:** Dicionário com 18 tipos de acordes. Oferece dois submodos de visualização:
-   * **`1 Nota / Corda (Voicing)`:** Seleciona ergonomicamente uma única nota por ordem dentro da posição atual da mão esquerda e exibe **`✕`** vermelho nas ordens que devem ser abafadas/evitadas.
-   * **`Todas as Notas (Arpejo)`:** Exibe todas as ocorrências das notas do acorde ao longo de todo o espelho.
-5. **`Cadências`:** Abre a **Barra do Sequenciador de Cadências Modais (*Qafla*)** logo acima do espelho. Clique em qualquer passo da progressão (`Passo 1: I`, `Passo 2: IV`, etc.) para inspecionar e ouvir o acorde correspondente no braço do instrumento.
+## 🏗️ Arquitetura Modular / Modular Architecture (`v2.6`)
 
----
+O projeto utiliza **ES Modules nativos** com verificação estrita de tipos via **JSDoc (`// @ts-check`)**, dispensando etapas de compilação (*zero-build*) para publicação direta no GitHub Pages:
 
-### 4. Cartão 3: Mapeamento de Shapes & Posição da Mão Esquerda
-* **`Espelho Completo (0q a 16q)`:** Mostra todas as notas válidas da corda solta até o 8º semitom.
-* **`1ª Posição Aberta (Com Cordas Soltas)`:** Prioriza a região próxima à pestana ($q=0$ a $q=8$), utilizando cordas soltas (`Dedo 0`) sempre que pertencerem à escala ou ao acorde.
-* **`Posição Móvel Fechada (Sem Cordas Soltas)`:** Oculta as cordas soltas e ativa uma janela móvel de **4 semitons (8 quartos de tom)**. Use o controle deslizante (`q=1` a `q=10`) para gerar *voicings* de acordes e shapes de escalas fechados em qualquer região do braço.
-* **`Isolar Regiões do Maqam` (`Completo` | `1º Jins` | `2º Jins`):** Permite focar separadamente no *Jins* inferior ou superior.
-
----
-
-### 5. Cartão 4: Rótulos & Guias do Espelho
-* **Texto dentro das Notas:** Alterne entre `Nome da Nota` (`C`, `Eb-`, `F#`), `Grau / Intervalo` (`1`, `3-`, `5`, `b7`), `Dedo Sugerido` (`0` a `4`) ou `Nome Árabe` (*Rast, Dukah, Sikah...*).
-* **Linhas-Guia Visuais:** Ligue ou desligue individualmente as `Guias 12-TET` (semitons pares), `Guias 1/4 Tom` (quartos de tom ímpares) e `Ghost Notes` (notas fora da caixa atual exibidas em baixa opacidade).
-
----
-
-## 🎨 Legenda de Cores e Formas no Espelho
-
-| Símbolo / Cor | Formato Geométrico | Significado Musical |
-| :--- | :---: | :--- |
-| 🔴 **Vermelho Coral (Borda Branca)** | **Círculo** (se fixa) ou **Losango** (se 1/4 de tom) | **Tônica / Fundamental Atual (`1`):** Nota raiz do Maqam, Jins, Modo ou do Acorde atualmente ativo na Cadência. |
-| 🟡 **Dourado / Âmbar** | **Círculo** ou **Losango** | **Ghammaz / 3ª do Acorde / Nota Característica:** Ponto de pivô modal (nos Maqamat), nota que define a qualidade modal do acorde (ex: 3ª neutra no acorde Rast) ou eixo simétrico. |
-| 🔵 **Azul Royal** | **Círculo** (`●`) | **Nota Fixa (12-TET):** Nota temperada padrão (semitons pares). |
-| 🟣 **Roxo / Violeta** | **Losango / Diamante** (`◆`) | **Nota Microtonal (24-TET):** Quarto de tom (meio-bemol `-` ou meio-sustenido `+`, passos ímpares na grade de 24 divisões). |
-| ❌ **`✕` Vermelho na Pestana** | **Cruz na Ordem** | **Ordem Abafada / Omitida:** Indica que a corda não possui nota ergonomicamente acessível para o *voicing* fechado atual. |
-
----
-
-## 🚀 Como Executar Localmente
-
-1. Clone este repositório:
-   ```bash
-   git clone [https://github.com/thiago-rss/app-oud-visualizer.git](https://github.com/thiago-rss/app-oud-visualizer.git)
+```text
+app-oud-visualizer/
+├── index.html                  # Estrutura semântica bilíngue, Pauta SVG, Espelho SVG e Gaveta Al-Mu'jam
+├── README.md                   # Documentação bilíngue (PT / EN)
+├── LICENSE                     # Licença MIT
+├── styles/
+│   └── main.css                # Temas de Luthieria, layout Diwan, Pauta 24-TET e responsividade Vertical
+├── js/
+│   ├── main.js                 # Orquestrador reativo e sincronização bidirecional Pauta ↔ Espelho
+│   ├── core/
+│   │   ├── database.js         # Banco 24-TET, Afinações, Ajnas, Maqamat, Sayr, Acordes, Qafla e Iqa'at
+│   │   ├── modalEngine.js      # Funções puras: geometria d(q), aritmética Z_24 e solver de voicings
+│   │   ├── urlState.js         # Serialização/Deserialização completa do estado na URL (Deep Linking)
+│   │   ├── glossary.js         # Acervo terminológico Al-Mu'jam al-Musiqi (18 verbetes)
+│   │   └── i18n.js             # Motor bilíngue (Português / Inglês) para UI, banco de dados e glossário
+│   ├── audio/
+│   │   └── synthEngine.js      # Web Audio API: cordas duplas, rubato Taqsim, drone Qarar e Darbuka/Riq
+│   └── ui/
+│       ├── neckRenderer.js     # Renderizador vetorial do espelho do Oud (Horizontal & Vertical)
+│       └── staffRenderer.js    # Renderizador vetorial da Pauta 24-TET (Clave de Sol 8vb + glifos árabes)
+└── docs/
+    ├── TECHNICAL_SPEC.md       # Especificação matemática e acústica
+    └── oud_database.json       # Espelho JSON estruturado
