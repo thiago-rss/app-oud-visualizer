@@ -3,35 +3,97 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Oud Visualizer — v1.2 (24-TET + Acordes + Cadências Modais)</title>
+  <title>App Oud Visualizer — v1.3 Luthier & Traditions Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #0f172a;
-      --bg-panel: #1e293b;
-      --bg-card: #334155;
+      /* Tema Padrão: Damasco (Síria - Nogueira & Madrepérola) */
+      --bg-deep: #110b08;
+      --bg-panel: #1c120d;
+      --bg-card: #281a12;
+      --bg-input: #140c08;
+      --wood-soundboard: #b87b4b;
+      --wood-soundboard-dark: #8c562b;
+      --wood-ebony: #14110f;
+      --wood-raqma: #3b170e;
+      --rosette-gold: #d4af37;
+      --sadaf-pearl: #e0f2fe;
+      --sadaf-cyan: #67e8f9;
+      --text-main: #f5ebe6;
+      --text-muted: #bba598;
+      --accent: #d4af37;
+      --accent-hover: #eab308;
+      --root-color: #dc2626;
+      --ghammaz-color: #d97706;
+      --fixed-color: #1d4ed8;
+      --micro-color: #9333ea;
+      --border-gold: rgba(212, 175, 55, 0.35);
+      --border-subtle: rgba(212, 175, 55, 0.18);
+    }
+
+    body[data-tradition="cairo"] {
+      --bg-deep: #140a07;
+      --bg-panel: #21110b;
+      --bg-card: #301911;
+      --bg-input: #160a06;
+      --wood-soundboard: #c87d46;
+      --wood-soundboard-dark: #965224;
+      --wood-ebony: #1a120e;
+      --wood-raqma: #4a150b;
+      --rosette-gold: #e5b842;
+      --accent: #e5b842;
+    }
+
+    body[data-tradition="istanbul"] {
+      --bg-deep: #0f1217;
+      --bg-panel: #181d26;
+      --bg-card: #232a36;
+      --bg-input: #10141b;
+      --wood-soundboard: #dfc192;
+      --wood-soundboard-dark: #b89562;
+      --wood-ebony: #111317;
+      --wood-raqma: #261612;
+      --rosette-gold: #cda349;
+      --accent: #cda349;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
-      --accent: #f59e0b;
-      --accent-hover: #d97706;
-      --root-color: #ef4444;
-      --ghammaz-color: #f59e0b;
-      --fixed-color: #3b82f6;
-      --micro-color: #a855f7;
-      --border: #475569;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     body {
-      background-color: var(--bg-dark);
+      background-color: var(--bg-deep);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 65%),
+        repeating-linear-gradient(45deg, rgba(212, 175, 55, 0.015) 0px, rgba(212, 175, 55, 0.015) 1px, transparent 1px, transparent 16px),
+        repeating-linear-gradient(-45deg, rgba(212, 175, 55, 0.015) 0px, rgba(212, 175, 55, 0.015) 1px, transparent 1px, transparent 16px);
       color: var(--text-main);
       padding: 16px;
-      line-height: 1.4;
+      line-height: 1.45;
+      transition: background-color 0.3s ease;
+    }
+
+    /* Filete de Marchetaria Árabe (Khatem Border) */
+    .khatem-border {
+      position: relative;
+      border: 1px solid var(--border-gold);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 255, 255, 0.03);
+    }
+
+    .khatem-border::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border: 1px dashed rgba(212, 175, 55, 0.22);
+      border-radius: inherit;
+      pointer-events: none;
     }
 
     header {
@@ -39,153 +101,223 @@
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      background: var(--bg-panel);
-      padding: 14px 20px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-panel) 100%);
+      padding: 14px 22px;
+      border-radius: 12px;
       margin-bottom: 16px;
-      gap: 12px;
+      gap: 14px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .brand h1 {
-      font-size: 1.35rem;
+    .brand-rosette {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    }
+
+    .brand-titles h1 {
+      font-family: 'Cinzel Decorative', 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
       font-weight: 700;
-      letter-spacing: -0.5px;
-      color: #fff;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #fff3d1 0%, var(--accent) 55%, #e0f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .badge {
-      background: rgba(245, 158, 11, 0.15);
+      background: rgba(212, 175, 55, 0.14);
       color: var(--accent);
-      border: 1px solid var(--accent);
-      font-size: 0.75rem;
-      padding: 3px 8px;
+      border: 1px solid var(--border-gold);
+      font-size: 0.7rem;
+      padding: 2px 8px;
       border-radius: 999px;
       font-weight: 600;
     }
 
-    .audio-bar {
+    .header-actions {
       display: flex;
+      align-items: center;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .tradition-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-gold);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      color: var(--accent);
+    }
+
+    .tradition-selector select {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-weight: 600;
+      padding: 2px 4px;
+      font-size: 0.78rem;
+      width: auto;
+      cursor: pointer;
     }
 
     button {
       background: var(--bg-card);
       color: var(--text-main);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-gold);
       padding: 8px 14px;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      transition: all 0.15s ease;
+      transition: all 0.18s ease;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
     }
 
     button:hover {
-      background: #475569;
+      border-color: var(--accent);
+      filter: brightness(1.12);
+      transform: translateY(-1px);
     }
 
     button.primary {
-      background: var(--accent);
-      color: #0f172a;
-      border-color: var(--accent);
+      background: linear-gradient(135deg, #e5b842 0%, #b8860b 100%);
+      color: #110b08;
+      border-color: #fde68a;
+      font-weight: 700;
     }
 
     button.primary:hover {
-      background: var(--accent-hover);
+      background: linear-gradient(135deg, #fde047 0%, #ca8a04 100%);
     }
 
     button.active-toggle {
-      background: #ef4444;
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
       color: #fff;
-      border-color: #ef4444;
+      border-color: #fca5a5;
     }
 
     /* Deck de Controles */
     .control-deck {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
       gap: 14px;
       margin-bottom: 16px;
     }
 
     .control-card {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg-panel) 0%, rgba(17, 11, 8, 0.92) 100%);
       border-radius: 10px;
-      padding: 14px;
+      padding: 15px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
     .control-card h3 {
-      font-size: 0.75rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.95rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      border-bottom: 1px solid rgba(255,255,255,0.07);
+      letter-spacing: 1px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border-subtle);
       padding-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .control-card h3::before {
+      content: "❖";
+      color: var(--sadaf-cyan);
+      font-size: 0.85rem;
     }
 
     label {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 3px;
     }
 
     select, input[type="range"] {
       width: 100%;
-      background: var(--bg-dark);
+      background: var(--bg-input);
       color: var(--text-main);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-gold);
       padding: 8px 10px;
       border-radius: 6px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       outline: none;
     }
 
     select:focus {
-      border-color: var(--accent);
+      border-color: var(--sadaf-cyan);
+      box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.15);
+    }
+
+    input[type="range"] {
+      accent-color: var(--accent);
+      cursor: pointer;
     }
 
     .tab-group {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 3px;
-      background: var(--bg-dark);
+      background: var(--bg-input);
       padding: 4px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
     }
 
     .tab-btn {
       background: transparent;
       border: none;
+      box-shadow: none;
       padding: 6px 2px;
       font-size: 0.71rem;
       text-align: center;
       justify-content: center;
       color: var(--text-muted);
-      border-radius: 4px;
+      border-radius: 5px;
+    }
+
+    .tab-btn:hover {
+      transform: none;
+      color: var(--text-main);
     }
 
     .tab-btn.active {
-      background: var(--accent);
-      color: #0f172a;
+      background: linear-gradient(135deg, var(--accent) 0%, #9a6f0a 100%);
+      color: #110b08;
       font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
 
     .inline-options {
@@ -198,21 +330,20 @@
       flex: 1;
       justify-content: center;
       padding: 6px 8px;
-      font-size: 0.75rem;
+      font-size: 0.74rem;
     }
 
     .inline-options button.selected {
-      background: var(--fixed-color);
-      border-color: var(--fixed-color);
-      color: #fff;
+      background: rgba(212, 175, 55, 0.22);
+      border-color: var(--accent);
+      color: #fde68a;
     }
 
     /* Barra do Sequenciador de Cadências Modais (Qafla) */
     .cadence-bar {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
-      border: 1px solid var(--accent);
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-panel));
       border-radius: 10px;
-      padding: 14px 16px;
+      padding: 14px 18px;
       margin-bottom: 16px;
       display: none;
       flex-direction: column;
@@ -228,7 +359,8 @@
     }
 
     .cadence-header-title {
-      font-size: 0.92rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
       font-weight: 700;
       color: var(--accent);
       display: flex;
@@ -243,31 +375,30 @@
     }
 
     .cadence-step-card {
-      background: var(--bg-dark);
-      border: 1px solid var(--border);
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
       border-radius: 8px;
       padding: 10px 12px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.16s ease;
       display: flex;
       flex-direction: column;
       gap: 4px;
-      position: relative;
     }
 
     .cadence-step-card:hover {
       border-color: var(--accent);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
     }
 
     .cadence-step-card.active-step {
-      background: rgba(245, 158, 11, 0.16);
-      border: 2px solid var(--accent);
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+      background: rgba(212, 175, 55, 0.15);
+      border: 1.5px solid var(--accent);
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.25);
     }
 
     .step-roman {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 800;
       color: var(--accent);
       text-transform: uppercase;
@@ -276,22 +407,22 @@
     }
 
     .step-chord-name {
-      font-size: 0.95rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.08rem;
       font-weight: 700;
       color: #fff;
     }
 
     .step-role {
-      font-size: 0.73rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
     }
 
-    /* Container do Espelho (SVG) */
+    /* Moldura do Espelho do Oud (SVG) */
     .neck-wrapper {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
+      background: radial-gradient(circle at 50% 50%, var(--bg-card) 0%, var(--bg-deep) 100%);
+      border-radius: 12px;
+      padding: 16px 20px;
       margin-bottom: 16px;
       overflow-x: auto;
     }
@@ -302,52 +433,56 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
     .legend {
       display: flex;
-      gap: 16px;
+      gap: 18px;
       flex-wrap: wrap;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
     }
 
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
     }
 
     .dot {
-      width: 12px;
-      height: 12px;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       display: inline-block;
+      box-shadow: 0 0 6px rgba(0,0,0,0.6);
     }
 
-    .diamond {
-      width: 11px;
-      height: 11px;
-      transform: rotate(45deg);
-      display: inline-block;
+    .star-icon {
+      color: #d8b4fe;
+      font-size: 1rem;
+      line-height: 1;
+      text-shadow: 0 0 6px rgba(147, 51, 234, 0.8);
     }
 
     svg#oud-neck {
       width: 100%;
-      min-width: 920px;
+      min-width: 960px;
       height: auto;
       display: block;
       user-select: none;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.65));
     }
 
     .note-node {
       cursor: pointer;
-      transition: transform 0.12s ease, opacity 0.2s ease;
+      transition: filter 0.15s ease, opacity 0.2s ease;
     }
 
     .note-node:hover {
-      filter: brightness(1.25);
+      filter: brightness(1.3) drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
     }
 
     /* Painel Analítico Inferior */
@@ -357,38 +492,39 @@
       gap: 14px;
     }
 
-    @media (max-width: 820px) {
+    @media (max-width: 840px) {
       .info-panel {
         grid-template-columns: 1fr;
       }
     }
 
     .info-card {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
       border-radius: 10px;
-      padding: 16px;
+      padding: 18px;
     }
 
     .info-card h2 {
-      font-size: 1.1rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
       color: var(--accent);
       margin-bottom: 6px;
+      letter-spacing: 0.3px;
     }
 
     .info-meta {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin: 10px 0;
+      margin: 12px 0;
     }
 
     .meta-pill {
-      background: var(--bg-dark);
-      border: 1px solid var(--border);
-      padding: 6px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 12px;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.81rem;
     }
 
     .meta-pill strong {
@@ -397,11 +533,11 @@
 
     .bridge-box {
       margin-top: 12px;
-      padding: 10px 12px;
-      background: rgba(59, 130, 246, 0.12);
-      border-left: 3px solid var(--fixed-color);
-      border-radius: 4px;
-      font-size: 0.85rem;
+      padding: 10px 14px;
+      background: rgba(212, 175, 55, 0.08);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      font-size: 0.84rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -410,25 +546,50 @@
     }
   </style>
 </head>
-<body>
+<body data-tradition="damascus">
 
-  <header>
+  <header class="khatem-border">
     <div class="brand">
-      <h1>App Oud Visualizer</h1>
-      <span class="badge">v1.2 — 24-TET + Acordes + Cadências Modais</span>
+      <!-- Emblema Vetorial da Roseta (Shamsiyya) -->
+      <svg class="brand-rosette" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#140c08" stroke="#d4af37" stroke-width="2"/>
+        <circle cx="32" cy="32" r="25" fill="none" stroke="#67e8f9" stroke-width="0.8" stroke-dasharray="2,2"/>
+        <g stroke="#d4af37" stroke-width="1.2" fill="rgba(212, 175, 55, 0.12)">
+          <rect x="16" y="16" width="32" height="32" />
+          <rect x="16" y="16" width="32" height="32" transform="rotate(45 32 32)" />
+        </g>
+        <circle cx="32" cy="32" r="8" fill="none" stroke="#e0f2fe" stroke-width="1.2"/>
+        <circle cx="32" cy="32" r="3" fill="#d4af37"/>
+      </svg>
+      <div class="brand-titles">
+        <h1>App Oud Visualizer</h1>
+        <div class="brand-subtitle">
+          <span>Espelho Microtonal 24-TET, Harmonia Modal & Luthieria</span>
+          <span class="badge">v1.3 Luthier Edition</span>
+        </div>
+      </div>
     </div>
-    <div class="audio-bar">
+
+    <div class="header-actions">
+      <div class="tradition-selector" title="Alternar estética visual conforme as escolas tradicionais de construção do Oud">
+        <span>🏺 Tradição:</span>
+        <select id="select-tradition">
+          <option value="damascus">Damasco (Nogueira & Madrepérola)</option>
+          <option value="cairo">Cairo / Bagdá (Cedro & Raqma)</option>
+          <option value="istanbul">Istambul (Abeto Claro & Ébano)</option>
+        </select>
+      </div>
       <button class="primary" id="btn-play-scale" title="Executar escala, acorde ou cadência completa">
         ▶ Tocar Escala / Maqam
       </button>
       <button id="btn-arp-chord" style="display:none;" title="Tocar as notas do acorde atual uma a uma (Arpejo)">
-        🎵 Arpejar Acorde Atual
+        🎵 Arpejar Acorde
       </button>
       <button id="btn-drone" title="Ativar/Desativar bordão contínuo na nota Tônica (Qarar)">
-        🔊 Drone na Tônica: OFF
+        🔊 Drone (Qarar): OFF
       </button>
       <button id="btn-hand" title="Inverter espelho para Destro ou Canhoto">
-        ⇄ Mão: Destro
+        ⇄ Destro
       </button>
     </div>
   </header>
@@ -436,24 +597,24 @@
   <!-- Barra de Controles -->
   <section class="control-deck">
     <!-- Card 1: Afinação e Tônica -->
-    <div class="control-card">
-      <h3>1. Afinação & Tônica (Qarar)</h3>
+    <div class="control-card khatem-border">
+      <h3>1. Afinação & Qarar (Tônica)</h3>
       <div>
-        <label for="select-tuning">Afinação do Oud (6ª → 1ª):</label>
+        <label for="select-tuning">Ordens do Oud (6ª Grave → 1ª Aguda):</label>
         <select id="select-tuning"></select>
       </div>
       <div>
         <label for="select-root">
-          <span>Tônica / Centro Modal (Qarar):</span>
-          <a href="#" id="btn-trad-root" style="color:var(--accent); text-decoration:none; font-size:0.75rem;">Tônica Tradicional</a>
+          <span>Centro Modal / Tônica (Qarar):</span>
+          <a href="#" id="btn-trad-root" style="color:var(--sadaf-cyan); text-decoration:none; font-size:0.74rem; font-weight:600;">↺ Tônica Tradicional</a>
         </label>
         <select id="select-root"></select>
       </div>
     </div>
 
     <!-- Card 2: Seleção de Maqam, Jins, Escala, Acorde ou Cadência -->
-    <div class="control-card">
-      <h3>2. Estrutura Modal / Harmonia</h3>
+    <div class="control-card khatem-border">
+      <h3>2. Modalidade & Harmonia</h3>
       <div class="tab-group">
         <button class="tab-btn active" data-mode="MAQAM">Maqamat</button>
         <button class="tab-btn" data-mode="JINS">Ajnas</button>
@@ -465,57 +626,57 @@
         <select id="select-entity"></select>
       </div>
       <div id="maqam-subcontrols" class="inline-options">
-        <button id="btn-dir-asc" class="selected" title="Caminho ascendente do Maqam">↑ Ascendente</button>
+        <button id="btn-dir-asc" class="selected" title="Caminho ascendente do Maqam (Sayr)">↑ Ascendente</button>
         <button id="btn-dir-desc" title="Caminho descendente (altera o Jins superior em certos Maqamat)">↓ Descendente</button>
       </div>
       <div id="chord-subcontrols" class="inline-options" style="display:none;">
-        <button id="btn-chord-voicing" class="selected" title="Exibe apenas 1 nota ergonômica por corda (Voicing real tocável)">1 Nota / Corda (Voicing)</button>
-        <button id="btn-chord-all" title="Exibe todas as notas do acorde espalhadas pelo espelho (Arpejo)">Todas as Notas (Arpejo)</button>
+        <button id="btn-chord-voicing" class="selected" title="Exibe apenas 1 nota ergonômica por corda (Voicing real tocável)">1 Nota / Ordem (Voicing)</button>
+        <button id="btn-chord-all" title="Exibe todas as notas do acorde espalhadas pelo espelho (Arpejo)">Mapa Completo (Arpejo)</button>
       </div>
     </div>
 
     <!-- Card 3: Shapes e Posição da Mão Esquerda -->
-    <div class="control-card">
-      <h3>3. Mapeamento de Shapes & Posição</h3>
+    <div class="control-card khatem-border">
+      <h3>3. Posição & Shapes no Espelho</h3>
       <div>
-        <label for="select-shape">Região / Posição da Mão Esquerda:</label>
+        <label for="select-shape">Mapeamento da Mão Esquerda:</label>
         <select id="select-shape">
           <option value="FULL_NECK">Espelho Completo (0q a 16q)</option>
-          <option value="OPEN_FIRST_POS">1ª Posição Aberta (Com Cordas Soltas)</option>
-          <option value="CLOSED_BOX">Posição Móvel Fechada (Sem Cordas Soltas)</option>
+          <option value="OPEN_FIRST_POS">1ª Posição Clássica (Com Cordas Soltas)</option>
+          <option value="CLOSED_BOX">Shape Móvel Fechado (Sem Cordas Soltas)</option>
         </select>
       </div>
       <div id="box-slider-group" style="display:none;">
         <label for="slider-box">
-          <span>Posição do Dedo 1 (Caixa Móvel):</span>
+          <span>Ancoragem do Dedo 1:</span>
           <strong id="label-box-pos" style="color:var(--accent);">Semitom 1 (q=2)</strong>
         </label>
         <input type="range" id="slider-box" min="1" max="10" step="1" value="2" />
       </div>
       <div id="jins-filter-group">
-        <label>Isolar Regiões do Maqam:</label>
+        <label>Isolar Tetracordes (Ajnas):</label>
         <div class="inline-options" style="margin-top:4px;">
-          <button class="jins-filter selected" data-filter="ALL">Completo</button>
-          <button class="jins-filter" data-filter="LOWER">1º Jins (Inf.)</button>
-          <button class="jins-filter" data-filter="UPPER">2º Jins (Sup.)</button>
+          <button class="jins-filter selected" data-filter="ALL">Maqam Completo</button>
+          <button class="jins-filter" data-filter="LOWER">1º Jins (Base)</button>
+          <button class="jins-filter" data-filter="UPPER">2º Jins (Ghammaz)</button>
         </div>
       </div>
     </div>
 
     <!-- Card 4: Exibição e Guias -->
-    <div class="control-card">
-      <h3>4. Rótulos & Guias do Espelho</h3>
+    <div class="control-card khatem-border">
+      <h3>4. Inscrições & Guias de Mensura</h3>
       <div>
-        <label for="select-label">Texto dentro das Notas:</label>
+        <label for="select-label">Inscrição nas Notas:</label>
         <select id="select-label">
-          <option value="NOTE_NAME">Nome da Nota (C, Eb-, F#)</option>
-          <option value="DEGREE">Grau / Intervalo (1, 3-, 5, b7)</option>
-          <option value="FINGER">Dedo Sugerido (0, 1, 2, 3, 4)</option>
-          <option value="ARABIC">Nome Árabe (Rast, Dukah, Sikah...)</option>
+          <option value="NOTE_NAME">Cifra & Acidente (C, Eb-, F#)</option>
+          <option value="DEGREE">Grau Modal (1, 3-, 5, b7)</option>
+          <option value="FINGER">Dedilhado (0, 1, 2, 3, 4)</option>
+          <option value="ARABIC">Grau Histórico (Rast, Dukah, Sikah...)</option>
         </select>
       </div>
       <div>
-        <label>Linhas-Guia Visuais (Fretless):</label>
+        <label>Incrustações de Referência (Fretless):</label>
         <div class="inline-options" style="margin-top:4px;">
           <button id="btn-guide-semi" class="selected">Guias 12-TET</button>
           <button id="btn-guide-micro" class="selected">Guias 1/4 Tom</button>
@@ -526,47 +687,49 @@
   </section>
 
   <!-- Barra Interativa de Cadências Modais (Qafla Sequencer) -->
-  <section class="cadence-bar" id="cadence-bar">
+  <section class="cadence-bar khatem-border" id="cadence-bar">
     <div class="cadence-header">
       <div class="cadence-header-title">
-        <span>🎼 Sequenciador de Cadência Modal (Qafla):</span>
-        <span id="cadence-active-label" style="color:#fff; font-weight:500;">Clique em cada acorde abaixo para inspecionar o shape no espelho</span>
+        <span>☪ Sequenciador de Cadência Modal (Qafla):</span>
+        <span id="cadence-active-label" style="color:var(--text-main); font-size:0.84rem; font-family:'Plus Jakarta Sans',sans-serif; font-weight:400;">
+          Selecione um acorde da progressão abaixo para visualizar a digitação no espelho
+        </span>
       </div>
       <div style="display:flex; gap:8px;">
-        <button id="btn-strum-step" style="padding:5px 10px; font-size:0.78rem;">🔊 Rasguear Acorde Selecionado</button>
-        <button class="primary" id="btn-play-cadence-seq" style="padding:5px 12px; font-size:0.78rem;">▶ Tocar Progressão Completa</button>
+        <button id="btn-strum-step" style="padding:5px 10px; font-size:0.78rem;">🔊 Rasguear Acorde Atual</button>
+        <button class="primary" id="btn-play-cadence-seq" style="padding:5px 12px; font-size:0.78rem;">▶ Tocar Qafla Completa</button>
       </div>
     </div>
     <div class="cadence-steps" id="cadence-steps-container"></div>
   </section>
 
   <!-- Área do Espelho do Oud (SVG) -->
-  <section class="neck-wrapper">
+  <section class="neck-wrapper khatem-border">
     <div class="neck-toolbar">
       <div class="legend">
-        <span class="legend-item"><span class="dot" style="background:var(--root-color); border:2px solid #fff;"></span> Tônica / Fundamental Atual (1)</span>
-        <span class="legend-item"><span class="dot" style="background:var(--ghammaz-color);"></span> Ghammaz / 3ª ou Nota Caract.</span>
-        <span class="legend-item"><span class="dot" style="background:var(--fixed-color);"></span> Nota Fixa (12-TET)</span>
-        <span class="legend-item"><span class="diamond" style="background:var(--micro-color);"></span> Nota Microtonal (1/4 de Tom)</span>
+        <span class="legend-item"><span class="dot" style="background:var(--root-color); border:2px solid #fde68a;"></span> Qarar / Tônica (1)</span>
+        <span class="legend-item"><span class="dot" style="background:var(--ghammaz-color); border:1.5px solid #fef08a;"></span> Ghammaz / Nota Caract.</span>
+        <span class="legend-item"><span class="dot" style="background:var(--fixed-color); border:1.5px solid #bfdbfe;"></span> Nota Fixa (12-TET)</span>
+        <span class="legend-item"><span class="star-icon">۞</span> Quarto de Tom Microtonal (Incrustação Sadaf 24-TET)</span>
       </div>
-      <span style="font-size:0.78rem; color:var(--text-muted);">💡 Clique em qualquer nota no espelho para ouvir a entonação real</span>
+      <span style="font-size:0.76rem; color:var(--sadaf-cyan);">✨ Toque sobre qualquer joia no espelho ou na roseta para ouvir a ressonância</span>
     </div>
 
-    <svg id="oud-neck" viewBox="0 0 1050 330"></svg>
+    <svg id="oud-neck" viewBox="0 0 1120 365"></svg>
   </section>
 
   <!-- Painel Inferior de Detalhes -->
   <section class="info-panel">
-    <div class="info-card">
+    <div class="info-card khatem-border">
       <h2 id="info-title">Maqam Rast</h2>
-      <p id="info-desc" style="color:var(--text-muted); font-size:0.9rem;"></p>
+      <p id="info-desc" style="color:var(--text-muted); font-size:0.88rem;"></p>
       <div class="info-meta" id="info-pills"></div>
       <div id="bridge-container"></div>
     </div>
-    <div class="info-card">
-      <h2 style="font-size:0.95rem;">Geometria da Afinação Atual</h2>
-      <p id="tuning-desc" style="color:var(--text-muted); font-size:0.84rem; margin-bottom:10px;"></p>
-      <div id="tuning-intervals-list" style="font-size:0.82rem; display:flex; flex-direction:column; gap:5px;"></div>
+    <div class="info-card khatem-border">
+      <h2 style="font-size:1.1rem;">Arquitetura das Ordens & Simetria</h2>
+      <p id="tuning-desc" style="color:var(--text-muted); font-size:0.83rem; margin-bottom:10px;"></p>
+      <div id="tuning-intervals-list" style="font-size:0.8rem; display:flex; flex-direction:column; gap:5px;"></div>
     </div>
   </section>
 
@@ -896,7 +1059,7 @@
         },
         {
           id: "cad_saba",
-          name: "Qafla Maqam Saba (i° - bIII - bII - i°)",
+          name: "Qafla Maqam Saba (i° - bIII - bVII - bII - i°)",
           traditional_root_q: 4,
           bridge_maqam: "maqam_saba",
           bridge_text: "Maqam Saba",
@@ -926,7 +1089,7 @@
         },
         {
           id: "cad_kurd",
-          name: "Qafla Maqam Kurd / Frígia (i - iv - bIII - bII - i)",
+          name: "Qafla Maqam Kurd / Frígia (i - iv - bVII - bII - i)",
           traditional_root_q: 4,
           bridge_maqam: "maqam_kurd",
           bridge_text: "Maqam Kurd",
@@ -941,7 +1104,7 @@
         },
         {
           id: "cad_sikah",
-          name: "Qafla Maqam Sikah / Huzam (I- - III - II - I-)",
+          name: "Qafla Maqam Sikah / Huzam (I- - III - II - bVII- - I-)",
           traditional_root_q: 5,
           bridge_maqam: "maqam_huzam",
           bridge_text: "Maqam Sikah / Huzam",
@@ -956,7 +1119,7 @@
         },
         {
           id: "cad_nikriz",
-          name: "Qafla Maqam Nikriz (i - II7 - iv - v - i)",
+          name: "Qafla Maqam Nikriz (i - II7 - v - bVII - i)",
           traditional_root_q: 0,
           bridge_maqam: "maqam_nikriz",
           bridge_text: "Maqam Nikriz",
@@ -971,7 +1134,7 @@
         },
         {
           id: "cad_nawa_athar",
-          name: "Qafla Maqam Nawa Athar (i - #iv° - V - bVI - V7 - i)",
+          name: "Qafla Maqam Nawa Athar (i - #iv° - V - bVI - i)",
           traditional_root_q: 0,
           bridge_maqam: "maqam_nawa_athar",
           bridge_text: "Maqam Nawa Athar",
@@ -1006,22 +1169,53 @@
      * 2. ESTADO REATIVO DA APLICAÇÃO
      *************************************************************************/
     const state = {
+      tradition: "damascus",    // "damascus" | "cairo" | "istanbul"
       tuningId: "syrian_arabic_c_c",
       mode: "MAQAM",            // "MAQAM" | "JINS" | "SCALE" | "CHORD" | "CADENCE"
       entityId: "maqam_rast",
       rootQ: 0,                 // Tônica global (0 = C)
-      cadenceStepIndex: 0,      // Índice do acorde atualmente selecionado na barra de Cadência (0 a 4)
-      direction: "ASC",         // "ASC" | "DESC"
-      chordVoicingOnly: true,   // true = 1 nota ergonômica por corda (Voicing); false = Todas as notas (Arpejo)
-      shapeMode: "FULL_NECK",   // "FULL_NECK" | "OPEN_FIRST_POS" | "CLOSED_BOX"
-      boxAnchorQ: 2,            // Quarto de tom inicial do Dedo 1 no modo CLOSED_BOX
-      jinsFilter: "ALL",        // "ALL" | "LOWER" | "UPPER"
-      labelMode: "NOTE_NAME",   // "NOTE_NAME" | "DEGREE" | "FINGER" | "ARABIC"
+      cadenceStepIndex: 0,
+      direction: "ASC",
+      chordVoicingOnly: true,
+      shapeMode: "FULL_NECK",
+      boxAnchorQ: 2,
+      jinsFilter: "ALL",
+      labelMode: "NOTE_NAME",
       showSemiGuides: true,
       showMicroGuides: true,
       showGhostNotes: true,
       leftHanded: false,
       droneActive: false
+    };
+
+    const TRADITION_PALETTES = {
+      damascus: {
+        soundboard: "#9e6336",
+        soundboardEdge: "#5c3418",
+        ebony: "#13100e",
+        raqma: "#33120a",
+        rosetteRing: "#d4af37",
+        sadaf: "#e0f2fe",
+        inlayStripe: "#67e8f9"
+      },
+      cairo: {
+        soundboard: "#b86b35",
+        soundboardEdge: "#703814",
+        ebony: "#1a110d",
+        raqma: "#4f140a",
+        rosetteRing: "#eab308",
+        sadaf: "#fef3c7",
+        inlayStripe: "#f59e0b"
+      },
+      istanbul: {
+        soundboard: "#dfc295",
+        soundboardEdge: "#9c7a49",
+        ebony: "#12151a",
+        raqma: "#2b1712",
+        rosetteRing: "#cda349",
+        sadaf: "#f8fafc",
+        inlayStripe: "#94a3b8"
+      }
     };
 
     let currentChordVoicingFreqs = [];
@@ -1048,7 +1242,7 @@
       cadenceSequenceTimers = [];
     }
 
-    function playPluckedNote(freqHz, duration = 1.25) {
+    function playPluckedNote(freqHz, duration = 1.3) {
       initAudio();
       const now = audioCtx.currentTime;
 
@@ -1061,14 +1255,14 @@
       osc2.type = "sawtooth";
 
       osc1.frequency.setValueAtTime(freqHz, now);
-      osc2.frequency.setValueAtTime(freqHz * Math.pow(2, 1.5 / 1200), now);
+      osc2.frequency.setValueAtTime(freqHz * Math.pow(2, 1.6 / 1200), now);
 
       filter.type = "lowpass";
-      filter.frequency.setValueAtTime(freqHz * 6, now);
-      filter.frequency.exponentialRampToValueAtTime(freqHz * 1.4, now + duration * 0.7);
+      filter.frequency.setValueAtTime(freqHz * 6.2, now);
+      filter.frequency.exponentialRampToValueAtTime(freqHz * 1.35, now + duration * 0.72);
 
       gain.gain.setValueAtTime(0.001, now);
-      gain.gain.linearRampToValueAtTime(0.24, now + 0.012);
+      gain.gain.linearRampToValueAtTime(0.24, now + 0.011);
       gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
 
       osc1.connect(filter);
@@ -1092,7 +1286,7 @@
           droneOsc = null;
         }
         state.droneActive = false;
-        btn.textContent = "🔊 Drone na Tônica: OFF";
+        btn.textContent = "🔊 Drone (Qarar): OFF";
         btn.classList.remove("active-toggle");
       } else {
         const rootFreq = 65.41 * Math.pow(2, (state.rootQ * 50) / 1200) * 2;
@@ -1139,9 +1333,6 @@
       return isLeftHanded ? (nutX - norm * neckLengthPx) : (nutX + norm * neckLengthPx);
     }
 
-    /**
-     * Resolve a estrutura ativa. No modo CADENCE, resolve o acorde correspondente ao passo atual (cadenceStepIndex).
-     */
     function getActiveStructure() {
       if (state.mode === "MAQAM") {
         const m = DB.maqamat.find(x => x.id === state.entityId) || DB.maqamat[0];
@@ -1290,7 +1481,93 @@
     }
 
     /*************************************************************************
-     * 5. RENDERIZAÇÃO DA BARRA DE CADÊNCIAS E DO ESPELHO EM SVG
+     * 5. AUXILIARES DE GEOMETRIA ORNAMENTAL (ESTRELA RUB EL HIZB & SHAMSIYYA)
+     *************************************************************************/
+    function createOctagramStarPath(cx, cy, outerR, innerR) {
+      const points = [];
+      const steps = 16;
+      for (let i = 0; i < steps; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / 8 - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      }
+      return points.join(" ");
+    }
+
+    function renderShamsiyyaRosette(svg, cx, cy, radius, palette) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => playActivePrimaryAction());
+
+      // Anéis externos de marchetaria (Sadaf & Ébano)
+      const outerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      outerRing.setAttribute("cx", cx);
+      outerRing.setAttribute("cy", cy);
+      outerRing.setAttribute("r", radius + 7);
+      outerRing.setAttribute("fill", palette.ebony);
+      outerRing.setAttribute("stroke", palette.rosetteRing);
+      outerRing.setAttribute("stroke-width", "2.2");
+      g.appendChild(outerRing);
+
+      const pearlRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      pearlRing.setAttribute("cx", cx);
+      pearlRing.setAttribute("cy", cy);
+      pearlRing.setAttribute("r", radius + 3.5);
+      pearlRing.setAttribute("fill", "none");
+      pearlRing.setAttribute("stroke", palette.inlayStripe);
+      pearlRing.setAttribute("stroke-width", "1.4");
+      pearlRing.setAttribute("stroke-dasharray", "3,2");
+      g.appendChild(pearlRing);
+
+      // Cavidade acústica escura
+      const hole = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      hole.setAttribute("cx", cx);
+      hole.setAttribute("cy", cy);
+      hole.setAttribute("r", radius);
+      hole.setAttribute("fill", "#090604");
+      hole.setAttribute("stroke", palette.rosetteRing);
+      hole.setAttribute("stroke-width", "1.5");
+      g.appendChild(hole);
+
+      // Arabesco geométrico interno (12 pétalas entrelaçadas)
+      for (let a = 0; a < 180; a += 15) {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        const side = radius * 1.32;
+        rect.setAttribute("x", cx - side / 2);
+        rect.setAttribute("y", cy - side / 2);
+        rect.setAttribute("width", side);
+        rect.setAttribute("height", side);
+        rect.setAttribute("rx", "4");
+        rect.setAttribute("fill", "none");
+        rect.setAttribute("stroke", palette.rosetteRing);
+        rect.setAttribute("stroke-width", "0.85");
+        rect.setAttribute("opacity", "0.75");
+        rect.setAttribute("transform", `rotate(${a} ${cx} ${cy})`);
+        g.appendChild(rect);
+      }
+
+      // Estrela central da Shamsiyya
+      const innerStar = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      innerStar.setAttribute("points", createOctagramStarPath(cx, cy, radius * 0.52, radius * 0.28));
+      innerStar.setAttribute("fill", "rgba(212, 175, 55, 0.18)");
+      innerStar.setAttribute("stroke", palette.sadaf);
+      innerStar.setAttribute("stroke-width", "1.1");
+      g.appendChild(innerStar);
+
+      const centerGem = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      centerGem.setAttribute("cx", cx);
+      centerGem.setAttribute("cy", cy);
+      centerGem.setAttribute("r", "4");
+      centerGem.setAttribute("fill", palette.rosetteRing);
+      g.appendChild(centerGem);
+
+      svg.appendChild(g);
+    }
+
+    /*************************************************************************
+     * 6. RENDERIZAÇÃO DA BARRA DE CADÊNCIAS E DO ESPELHO EM SVG
      *************************************************************************/
     function renderCadenceBar() {
       const bar = document.getElementById("cadence-bar");
@@ -1315,7 +1592,7 @@
         card.innerHTML = `
           <div class="step-roman">
             <span>Passo ${idx + 1}: ${step.roman}</span>
-            <span>${idx === state.cadenceStepIndex ? "● ATIVO" : ""}</span>
+            <span>${idx === state.cadenceStepIndex ? "❖ ATIVO" : ""}</span>
           </div>
           <div class="step-chord-name">${rootName}${chordObj.short_symbol ? " " + chordObj.short_symbol : " Maior"}</div>
           <div class="step-role">${step.role}</div>
@@ -1337,15 +1614,56 @@
       svg.innerHTML = "";
       currentChordVoicingFreqs = [];
 
+      const palette = TRADITION_PALETTES[state.tradition] || TRADITION_PALETTES.damascus;
       const tuning = DB.tunings.find(t => t.id === state.tuningId);
       const activeStruct = getActiveStructure();
       const effectiveRootQ = activeStruct.effectiveRootQ;
 
-      const nutX = state.leftHanded ? 930 : 120;
-      const neckEndX = state.leftHanded ? 60 : 990;
+      const nutX = state.leftHanded ? 975 : 145;
+      const neckEndX = state.leftHanded ? 155 : 965;
       const neckLengthPx = Math.abs(neckEndX - nutX);
-      const topY = 42;
-      const bottomY = 278;
+      const topY = 52;
+      const bottomY = 292;
+      const centerY = (topY + bottomY) / 2;
+
+      // Posição da junção do braço com o bojo acústico (10q = Quarta Justa)
+      const bodyJointX = getPhysicalX(10, nutX, neckLengthPx, state.leftHanded);
+      const soundboardFarX = state.leftHanded ? 15 : 1105;
+
+      // Definições de Gradientes de Luthieria no SVG
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      defs.innerHTML = `
+        <linearGradient id="soundboardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${palette.soundboard}" />
+          <stop offset="100%" stop-color="${palette.soundboardEdge}" />
+        </linearGradient>
+        <linearGradient id="ebonyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#24201d" />
+          <stop offset="50%" stop-color="${palette.ebony}" />
+          <stop offset="100%" stop-color="#0b0908" />
+        </linearGradient>
+        <radialGradient id="rootGem" cx="35%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#f87171" />
+          <stop offset="60%" stop-color="#dc2626" />
+          <stop offset="100%" stop-color="#7f1d1d" />
+        </radialGradient>
+        <radialGradient id="ghammazGem" cx="35%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#fde047" />
+          <stop offset="60%" stop-color="#d97706" />
+          <stop offset="100%" stop-color="#78350f" />
+        </radialGradient>
+        <radialGradient id="fixedGem" cx="35%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#60a5fa" />
+          <stop offset="60%" stop-color="#2563eb" />
+          <stop offset="100%" stop-color="#1e3a8a" />
+        </radialGradient>
+        <radialGradient id="microGem" cx="35%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#f0abfc" />
+          <stop offset="55%" stop-color="#9333ea" />
+          <stop offset="100%" stop-color="#4c1d95" />
+        </radialGradient>
+      `;
+      svg.appendChild(defs);
 
       const activeOffsetMap = new Map();
       activeStruct.intervals.forEach((intQ, idx) => {
@@ -1365,20 +1683,118 @@
         ? selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ)
         : null;
 
-      // 1. Fundo do Espelho
-      const nutTopY = topY - 12;
-      const nutBotY = bottomY + 12;
-      const bodyTopY = topY - 22;
-      const bodyBotY = bottomY + 22;
+      // 1. Desenhar o Tampo Harmônico (Wajh / Bojo do Oud) a partir de q=10
+      const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const dir = state.leftHanded ? -1 : 1;
+      const curveCtrlX = bodyJointX + dir * 55;
+      sbPath.setAttribute(
+        "d",
+        `M ${bodyJointX},${topY - 22} 
+         Q ${curveCtrlX},6 ${ bodyJointX + dir * 160 },6 
+         L ${soundboardFarX},6 
+         L ${soundboardFarX},338 
+         L ${ bodyJointX + dir * 160 },338 
+         Q ${curveCtrlX},338 ${bodyJointX},${bottomY + 22} Z`
+      );
+      sbPath.setAttribute("fill", "url(#soundboardGrad)");
+      sbPath.setAttribute("stroke", palette.rosetteRing);
+      sbPath.setAttribute("stroke-width", "3");
+      svg.appendChild(sbPath);
+
+      // Filete interno de marchetaria (Khatem) acompanhando o bojo
+      const sbInlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      sbInlay.setAttribute(
+        "d",
+        `M ${bodyJointX + dir * 5},${topY - 18} 
+         Q ${curveCtrlX + dir * 4},12 ${ bodyJointX + dir * 160 },12 
+         L ${soundboardFarX - dir * 6},12 
+         L ${soundboardFarX - dir * 6},332 
+         L ${ bodyJointX + dir * 160 },332 
+         Q ${curveCtrlX + dir * 4},332 ${bodyJointX + dir * 5},${bottomY + 18}`
+      );
+      sbInlay.setAttribute("fill", "none");
+      sbInlay.setAttribute("stroke", palette.sadaf);
+      sbInlay.setAttribute("stroke-width", "1.4");
+      sbInlay.setAttribute("stroke-dasharray", "6,3");
+      sbInlay.setAttribute("opacity", "0.75");
+      svg.appendChild(sbInlay);
+
+      // Escudo protetor de Risha (Raqma) e Roseta (Shamsiyya) no tampo
+      const rosetteCenterX = state.leftHanded ? 75 : 1045;
+      const raqmaStartX = neckEndX - dir * 18;
+      const raqmaEndX = rosetteCenterX - dir * 48;
+
+      const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      raqma.setAttribute(
+        "d",
+        `M ${raqmaStartX},${topY - 8}
+         Q ${(raqmaStartX + raqmaEndX) / 2},${topY - 30} ${raqmaEndX},${centerY - 50}
+         L ${raqmaEndX},${centerY + 50}
+         Q ${(raqmaStartX + raqmaEndX) / 2},${bottomY + 30} ${raqmaStartX},${bottomY + 8} Z`
+      );
+      raqma.setAttribute("fill", palette.raqma);
+      raqma.setAttribute("stroke", palette.rosetteRing);
+      raqma.setAttribute("stroke-width", "1.2");
+      raqma.setAttribute("opacity", "0.88");
+      svg.appendChild(raqma);
+
+      // Roseta Central (Shamsiyya) + 2 Rosetas Menores (Shamsiyyat)
+      renderShamsiyyaRosette(svg, rosetteCenterX, centerY, 44, palette);
+      renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, topY - 12, 16, palette);
+      renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, bottomY + 12, 16, palette);
+
+      // 2. Cravelhal (Bajak) inclinado antes da pestana
+      const pegboxEndX = state.leftHanded ? 1105 : 15;
+      const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      pegbox.setAttribute(
+        "points",
+        `${nutX},${topY - 14} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${bottomY + 14}`
+      );
+      pegbox.setAttribute("fill", "#1a110b");
+      pegbox.setAttribute("stroke", palette.rosetteRing);
+      pegbox.setAttribute("stroke-width", "1.5");
+      svg.appendChild(pegbox);
+
+      // 3. Espelho de Ébano (Mir'at) com filetes laterais de Madrepérola (Sadaf)
+      const nutTopY = topY - 14;
+      const nutBotY = bottomY + 14;
+      const bodyTopY = topY - 24;
+      const bodyBotY = bottomY + 24;
 
       const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      neckPolygon.setAttribute("points", `${nutX},${nutTopY} ${neckEndX},${bodyTopY} ${neckEndX},${bodyBotY} ${nutX},${nutBotY}`);
-      neckPolygon.setAttribute("fill", "#18181b");
-      neckPolygon.setAttribute("stroke", "#3f3f46");
+      neckPolygon.setAttribute(
+        "points",
+        `${nutX},${nutTopY} ${neckEndX},${bodyTopY} ${neckEndX},${bodyBotY} ${nutX},${nutBotY}`
+      );
+      neckPolygon.setAttribute("fill", "url(#ebonyGrad)");
+      neckPolygon.setAttribute("stroke", palette.rosetteRing);
       neckPolygon.setAttribute("stroke-width", "2");
       svg.appendChild(neckPolygon);
 
-      // 2. Caixa de Destaque do Shape ou Voicing
+      // Filetes superiores e inferiores de Madrepérola (Sadaf Inlay Strips)
+      const topSadafStrip = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      topSadafStrip.setAttribute("x1", nutX);
+      topSadafStrip.setAttribute("y1", nutTopY + 3);
+      topSadafStrip.setAttribute("x2", neckEndX);
+      topSadafStrip.setAttribute("y2", bodyTopY + 3);
+      topSadafStrip.setAttribute("stroke", palette.inlayStripe);
+      topSadafStrip.setAttribute("stroke-width", "2.2");
+      topSadafStrip.setAttribute("stroke-dasharray", "8,4,2,4");
+      topSadafStrip.setAttribute("opacity", "0.75");
+      svg.appendChild(topSadafStrip);
+
+      const botSadafStrip = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      botSadafStrip.setAttribute("x1", nutX);
+      botSadafStrip.setAttribute("y1", nutBotY - 3);
+      botSadafStrip.setAttribute("x2", neckEndX);
+      botSadafStrip.setAttribute("y2", bodyBotY - 3);
+      botSadafStrip.setAttribute("stroke", palette.inlayStripe);
+      botSadafStrip.setAttribute("stroke-width", "2.2");
+      botSadafStrip.setAttribute("stroke-dasharray", "8,4,2,4");
+      botSadafStrip.setAttribute("opacity", "0.75");
+      svg.appendChild(botSadafStrip);
+
+      // 4. Caixa de Destaque do Shape Móvel ou Voicing de Acorde
       if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
         const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
         const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
@@ -1389,27 +1805,29 @@
 
         const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         boxRect.setAttribute("x", rectX);
-        boxRect.setAttribute("y", bodyTopY + 2);
+        boxRect.setAttribute("y", bodyTopY + 5);
         boxRect.setAttribute("width", rectW);
-        boxRect.setAttribute("height", bodyBotY - bodyTopY - 4);
+        boxRect.setAttribute("height", bodyBotY - bodyTopY - 10);
         boxRect.setAttribute("rx", "8");
-        boxRect.setAttribute("fill", "rgba(245, 158, 11, 0.07)");
-        boxRect.setAttribute("stroke", "rgba(245, 158, 11, 0.45)");
+        boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.09)");
+        boxRect.setAttribute("stroke", palette.rosetteRing);
+        boxRect.setAttribute("stroke-width", "1.6");
         boxRect.setAttribute("stroke-dasharray", "6,4");
         svg.appendChild(boxRect);
       }
 
-      // 3. Pestana (Nut)
+      // 5. Pestana de Osso & Ébano (Anf)
       const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
       nutLine.setAttribute("x1", nutX);
       nutLine.setAttribute("y1", nutTopY);
       nutLine.setAttribute("x2", nutX);
       nutLine.setAttribute("y2", nutBotY);
-      nutLine.setAttribute("stroke", "#fde68a");
-      nutLine.setAttribute("stroke-width", "7");
+      nutLine.setAttribute("stroke", "#fef3c7");
+      nutLine.setAttribute("stroke-width", "8");
       svg.appendChild(nutLine);
 
-      // 4. Linhas-Guia
+      // 6. Linhas-Guia e Marcadores Laterais de Madrepérola (Sadaf Side Dots)
+      const keySemitones = [2, 4, 5, 7, 9, 10, 12, 14]; // Índices em q com marcadores tradicionais
       for (let q = 1; q <= MAX_NECK_Q; q++) {
         const isMicro = q % 2 !== 0;
         if (isMicro && !state.showMicroGuides) continue;
@@ -1418,68 +1836,83 @@
         const gx = getPhysicalX(q, nutX, neckLengthPx, state.leftHanded);
         const gLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
         gLine.setAttribute("x1", gx);
-        gLine.setAttribute("y1", nutTopY + 2);
+        gLine.setAttribute("y1", nutTopY + 6);
         gLine.setAttribute("x2", gx);
-        gLine.setAttribute("y2", nutBotY - 2);
-        gLine.setAttribute("stroke", isMicro ? "rgba(168, 85, 247, 0.22)" : "rgba(148, 163, 184, 0.28)");
-        gLine.setAttribute("stroke-width", isMicro ? "1" : "1.5");
+        gLine.setAttribute("y2", nutBotY - 6);
+        gLine.setAttribute("stroke", isMicro ? "rgba(192, 132, 252, 0.22)" : "rgba(212, 175, 55, 0.24)");
+        gLine.setAttribute("stroke-width", isMicro ? "1" : "1.4");
         if (isMicro) gLine.setAttribute("stroke-dasharray", "3,4");
         svg.appendChild(gLine);
+
+        // Pequenos losangos de madrepérola na borda superior para semitons-chave
+        if (keySemitones.includes(q)) {
+          const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          const iy = bodyTopY - 6;
+          inlayDiamond.setAttribute("points", `${gx},${iy - 4} ${gx + 4},${iy} ${gx},${iy + 4} ${gx - 4},${iy}`);
+          inlayDiamond.setAttribute("fill", isMicro ? "#d8b4fe" : palette.sadaf);
+          svg.appendChild(inlayDiamond);
+        }
 
         if (!isMicro || state.showMicroGuides) {
           const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
           lbl.setAttribute("x", gx);
-          lbl.setAttribute("y", bodyBotY + 18);
+          lbl.setAttribute("y", bodyBotY + 21);
           lbl.setAttribute("text-anchor", "middle");
-          lbl.setAttribute("fill", isMicro ? "#a855f7" : "#94a3b8");
-          lbl.setAttribute("font-size", isMicro ? "10" : "11");
+          lbl.setAttribute("fill", isMicro ? "#d8b4fe" : "#fde68a");
+          lbl.setAttribute("font-size", isMicro ? "9.5" : "10.5");
+          lbl.setAttribute("font-weight", "600");
           lbl.textContent = isMicro ? `${q}q` : `S${q / 2}`;
           svg.appendChild(lbl);
         }
       }
 
-      // 5. Ordens de Cordas e Notas
+      // 7. Ordens de Cordas Duplas e Joias das Notas
       const courseSpacing = (bottomY - topY) / 5;
 
       tuning.courses.forEach((cObj, cIdx) => {
         const cy = topY + cIdx * courseSpacing;
 
-        const courseLabelX = state.leftHanded ? nutX + 58 : nutX - 58;
+        // Rótulo da Ordem sobre o Cravelhal
+        const courseLabelX = state.leftHanded ? nutX + 62 : nutX - 62;
         const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
         cText.setAttribute("x", courseLabelX);
         cText.setAttribute("y", cy + 4);
         cText.setAttribute("text-anchor", "middle");
-        cText.setAttribute("fill", "#e2e8f0");
+        cText.setAttribute("fill", "#fef3c7");
         cText.setAttribute("font-size", "12");
-        cText.setAttribute("font-weight", "600");
+        cText.setAttribute("font-weight", "700");
         cText.textContent = cObj.label;
         svg.appendChild(cText);
 
+        // Marcação de corda abafada (✕) no modo Acorde Voicing
         if (isChordVoicingActive && chordVoicingMap[cObj.course] === null) {
           const muteX = state.leftHanded ? nutX + 20 : nutX - 20;
           const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
           mText.setAttribute("x", muteX);
           mText.setAttribute("y", cy + 5);
           mText.setAttribute("text-anchor", "middle");
-          mText.setAttribute("fill", "#ef4444");
+          mText.setAttribute("fill", "#f87171");
           mText.setAttribute("font-size", "14");
           mText.setAttribute("font-weight", "800");
           mText.textContent = "✕";
           svg.appendChild(mText);
         }
 
-        [-1.5, 1.5].forEach((offsetY) => {
+        // Par de cordas (Ordens 1-3 em Nylon perolado; Ordens 4-6 em Bordão de Cobre/Prata)
+        const isWoundBass = cIdx >= 3;
+        [-1.6, 1.6].forEach((offsetY) => {
           const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
           sLine.setAttribute("x1", nutX);
           sLine.setAttribute("y1", cy + offsetY);
-          sLine.setAttribute("x2", neckEndX);
+          sLine.setAttribute("x2", soundboardFarX);
           sLine.setAttribute("y2", cy + offsetY);
-          sLine.setAttribute("stroke", cIdx >= 4 ? "#d97706" : "#cbd5e1");
-          sLine.setAttribute("stroke-width", cIdx >= 4 ? "1.6" : "1.1");
-          sLine.setAttribute("opacity", "0.75");
+          sLine.setAttribute("stroke", isWoundBass ? "#d97706" : "#e2e8f0");
+          sLine.setAttribute("stroke-width", isWoundBass ? "1.6" : "1.1");
+          sLine.setAttribute("opacity", isWoundBass ? "0.85" : "0.72");
           svg.appendChild(sLine);
         });
 
+        // 8. Plotar as Joias das Notas na Corda
         for (let qFromNut = 0; qFromNut <= MAX_NECK_Q; qFromNut++) {
           const absQ = cObj.abs_q + qFromNut;
           const pitchClassQ = ((absQ % 24) + 24) % 24;
@@ -1509,35 +1942,57 @@
           const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
           const isMicroNote = pcData.micro;
 
-          let fillColor = "var(--fixed-color)";
-          if (isRoot) fillColor = "var(--root-color)";
-          else if (isGhammaz) fillColor = "var(--ghammaz-color)";
-          else if (isMicroNote) fillColor = "var(--micro-color)";
+          let fillGrad = "url(#fixedGem)";
+          let strokeColor = "#bfdbfe";
+          if (isRoot) {
+            fillGrad = "url(#rootGem)";
+            strokeColor = "#fde68a";
+          } else if (isGhammaz) {
+            fillGrad = "url(#ghammazGem)";
+            strokeColor = "#fef08a";
+          } else if (isMicroNote) {
+            fillGrad = "url(#microGem)";
+            strokeColor = palette.inlayStripe;
+          }
 
           const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
           group.setAttribute("class", "note-node");
-          group.setAttribute("opacity", isSelectedActiveNote ? "1.0" : "0.16");
+          group.setAttribute("opacity", isSelectedActiveNote ? "1.0" : "0.18");
 
-          group.addEventListener("click", () => playPluckedNote(noteFreq, 1.3));
+          group.addEventListener("click", () => playPluckedNote(noteFreq, 1.35));
 
+          // Notas Microtonais: Estrela Octogonal Árabe (Rub el Hizb / Incrustação Sadaf)
           if (isMicroNote) {
-            const size = isRoot ? 15 : 13;
-            const diamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-            diamond.setAttribute("points", `${nx},${cy - size} ${nx + size},${cy} ${nx},${cy + size} ${nx - size},${cy}`);
-            diamond.setAttribute("fill", fillColor);
-            diamond.setAttribute("stroke", isRoot ? "#ffffff" : "#1e1b4b");
-            diamond.setAttribute("stroke-width", isRoot ? "2.5" : "1.5");
-            group.appendChild(diamond);
+            const outerR = isRoot ? 16.5 : 14.5;
+            const innerR = isRoot ? 12 : 10.5;
+            const star = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            star.setAttribute("points", createOctagramStarPath(nx, cy, outerR, innerR));
+            star.setAttribute("fill", fillGrad);
+            star.setAttribute("stroke", strokeColor);
+            star.setAttribute("stroke-width", isRoot ? "2.2" : "1.4");
+            group.appendChild(star);
           } else {
-            const radius = isRoot ? 14 : (isGhammaz ? 13 : 12);
+            // Notas Fixas 12-TET: Medalhão Circular com anel interno
+            const radius = isRoot ? 14.5 : (isGhammaz ? 13.5 : 12.2);
             const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
             circle.setAttribute("cx", nx);
             circle.setAttribute("cy", cy);
             circle.setAttribute("r", radius);
-            circle.setAttribute("fill", fillColor);
-            circle.setAttribute("stroke", isRoot ? "#ffffff" : "#0f172a");
+            circle.setAttribute("fill", fillGrad);
+            circle.setAttribute("stroke", strokeColor);
             circle.setAttribute("stroke-width", isRoot ? "2.5" : "1.5");
             group.appendChild(circle);
+
+            if (isRoot || isGhammaz) {
+              const innerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+              innerRing.setAttribute("cx", nx);
+              innerRing.setAttribute("cy", cy);
+              innerRing.setAttribute("r", radius - 3);
+              innerRing.setAttribute("fill", "none");
+              innerRing.setAttribute("stroke", "rgba(255,255,255,0.45)");
+              innerRing.setAttribute("stroke-width", "0.8");
+              group.appendChild(innerRing);
+            }
           }
 
           let displayText = pcData.flat;
@@ -1547,10 +2002,10 @@
 
           const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
           textEl.setAttribute("x", nx);
-          textEl.setAttribute("y", cy + 4);
+          textEl.setAttribute("y", cy + 3.8);
           textEl.setAttribute("text-anchor", "middle");
           textEl.setAttribute("fill", "#ffffff");
-          textEl.setAttribute("font-size", state.labelMode === "ARABIC" ? "8.5" : "10.5");
+          textEl.setAttribute("font-size", state.labelMode === "ARABIC" ? "8.5" : "10.2");
           textEl.setAttribute("font-weight", "700");
           textEl.setAttribute("pointer-events", "none");
           textEl.textContent = displayText;
@@ -1564,7 +2019,7 @@
     }
 
     /*************************************************************************
-     * 6. ATUALIZAÇÃO DO PAINEL INFORMATIVO E PONTE MODAL / CADENCIAL
+     * 7. ATUALIZAÇÃO DO PAINEL INFORMATIVO E PONTE MODAL / CADENCIAL
      *************************************************************************/
     function updateInfoPanel() {
       const activeStruct = getActiveStructure();
@@ -1573,7 +2028,7 @@
       const effectiveRootName = PITCH_CLASSES_24[activeStruct.effectiveRootQ].flat;
 
       if (state.mode === "CADENCE") {
-        document.getElementById("info-title").textContent = `${entity.name} — Centro Modal em ${globalRootName}`;
+        document.getElementById("info-title").textContent = `${entity.name} — Qarar em ${globalRootName}`;
       } else {
         document.getElementById("info-title").textContent = `${entity.name} — Fundamental em ${effectiveRootName}`;
       }
@@ -1595,12 +2050,12 @@
       };
 
       if (state.mode === "CADENCE") {
-        addPill("Acorde do Passo Atual", `${effectiveRootName} (${activeStruct.chordObj.name})`);
-        addPill("Grau Funcional", `${activeStruct.stepObj.roman} — ${activeStruct.stepObj.role}`);
+        addPill("Acorde Ativo", `${effectiveRootName} (${activeStruct.chordObj.name})`);
+        addPill("Função na Qafla", `${activeStruct.stepObj.roman} — ${activeStruct.stepObj.role}`);
       }
 
-      addPill("Notas no Espelho", noteNamesList.join(" – "));
-      addPill("Fórmula (Graus)", activeStruct.degrees.join(" · "));
+      addPill("Notas", noteNamesList.join(" – "));
+      addPill("Graus", activeStruct.degrees.join(" · "));
 
       if (state.mode === "MAQAM") {
         addPill("Jins Inferior", entity.lower_jins);
@@ -1610,13 +2065,12 @@
       const bridgeContainer = document.getElementById("bridge-container");
       bridgeContainer.innerHTML = "";
 
-      // Se estiver em MAQAM e houver uma Cadência associada, oferece atalho direto para praticar a Qafla
       if (state.mode === "MAQAM" && entity.linked_cadence) {
         const box = document.createElement("div");
         box.className = "bridge-box";
         box.innerHTML = `
-          <span>🎼 <strong>Cadência Modal (Qafla):</strong> Pratique a progressão de acordes típica para finalizar o <strong>${entity.name}</strong></span>
-          <button id="btn-jump-cadence" class="primary" style="padding:5px 12px; font-size:0.78rem;">Abrir Cadência (Qafla)</button>
+          <span>☪ <strong>Cadência Modal (Qafla):</strong> Pratique a progressão harmônico-modal de resolução do <strong>${entity.name}</strong></span>
+          <button id="btn-jump-cadence" class="primary" style="padding:5px 12px; font-size:0.78rem;">Abrir Qafla</button>
         `;
         bridgeContainer.appendChild(box);
         document.getElementById("btn-jump-cadence").addEventListener("click", () => {
@@ -1632,13 +2086,12 @@
         });
       }
 
-      // Ponte de retorno para o Maqam quando em SCALE, CHORD ou CADENCE
       if ((state.mode === "SCALE" || state.mode === "CHORD" || state.mode === "CADENCE") && entity.bridge_maqam) {
         const box = document.createElement("div");
         box.className = "bridge-box";
         box.innerHTML = `
-          <span>🔗 <strong>Matriz Modal:</strong> Estrutura conectada diretamente ao <strong>${entity.bridge_text}</strong></span>
-          <button id="btn-jump-maqam" style="padding:4px 10px; font-size:0.78rem;">Ver Escala do Maqam</button>
+          <span>🔗 <strong>Matriz Modal:</strong> Conectado diretamente ao repertório de <strong>${entity.bridge_text}</strong></span>
+          <button id="btn-jump-maqam" style="padding:4px 10px; font-size:0.78rem;">Ver Maqam</button>
         `;
         bridgeContainer.appendChild(box);
         document.getElementById("btn-jump-maqam").addEventListener("click", () => {
@@ -1661,13 +2114,13 @@
         const diffQ = highC.abs_q - lowC.abs_q;
         let intName = `${diffQ / 2} semitons`;
         if (diffQ === 10) intName = "Quarta Justa (10q / 5 semitons)";
-        else if (diffQ === 8) intName = "⚠️ Terça Maior (8q / 4 semitons — Salto de Shape)";
+        else if (diffQ === 8) intName = "❖ Terça Maior (8q / 4 semitons — Deslocamento de Shape)";
         else if (diffQ === 4) intName = "Segunda Maior (4q / 1 tom)";
         else if (diffQ === 24) intName = "Oitava Justa (24q)";
 
         const item = document.createElement("div");
         item.style.padding = "4px 8px";
-        item.style.background = diffQ === 8 ? "rgba(245, 158, 11, 0.15)" : "rgba(255,255,255,0.03)";
+        item.style.background = diffQ === 8 ? "rgba(212, 175, 55, 0.16)" : "rgba(255,255,255,0.03)";
         item.style.borderRadius = "4px";
         item.innerHTML = `<strong>${lowC.label} → ${highC.label}:</strong> ${intName}`;
         listEl.appendChild(item);
@@ -1675,7 +2128,7 @@
     }
 
     /*************************************************************************
-     * 7. EXECUÇÃO SONORA (ESCALA, RASGUEADO DE ACORDE E SEQUENCIADOR QAFLA)
+     * 8. EXECUÇÃO SONORA (ESCALA, RASGUEADO DE ACORDE E SEQUENCIADOR QAFLA)
      *************************************************************************/
     function strumCurrentChordVoicing() {
       initAudio();
@@ -1698,7 +2151,7 @@
           state.cadenceStepIndex = idx;
           refreshAll();
           strumCurrentChordVoicing();
-        }, idx * 1450); // 1.45s por acorde para acompanhar visualmente no espelho
+        }, idx * 1450);
         cadenceSequenceTimers.push(timer);
       });
     }
@@ -1740,7 +2193,7 @@
     }
 
     /*************************************************************************
-     * 8. INICIALIZAÇÃO DE CONTROLES E EVENTOS
+     * 9. INICIALIZAÇÃO DE CONTROLES E EVENTOS
      *************************************************************************/
     function populateEntitySelect() {
       const sel = document.getElementById("select-entity");
@@ -1779,7 +2232,7 @@
       const btnPlay = document.getElementById("btn-play-scale");
       const btnArp = document.getElementById("btn-arp-chord");
       if (state.mode === "CADENCE") {
-        btnPlay.textContent = "▶ Tocar Cadência Completa";
+        btnPlay.textContent = "▶ Tocar Qafla Completa";
         btnArp.style.display = "inline-flex";
       } else if (state.mode === "CHORD") {
         btnPlay.textContent = "▶ Rasguear Acorde (Risha)";
@@ -1798,6 +2251,14 @@
     }
 
     function initApp() {
+      // Seletor de Tradição Estética (Damasco, Cairo/Bagdá, Istambul)
+      const selTradition = document.getElementById("select-tradition");
+      selTradition.addEventListener("change", (e) => {
+        state.tradition = e.target.value;
+        document.body.setAttribute("data-tradition", state.tradition);
+        refreshAll();
+      });
+
       const selTuning = document.getElementById("select-tuning");
       DB.tunings.forEach(t => {
         const opt = document.createElement("option");
@@ -1957,7 +2418,7 @@
       document.getElementById("btn-drone").addEventListener("click", toggleDrone);
       document.getElementById("btn-hand").addEventListener("click", (e) => {
         state.leftHanded = !state.leftHanded;
-        e.target.textContent = state.leftHanded ? "⇄ Mão: Canhoto" : "⇄ Mão: Destro";
+        e.target.textContent = state.leftHanded ? "⇄ Canhoto" : "⇄ Destro";
         refreshAll();
       });
 
