@@ -88,7 +88,7 @@ function drawMicrotonalAccidental(svg, x, y, acc, color) {
   svg.appendChild(g);
 }
 
-function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx) {
+function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx, ledgerStroke) {
   const f3Step = 23;
   const e2Step = 14;
 
@@ -100,7 +100,7 @@ function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx) {
       line.setAttribute("y1", String(ly));
       line.setAttribute("x2", String(x + 13));
       line.setAttribute("y2", String(ly));
-      line.setAttribute("stroke", "rgba(254, 243, 199, 0.55)");
+      line.setAttribute("stroke", ledgerStroke);
       line.setAttribute("stroke-width", "1.2");
       svg.appendChild(line);
     }
@@ -112,7 +112,7 @@ function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx) {
       line.setAttribute("y1", String(ly));
       line.setAttribute("x2", String(x + 13));
       line.setAttribute("y2", String(ly));
-      line.setAttribute("stroke", "rgba(254, 243, 199, 0.55)");
+      line.setAttribute("stroke", ledgerStroke);
       line.setAttribute("stroke-width", "1.2");
       svg.appendChild(line);
     }
@@ -120,7 +120,7 @@ function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx) {
 }
 
 /**
- * Renderiza a Pauta Interativa 24-TET (Clave de Sol 8vb) suportando também o Caminho de 1 Oitava Ancorado.
+ * Renderiza a Pauta Interativa 24-TET (Clave de Sol 8vb) com paleta adaptativa para Modo Escuro e Modo Claro (Pergaminho).
  *
  * @param {import("../core/urlState.js").OudAppState} state
  * @param {{ absQ: number | null, pitchClassQ: number | null, course?: number, finger?: string | number, freq?: number } | null} selectedPitch
@@ -132,6 +132,21 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   const svg = /** @type {SVGElement | null} */ (/** @type {unknown} */ (document.getElementById("oud-staff")));
   if (!svg) return;
   svg.innerHTML = "";
+
+  const isLight = state.theme === "light";
+  const staffColors = {
+    bgFill: isLight ? "#faf3e3" : "rgba(15, 9, 6, 0.88)",
+    bgStroke: isLight ? "rgba(138, 90, 25, 0.45)" : "rgba(212, 175, 55, 0.35)",
+    lineStroke: isLight ? "rgba(75, 54, 33, 0.48)" : "rgba(254, 243, 199, 0.36)",
+    ledgerStroke: isLight ? "rgba(75, 54, 33, 0.68)" : "rgba(254, 243, 199, 0.55)",
+    clefFill: isLight ? "#7c4d12" : "#d4af37",
+    sub8Fill: isLight ? "#9a5b13" : "#fde68a",
+    noteTextMain: isLight ? "#23160c" : "#fef3c7",
+    noteTextHighlight: isLight ? "#0e7490" : "#67e8f9",
+    degreeText: isLight ? "#654d38" : "#a89882",
+    inspectorAccent: isLight ? "#0e7490" : "#67e8f9",
+    inspectorSub: isLight ? "#9a5b13" : "#fde047"
+  };
 
   const W = 1120;
   const H = 158;
@@ -151,8 +166,8 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   bg.setAttribute("width", String(W - 16));
   bg.setAttribute("height", String(H - 12));
   bg.setAttribute("rx", "10");
-  bg.setAttribute("fill", "rgba(15, 9, 6, 0.88)");
-  bg.setAttribute("stroke", "rgba(212, 175, 55, 0.35)");
+  bg.setAttribute("fill", staffColors.bgFill);
+  bg.setAttribute("stroke", staffColors.bgStroke);
   bg.setAttribute("stroke-width", "1.2");
   svg.appendChild(bg);
 
@@ -163,7 +178,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     line.setAttribute("y1", String(y));
     line.setAttribute("x2", String(staffRightX));
     line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", "rgba(254, 243, 199, 0.36)");
+    line.setAttribute("stroke", staffColors.lineStroke);
     line.setAttribute("stroke-width", "1.1");
     svg.appendChild(line);
   }
@@ -171,7 +186,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   const clef = document.createElementNS("http://www.w3.org/2000/svg", "text");
   clef.setAttribute("x", String(staffLeftX + 6));
   clef.setAttribute("y", String(bottomLineY - 5));
-  clef.setAttribute("fill", "#d4af37");
+  clef.setAttribute("fill", staffColors.clefFill);
   clef.setAttribute("font-size", "46");
   clef.setAttribute("font-family", "serif");
   clef.textContent = "𝄞";
@@ -180,14 +195,13 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   const sub8 = document.createElementNS("http://www.w3.org/2000/svg", "text");
   sub8.setAttribute("x", String(staffLeftX + 22));
   sub8.setAttribute("y", String(bottomLineY + 13));
-  sub8.setAttribute("fill", "#fde68a");
+  sub8.setAttribute("fill", staffColors.sub8Fill);
   sub8.setAttribute("font-size", "10");
   sub8.setAttribute("font-weight", "800");
   sub8.textContent = "8vb";
   svg.appendChild(sub8);
 
   const activeStruct = getActiveStructure(state);
-  const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
   const baseOctaveQ = state.rootQ < 12 ? 24 : 12;
 
   /** @type {{ absQ: number, degree: string, centsDev: number, isGhammaz: boolean, isRoot: boolean, stepIdx: number, sublabel?: string }[]} */
@@ -248,19 +262,19 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     const geom = absQToStaffGeometry(item.absQ, topLineY, halfStepPx);
     const pcData = PITCH_CLASSES_24[geom.pcQ];
 
-    drawLedgerLines(svg, nx, geom.diatonicStep, topLineY, halfStepPx);
+    drawLedgerLines(svg, nx, geom.diatonicStep, topLineY, halfStepPx, staffColors.ledgerStroke);
 
-    let fillColor = "#3b82f6";
-    let strokeColor = "#bfdbfe";
+    let fillColor = isLight ? "#1d4ed8" : "#3b82f6";
+    let strokeColor = isLight ? "#1e3a8a" : "#bfdbfe";
     if (item.isRoot) {
       fillColor = "#dc2626";
-      strokeColor = "#fde68a";
+      strokeColor = isLight ? "#7f1d1d" : "#fde68a";
     } else if (item.isGhammaz) {
       fillColor = "#d97706";
-      strokeColor = "#fef08a";
+      strokeColor = isLight ? "#78350f" : "#fef08a";
     } else if (pcData.micro) {
-      fillColor = "#9333ea";
-      strokeColor = "#67e8f9";
+      fillColor = "#7e22ce";
+      strokeColor = isLight ? "#0e7490" : "#67e8f9";
     }
 
     const isHighlighted = (highlightedStep === item.stepIdx) ||
@@ -271,13 +285,13 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
       aura.setAttribute("cx", String(nx));
       aura.setAttribute("cy", String(geom.y));
       aura.setAttribute("r", "14");
-      aura.setAttribute("fill", "rgba(103, 232, 249, 0.24)");
-      aura.setAttribute("stroke", "#67e8f9");
+      aura.setAttribute("fill", isLight ? "rgba(14, 116, 144, 0.18)" : "rgba(103, 232, 249, 0.24)");
+      aura.setAttribute("stroke", staffColors.inspectorAccent);
       aura.setAttribute("stroke-width", "1.6");
       svg.appendChild(aura);
     }
 
-    drawMicrotonalAccidental(svg, nx, geom.y, geom.acc, isHighlighted ? "#67e8f9" : strokeColor);
+    drawMicrotonalAccidental(svg, nx, geom.y, geom.acc, isHighlighted ? staffColors.inspectorAccent : strokeColor);
 
     const noteGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     noteGroup.style.cursor = "pointer";
@@ -289,7 +303,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     head.setAttribute("ry", "4.8");
     head.setAttribute("transform", `rotate(-18 ${nx} ${geom.y})`);
     head.setAttribute("fill", fillColor);
-    head.setAttribute("stroke", isHighlighted ? "#ffffff" : strokeColor);
+    head.setAttribute("stroke", isHighlighted ? (isLight ? "#0e7490" : "#ffffff") : strokeColor);
     head.setAttribute("stroke-width", isHighlighted ? "2.2" : "1.3");
     noteGroup.appendChild(head);
 
@@ -299,7 +313,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     stem.setAttribute("y1", String(geom.y));
     stem.setAttribute("x2", String(stemUp ? nx + 6 : nx - 6));
     stem.setAttribute("y2", String(stemUp ? geom.y - 24 : geom.y + 24));
-    stem.setAttribute("stroke", isHighlighted ? "#ffffff" : strokeColor);
+    stem.setAttribute("stroke", isHighlighted ? staffColors.inspectorAccent : strokeColor);
     stem.setAttribute("stroke-width", "1.3");
     noteGroup.appendChild(stem);
 
@@ -307,7 +321,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     nameLbl.setAttribute("x", String(nx));
     nameLbl.setAttribute("y", String(H - 22));
     nameLbl.setAttribute("text-anchor", "middle");
-    nameLbl.setAttribute("fill", isHighlighted ? "#67e8f9" : "#fef3c7");
+    nameLbl.setAttribute("fill", isHighlighted ? staffColors.noteTextHighlight : staffColors.noteTextMain);
     nameLbl.setAttribute("font-size", "9.5");
     nameLbl.setAttribute("font-weight", "700");
     nameLbl.textContent = pcData.flat;
@@ -317,9 +331,9 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     degLbl.setAttribute("x", String(nx));
     degLbl.setAttribute("y", String(H - 10));
     degLbl.setAttribute("text-anchor", "middle");
-    degLbl.setAttribute("fill", item.sublabel ? "#67e8f9" : "#a89882");
+    degLbl.setAttribute("fill", item.sublabel ? staffColors.inspectorAccent : staffColors.degreeText);
     degLbl.setAttribute("font-size", "8.2");
-    degLbl.setAttribute("font-weight", item.sublabel ? "700" : "400");
+    degLbl.setAttribute("font-weight", item.sublabel ? "700" : "600");
     degLbl.textContent = item.sublabel || item.degree;
     noteGroup.appendChild(degLbl);
 
@@ -339,7 +353,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   sep.setAttribute("y1", "18");
   sep.setAttribute("x2", String(inspectorX - 6));
   sep.setAttribute("y2", String(H - 18));
-  sep.setAttribute("stroke", "rgba(212, 175, 55, 0.35)");
+  sep.setAttribute("stroke", staffColors.bgStroke);
   sep.setAttribute("stroke-width", "1.5");
   sep.setAttribute("stroke-dasharray", "4,3");
   svg.appendChild(sep);
@@ -348,7 +362,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
   inspTitle.setAttribute("x", String(inspectorX + 112));
   inspTitle.setAttribute("y", "22");
   inspTitle.setAttribute("text-anchor", "middle");
-  inspTitle.setAttribute("fill", "#67e8f9");
+  inspTitle.setAttribute("fill", staffColors.inspectorAccent);
   inspTitle.setAttribute("font-size", "9.5");
   inspTitle.setAttribute("font-weight", "800");
   inspTitle.textContent = t(state.lang, "staffInspectorTitle");
@@ -361,7 +375,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     line.setAttribute("y1", String(y));
     line.setAttribute("x2", String(W - 22));
     line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", "rgba(103, 232, 249, 0.25)");
+    line.setAttribute("stroke", staffColors.lineStroke);
     line.setAttribute("stroke-width", "1");
     svg.appendChild(line);
   }
@@ -371,8 +385,8 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     const pcData = PITCH_CLASSES_24[geom.pcQ];
     const inspNoteX = inspectorX + 76;
 
-    drawLedgerLines(svg, inspNoteX, geom.diatonicStep, topLineY, halfStepPx);
-    drawMicrotonalAccidental(svg, inspNoteX, geom.y, geom.acc, "#67e8f9");
+    drawLedgerLines(svg, inspNoteX, geom.diatonicStep, topLineY, halfStepPx, staffColors.ledgerStroke);
+    drawMicrotonalAccidental(svg, inspNoteX, geom.y, geom.acc, staffColors.inspectorAccent);
 
     const head = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
     head.setAttribute("cx", String(inspNoteX));
@@ -380,8 +394,8 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     head.setAttribute("rx", "7.2");
     head.setAttribute("ry", "5");
     head.setAttribute("transform", `rotate(-18 ${inspNoteX} ${geom.y})`);
-    head.setAttribute("fill", "#06b6d4");
-    head.setAttribute("stroke", "#ffffff");
+    head.setAttribute("fill", "#0891b2");
+    head.setAttribute("stroke", isLight ? "#164e63" : "#ffffff");
     head.setAttribute("stroke-width", "1.8");
     svg.appendChild(head);
 
@@ -390,7 +404,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     infoTxt.setAttribute("x", String(inspectorX + 155));
     infoTxt.setAttribute("y", String(topLineY + 14));
     infoTxt.setAttribute("text-anchor", "middle");
-    infoTxt.setAttribute("fill", "#ffffff");
+    infoTxt.setAttribute("fill", staffColors.noteTextMain);
     infoTxt.setAttribute("font-size", "12");
     infoTxt.setAttribute("font-weight", "800");
     infoTxt.textContent = `${pcData.flat}${octaveNum}`;
@@ -400,8 +414,9 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     subTxt.setAttribute("x", String(inspectorX + 155));
     subTxt.setAttribute("y", String(topLineY + 28));
     subTxt.setAttribute("text-anchor", "middle");
-    subTxt.setAttribute("fill", "#fde047");
+    subTxt.setAttribute("fill", staffColors.inspectorSub);
     subTxt.setAttribute("font-size", "9");
+    subTxt.setAttribute("font-weight", "700");
     subTxt.textContent = selectedPitch.course
       ? `${selectedPitch.course}ª (${pcData.arabic})`
       : pcData.arabic;
@@ -412,7 +427,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
       hzTxt.setAttribute("x", String(inspectorX + 155));
       hzTxt.setAttribute("y", String(topLineY + 41));
       hzTxt.setAttribute("text-anchor", "middle");
-      hzTxt.setAttribute("fill", "#a89882");
+      hzTxt.setAttribute("fill", staffColors.degreeText);
       hzTxt.setAttribute("font-size", "8.5");
       hzTxt.textContent = `${selectedPitch.freq.toFixed(1)} Hz`;
       svg.appendChild(hzTxt);
@@ -422,7 +437,7 @@ export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onS
     emptyTxt.setAttribute("x", String(inspectorX + 112));
     emptyTxt.setAttribute("y", String(topLineY + 25));
     emptyTxt.setAttribute("text-anchor", "middle");
-    emptyTxt.setAttribute("fill", "rgba(168, 152, 130, 0.7)");
+    emptyTxt.setAttribute("fill", staffColors.degreeText);
     emptyTxt.setAttribute("font-size", "9");
     emptyTxt.textContent = t(state.lang, "staffInspectorEmpty");
     svg.appendChild(emptyTxt);

@@ -27,7 +27,18 @@ import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 
 const state = getInitialStateFromUrl();
 
-// Normalização defensiva na carga inicial (garante que espelho e pauta sempre renderizem no startup)
+// Inicializa o tema a partir do estado, localStorage ou padrão "dark"
+try {
+  const savedTheme = localStorage.getItem("oud_theme_pref");
+  if (!window.location.hash.includes("th=") && (savedTheme === "light" || savedTheme === "dark")) {
+    state.theme = savedTheme;
+  }
+} catch {
+  // Ignora se localStorage estiver bloqueado
+}
+if (state.theme !== "light" && state.theme !== "dark") {
+  state.theme = "dark";
+}
 if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) {
   state.rootQ = 0;
 }
@@ -58,18 +69,133 @@ let glossaryCategory = "ALL";
 let glossaryQuery = "";
 
 /**
- * Verifica se há uma nota física válida ancorada para o caminho de 1 oitava.
- * @returns {boolean}
+ * Injeta as regras de tema Claro (Nahar — Pergaminho Iluminado) e Escuro (Layl — Majlis)
+ * diretamente no <head>, garantindo funcionamento imediato mesmo com cache de CSS do navegador.
  */
+function ensureThemeStyleEngine() {
+  if (document.getElementById("oud-theme-engine")) return;
+  const styleEl = document.createElement("style");
+  styleEl.id = "oud-theme-engine";
+  styleEl.textContent = `
+    html[data-theme="light"],
+    body[data-theme="light"] {
+      --bg-deep: #f3ead8 !important;
+      --bg-card: #fcf8ef !important;
+      --bg-card-elevated: #efe4ce !important;
+      --bg-stage: radial-gradient(circle at 50% 35%, #fffdf9 0%, #e5d6b8 92%) !important;
+      --bg-dock: #ebe0c9 !important;
+      --bg-input: #f7efe0 !important;
+      --text-main: #23160c !important;
+      --text-muted: #5e4630 !important;
+      --accent: #8c5811 !important;
+      --accent-soft: rgba(140, 88, 17, 0.15) !important;
+      --sadaf-cyan: #0e7490 !important;
+      --sadaf-bg: rgba(14, 116, 144, 0.12) !important;
+      --border-gold: rgba(140, 88, 17, 0.42) !important;
+      --shadow-card: 0 8px 24px rgba(58, 36, 14, 0.12) !important;
+      background: linear-gradient(180deg, #f6efe0 0%, #e8d8b9 100%) !important;
+      color: #23160c !important;
+    }
+    body[data-theme="light"][data-tradition="cairo"] {
+      --bg-deep: #f6ebd4 !important;
+      --bg-card: #fdf8ec !important;
+      --accent: #9a3412 !important;
+      --sadaf-cyan: #b45309 !important;
+    }
+    body[data-theme="light"][data-tradition="istanbul"] {
+      --bg-deep: #edf1f5 !important;
+      --bg-card: #fbfcfe !important;
+      --bg-stage: radial-gradient(circle at 50% 35%, #ffffff 0%, #dbe3ec 92%) !important;
+      --bg-dock: #e4eaf1 !important;
+      --bg-input: #f1f5f9 !important;
+      --accent: #7c5816 !important;
+      --sadaf-cyan: #1d4ed8 !important;
+      background: linear-gradient(180deg, #f3f6f9 0%, #dfe6ef 100%) !important;
+    }
+    body[data-theme="light"] .khatem-border,
+    body[data-theme="light"] .astrolabe-header,
+    body[data-theme="light"] .mihrab-card,
+    body[data-theme="light"] .sanctuary-card,
+    body[data-theme="light"] .iqa-card,
+    body[data-theme="light"] .neck-showcase,
+    body[data-theme="light"] .info-card,
+    body[data-theme="light"] .cadence-bar,
+    body[data-theme="light"] .glossary-drawer {
+      background: var(--bg-card) !important;
+      border-color: var(--border-gold) !important;
+      box-shadow: var(--shadow-card) !important;
+      color: var(--text-main) !important;
+    }
+    body[data-theme="light"] .inlay-dock-top,
+    body[data-theme="light"] .inlay-dock-bottom,
+    body[data-theme="light"] .staff-stage-box {
+      background: var(--bg-dock) !important;
+      border-color: var(--border-gold) !important;
+      color: var(--text-main) !important;
+    }
+    body[data-theme="light"] .svg-stage-container {
+      background: var(--bg-stage) !important;
+    }
+    body[data-theme="light"] button,
+    body[data-theme="light"] select,
+    body[data-theme="light"] .tradition-pill,
+    body[data-theme="light"] .meta-pill,
+    body[data-theme="light"] .iqa-beat-cell,
+    body[data-theme="light"] .cadence-step-card,
+    body[data-theme="light"] .glossary-item,
+    body[data-theme="light"] .glossary-search-box input {
+      background-color: var(--bg-input) !important;
+      color: var(--text-main) !important;
+      border-color: var(--border-gold) !important;
+    }
+    body[data-theme="light"] .tradition-pill select {
+      background: transparent !important;
+      border: none !important;
+    }
+    body[data-theme="light"] button.primary {
+      background: linear-gradient(135deg, #9a6515, #6c4309) !important;
+      color: #ffffff !important;
+      border-color: #6c4309 !important;
+    }
+    body[data-theme="light"] button.sadaf-btn,
+    body[data-theme="light"] .term-help-btn {
+      background: var(--sadaf-bg) !important;
+      color: var(--sadaf-cyan) !important;
+      border-color: var(--sadaf-cyan) !important;
+    }
+    body[data-theme="light"] button.selected,
+    body[data-theme="light"] .tab-btn.active,
+    body[data-theme="light"] button.active-toggle,
+    body[data-theme="light"] .cadence-step-card.active-step {
+      background: var(--accent-soft) !important;
+      color: var(--accent) !important;
+      border-color: var(--accent) !important;
+      font-weight: 700 !important;
+    }
+    body[data-theme="light"] h1,
+    body[data-theme="light"] h2,
+    body[data-theme="light"] h3,
+    body[data-theme="light"] .staff-title-group strong {
+      color: var(--accent) !important;
+    }
+    body[data-theme="light"] .brand-subtitle,
+    body[data-theme="light"] .info-description,
+    body[data-theme="light"] .tuning-description,
+    body[data-theme="light"] .staff-subhint,
+    body[data-theme="light"] .dock-title,
+    body[data-theme="light"] .ribbon-label,
+    body[data-theme="light"] .touch-hint,
+    body[data-theme="light"] .field-block label {
+      color: var(--text-muted) !important;
+    }
+  `;
+  document.head.appendChild(styleEl);
+}
+
 function hasValidAnchor() {
   return typeof state.anchorAbsQ === "number" && !Number.isNaN(state.anchorAbsQ) && state.anchorAbsQ >= 0;
 }
 
-/**
- * Resolve o índice 0..23 da nota selecionada a partir de pitchClassQ ou absQ.
- * @param {{ absQ?: number | null, pitchClassQ?: number | null } | null} targetPitch
- * @returns {number | null}
- */
 function resolvePitchClassQ(targetPitch) {
   if (!targetPitch) return null;
   if (typeof targetPitch.pitchClassQ === "number" && !Number.isNaN(targetPitch.pitchClassQ)) {
@@ -81,11 +207,17 @@ function resolvePitchClassQ(targetPitch) {
   return null;
 }
 
-/**
- * Define a nota selecionada no espelho ou na pauta como a nova Tônica (rootQ),
- * ancora a altura absoluta (anchorAbsQ) e ativa o Caminho de 1 Oitava para visualização.
- * @param {{ absQ?: number | null, pitchClassQ?: number | null, qFromNut?: number, freq?: number } | null} targetPitch
- */
+function toggleAppTheme() {
+  state.theme = state.theme === "light" ? "dark" : "light";
+  try {
+    localStorage.setItem("oud_theme_pref", state.theme);
+  } catch {
+    // Ignora
+  }
+  syncControlsWithState();
+  refreshAll();
+}
+
 function applySelectedPitchAsRoot(targetPitch) {
   const newRootQ = resolvePitchClassQ(targetPitch);
   if (newRootQ === null) return;
@@ -133,10 +265,6 @@ function applySelectedPitchAsRoot(targetPitch) {
   refreshAll();
 }
 
-/**
- * Toca o Caminho de 1 Oitava ancorado (ascendente ou descendente) iluminando passo a passo
- * no espelho e na partitura.
- */
 function handlePlayAnchoredOctavePath() {
   if (!hasValidAnchor()) return;
   const pathNodes = computeAnchoredOctavePath(state);
@@ -162,15 +290,37 @@ function handlePlayAnchoredOctavePath() {
   });
 }
 
-/**
- * Garante que os botões contextuais de "Definir Tônica" e a Barra de Caminho de 1 Oitava
- * existam no DOM.
- */
 function ensureDynamicTonicControlsExist() {
+  ensureThemeStyleEngine();
+
+  const medallions = document.querySelector(".action-medallions");
+  let themeBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById("btn-theme"));
+  if (medallions && !themeBtn) {
+    themeBtn = document.createElement("button");
+    themeBtn.id = "btn-theme";
+    themeBtn.type = "button";
+    themeBtn.className = "sadaf-btn";
+    const langBtn = document.getElementById("btn-lang");
+    if (langBtn) {
+      medallions.insertBefore(themeBtn, langBtn);
+    } else {
+      medallions.appendChild(themeBtn);
+    }
+  }
+  if (themeBtn && !themeBtn.dataset.boundTheme) {
+    themeBtn.dataset.boundTheme = "1";
+    themeBtn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleAppTheme();
+    });
+  }
+
   const staffPills = document.querySelector(".staff-toolbar .brass-pills");
   if (staffPills && !document.getElementById("btn-set-root-from-selection")) {
     const btn = document.createElement("button");
     btn.id = "btn-set-root-from-selection";
+    btn.type = "button";
     btn.className = "primary";
     btn.style.display = "none";
     btn.textContent = t(state.lang, "btnSetRootFromNote");
@@ -181,6 +331,7 @@ function ensureDynamicTonicControlsExist() {
   if (dockPills && !document.getElementById("btn-dock-set-tonic")) {
     const dockBtn = document.createElement("button");
     dockBtn.id = "btn-dock-set-tonic";
+    dockBtn.type = "button";
     dockBtn.className = "primary";
     dockBtn.style.display = "none";
     dockBtn.textContent = t(state.lang, "btnSetRootFromNote");
@@ -205,28 +356,25 @@ function ensureDynamicTonicControlsExist() {
 
     bar.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <strong id="octave-bar-label" style="color:#67e8f9; font-size:0.82rem;">📍 Caminho da Tônica</strong>
+        <strong id="octave-bar-label" style="color:var(--sadaf-cyan); font-size:0.82rem;">📍 Caminho da Tônica</strong>
         <div class="brass-pills compact-pills">
-          <button id="btn-oct-mode-all">${t(state.lang, "btnOctaveAll")}</button>
-          <button id="btn-oct-mode-single" class="selected">${t(state.lang, "btnOctaveSingle")}</button>
+          <button type="button" id="btn-oct-mode-all">🌐 Todas as Oitavas</button>
+          <button type="button" id="btn-oct-mode-single" class="selected">🎯 Caminho 1 Oitava</button>
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <div class="brass-pills compact-pills">
-          <button id="btn-oct-dir-asc" class="selected">${t(state.lang, "btnOctaveAsc")}</button>
-          <button id="btn-oct-dir-desc">${t(state.lang, "btnOctaveDesc")}</button>
+          <button type="button" id="btn-oct-dir-asc" class="selected">↑ Ascendente (+8ª)</button>
+          <button type="button" id="btn-oct-dir-desc">↓ Descendente (-8ª)</button>
         </div>
-        <button id="btn-play-octave-path" class="sadaf-btn" style="padding:4px 12px; font-size:0.78rem;">${t(state.lang, "btnPlayOctavePath")}</button>
-        <button id="btn-close-octave-bar" style="padding:4px 9px; font-size:0.78rem; border-color:rgba(255,255,255,0.25);">✕</button>
+        <button type="button" id="btn-play-octave-path" class="sadaf-btn" style="padding:4px 12px; font-size:0.78rem;">▶ Ouvir Caminho</button>
+        <button type="button" id="btn-close-octave-bar" style="padding:4px 9px; font-size:0.78rem;">✕</button>
       </div>
     `;
     neckShowcase.insertBefore(bar, svgContainer);
   }
 }
 
-/**
- * @param {string} [focusTermId]
- */
 function renderGlossaryList(focusTermId) {
   const listEl = document.getElementById("glossary-list");
   if (!listEl) return;
@@ -281,9 +429,6 @@ function renderGlossaryList(focusTermId) {
   }
 }
 
-/**
- * @param {string} [termId]
- */
 function openGlossary(termId) {
   const drawer = document.getElementById("glossary-drawer");
   const backdrop = document.getElementById("glossary-backdrop");
@@ -428,7 +573,7 @@ function updateInfoPanel() {
         <div>
           <strong style="color:var(--sadaf-cyan);">✨ ${phrase.title}</strong>
           <div style="margin-top:3px; color:var(--text-muted);">${phrase.summary}</div>
-          <div style="margin-top:4px; font-size:0.78rem; color:#fde047;"><strong>${t(state.lang, "pillNotes")}:</strong> ${phraseNotes}</div>
+          <div style="margin-top:4px; font-size:0.78rem; color:var(--accent);"><strong>${t(state.lang, "pillNotes")}:</strong> ${phraseNotes}</div>
         </div>
         <button id="btn-inline-taqsim" class="sadaf-btn" style="padding:5px 12px; font-size:0.78rem;">${t(state.lang, "btnPlayPhraseInline")}</button>
       `;
@@ -504,7 +649,7 @@ function updateInfoPanel() {
 
       const item = document.createElement("div");
       item.style.padding = "4px 8px";
-      item.style.background = diffQ === 8 ? "rgba(212, 175, 55, 0.16)" : "rgba(255,255,255,0.03)";
+      item.style.background = diffQ === 8 ? "var(--accent-soft)" : "rgba(128,128,128,0.08)";
       item.style.borderRadius = "4px";
       item.innerHTML = `<strong>${lowC.label} → ${highC.label}:</strong> ${intName}`;
       listEl.appendChild(item);
@@ -667,7 +812,6 @@ function syncSelectionActionButtons() {
     if (btnDockSetTonic) btnDockSetTonic.style.display = "none";
   }
 
-  // Sincroniza a Barra Contextual de Caminho de 1 Oitava apenas quando anchorAbsQ for um número válido
   const octBar = document.getElementById("octave-path-bar");
   if (octBar) {
     if (hasValidAnchor() && typeof state.anchorAbsQ === "number") {
@@ -676,9 +820,7 @@ function syncSelectionActionButtons() {
       const pc = PITCH_CLASSES_24[pcIdx] || PITCH_CLASSES_24[0];
       const octNum = Math.floor(state.anchorAbsQ / 24) + 2;
       const lbl = document.getElementById("octave-bar-label");
-      const titlePrefix = t(state.lang, "octaveBarTitle") !== "octaveBarTitle"
-        ? t(state.lang, "octaveBarTitle")
-        : (state.lang === "en" ? "📍 Tonic Path:" : "📍 Caminho da Tônica:");
+      const titlePrefix = state.lang === "en" ? "📍 Tonic Path:" : "📍 Caminho da Tônica:";
       if (lbl) lbl.textContent = `${titlePrefix} ${pc.flat}${octNum} (${pc.arabic})`;
 
       const btnAll = document.getElementById("btn-oct-mode-all");
@@ -688,33 +830,23 @@ function syncSelectionActionButtons() {
       const btnPlayOct = document.getElementById("btn-play-octave-path");
 
       if (btnAll) {
-        btnAll.textContent = t(state.lang, "btnOctaveAll") !== "btnOctaveAll"
-          ? t(state.lang, "btnOctaveAll")
-          : (state.lang === "en" ? "🌐 All Octaves" : "🌐 Todas as Oitavas");
+        btnAll.textContent = state.lang === "en" ? "🌐 All Octaves" : "🌐 Todas as Oitavas";
         btnAll.classList.toggle("selected", !state.octavePathOnly);
       }
       if (btnSingle) {
-        btnSingle.textContent = t(state.lang, "btnOctaveSingle") !== "btnOctaveSingle"
-          ? t(state.lang, "btnOctaveSingle")
-          : (state.lang === "en" ? "🎯 1-Octave Path" : "🎯 Caminho 1 Oitava");
+        btnSingle.textContent = state.lang === "en" ? "🎯 1-Octave Path" : "🎯 Caminho 1 Oitava";
         btnSingle.classList.toggle("selected", state.octavePathOnly);
       }
       if (btnAsc) {
-        btnAsc.textContent = t(state.lang, "btnOctaveAsc") !== "btnOctaveAsc"
-          ? t(state.lang, "btnOctaveAsc")
-          : (state.lang === "en" ? "↑ Ascending (+8ve)" : "↑ Ascendente (+8ª)");
+        btnAsc.textContent = state.lang === "en" ? "↑ Ascending (+8ve)" : "↑ Ascendente (+8ª)";
         btnAsc.classList.toggle("selected", state.octavePathDir === "ASC");
       }
       if (btnDesc) {
-        btnDesc.textContent = t(state.lang, "btnOctaveDesc") !== "btnOctaveDesc"
-          ? t(state.lang, "btnOctaveDesc")
-          : (state.lang === "en" ? "↓ Descending (-8ve)" : "↓ Descendente (-8ª)");
+        btnDesc.textContent = state.lang === "en" ? "↓ Descending (-8ve)" : "↓ Descendente (-8ª)";
         btnDesc.classList.toggle("selected", state.octavePathDir === "DESC");
       }
       if (btnPlayOct) {
-        btnPlayOct.textContent = t(state.lang, "btnPlayOctavePath") !== "btnPlayOctavePath"
-          ? t(state.lang, "btnPlayOctavePath")
-          : (state.lang === "en" ? "▶ Play Path" : "▶ Ouvir Caminho");
+        btnPlayOct.textContent = state.lang === "en" ? "▶ Play Path" : "▶ Ouvir Caminho";
       }
     } else {
       octBar.style.display = "none";
@@ -723,10 +855,24 @@ function syncSelectionActionButtons() {
 }
 
 function syncControlsWithState() {
+  ensureDynamicTonicControlsExist();
   applyStaticTranslations(state.lang);
   populateAllLocalizedSelects();
 
+  document.documentElement.setAttribute("data-theme", state.theme);
+  document.body.setAttribute("data-theme", state.theme);
+  document.body.setAttribute("data-tradition", state.tradition);
   document.body.setAttribute("data-orientation", state.orientation);
+
+  const btnTheme = document.getElementById("btn-theme");
+  if (btnTheme) {
+    if (state.theme === "light") {
+      btnTheme.textContent = state.lang === "en" ? "🌙 Dark Mode (Majlis)" : "🌙 Modo Escuro (Majlis)";
+    } else {
+      btnTheme.textContent = state.lang === "en" ? "☀️ Light Mode (Parchment)" : "☀️ Modo Claro (Pergaminho)";
+    }
+  }
+
   const btnOrientation = document.getElementById("btn-orientation");
   if (btnOrientation) {
     btnOrientation.textContent = state.orientation === "VERTICAL"
@@ -812,6 +958,53 @@ function syncControlsWithState() {
   renderGlossaryList();
 }
 
+/**
+ * Pós-processador visual de segurança para os SVGs da Pauta e do Espelho no Modo Claro,
+ * garantindo contraste perfeito mesmo que submódulos antigos estejam em cache.
+ */
+function applySvgThemePolish() {
+  const isLight = state.theme === "light";
+  const staffSvg = document.getElementById("oud-staff");
+  if (staffSvg && isLight) {
+    const firstRect = staffSvg.querySelector("rect");
+    if (firstRect) {
+      firstRect.setAttribute("fill", "#faf3e3");
+      firstRect.setAttribute("stroke", "rgba(138, 90, 25, 0.45)");
+    }
+    staffSvg.querySelectorAll("line").forEach(ln => {
+      const st = ln.getAttribute("stroke") || "";
+      if (st.includes("254, 243, 199")) {
+        ln.setAttribute("stroke", "rgba(75, 54, 33, 0.52)");
+      }
+    });
+    staffSvg.querySelectorAll("text").forEach(tx => {
+      const fl = tx.getAttribute("fill") || "";
+      if (fl === "#fef3c7" || fl === "#ffffff") {
+        tx.setAttribute("fill", "#23160c");
+      } else if (fl === "#fde68a" || fl === "#fde047") {
+        tx.setAttribute("fill", "#8c5811");
+      } else if (fl === "#67e8f9") {
+        tx.setAttribute("fill", "#0e7490");
+      }
+    });
+  }
+
+  const neckSvg = document.getElementById("oud-neck");
+  if (neckSvg && isLight) {
+    neckSvg.querySelectorAll("text").forEach(tx => {
+      if (tx.closest(".note-node")) return; // Mantém o texto branco dentro das joias
+      const fl = tx.getAttribute("fill") || "";
+      if (fl === "#fef3c7") {
+        tx.setAttribute("fill", "#2c1d11");
+      } else if (fl === "#fde68a") {
+        tx.setAttribute("fill", "#78350f");
+      } else if (fl === "#d8b4fe") {
+        tx.setAttribute("fill", "#6b21a8");
+      }
+    });
+  }
+}
+
 function refreshAll() {
   renderCadenceBar();
   renderIqaBeatGrid();
@@ -848,6 +1041,7 @@ function refreshAll() {
     octavePathNodes
   );
 
+  applySvgThemePolish();
   updateInfoPanel();
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
@@ -855,12 +1049,15 @@ function refreshAll() {
 }
 
 function initApp() {
+  ensureDynamicTonicControlsExist();
+  document.documentElement.setAttribute("data-theme", state.theme);
+  document.body.setAttribute("data-theme", state.theme);
   document.body.setAttribute("data-tradition", state.tradition);
   document.body.setAttribute("data-orientation", state.orientation);
-  ensureDynamicTonicControlsExist();
 
   document.addEventListener("click", (e) => {
-    const target = /** @type {HTMLElement | null} */ (e.target);
+    const rawTarget = e.target;
+    const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
 
     if (target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic")) {

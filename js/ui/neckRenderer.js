@@ -9,12 +9,6 @@ import {
 } from "../core/modalEngine.js";
 import { playPluckedNote } from "../audio/synthEngine.js";
 
-/**
- * @param {number} cx
- * @param {number} cy
- * @param {number} outerR
- * @param {number} innerR
- */
 function createOctagramStarPath(cx, cy, outerR, innerR) {
   const points = [];
   for (let i = 0; i < 16; i++) {
@@ -25,14 +19,6 @@ function createOctagramStarPath(cx, cy, outerR, innerR) {
   return points.join(" ");
 }
 
-/**
- * @param {SVGElement} svg
- * @param {number} cx
- * @param {number} cy
- * @param {number} radius
- * @param {any} palette
- * @param {() => void} onRosetteClick
- */
 function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
   g.style.cursor = "pointer";
@@ -92,15 +78,6 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   svg.appendChild(g);
 }
 
-/**
- * Desenha setas curvas numeradas conectando uma sequência ordenada de coordenadas físicas no espelho.
- * Usado tanto para o Sayr (Taqsim) quanto para o Caminho de 1 Oitava Ancorado.
- *
- * @param {SVGElement} svg
- * @param {{ x: number, y: number, stepIdx: number }[]} orderedPoints
- * @param {number} highlightedStepIdx
- * @param {string} baseColor
- */
 function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#fde047") {
   if (orderedPoints.length < 2) return;
 
@@ -162,12 +139,6 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
   svg.appendChild(trailGroup);
 }
 
-/**
- * @param {SVGElement} svg
- * @param {{ x: number, y: number, absQ: number, modOffsetQ: number }[]} visibleActiveNodes
- * @param {{ interval_q: number, dur_ms: number, accent?: boolean }[]} sayrSteps
- * @param {number} highlightedStepIdx
- */
 function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedStepIdx) {
   if (!visibleActiveNodes.length || !sayrSteps || !sayrSteps.length) return;
 
@@ -367,6 +338,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
   const isVert = state.orientation === "VERTICAL";
   const isEn = state.lang === "en";
+  const isLight = state.theme === "light";
+
+  // Cores externas adaptativas para legibilidade máxima sobre o fundo pergaminho (Nahar) ou ébano (Layl)
+  const extColors = {
+    courseLabel: isLight ? "#2c1d11" : "#fef3c7",
+    semiLabel: isLight ? "#78350f" : "#fde68a",
+    microLabel: isLight ? "#6b21a8" : "#d8b4fe",
+    nutTag: isLight ? "#9a6515" : "#d4af37",
+    inlayFixed: isLight ? "#0e7490" : undefined,
+    inlayMicro: isLight ? "#7e22ce" : "#d8b4fe"
+  };
+
   svg.setAttribute("viewBox", isVert ? "0 0 410 1065" : "0 0 1120 370");
 
   const palette = TRADITION_PALETTES[/** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition)] || TRADITION_PALETTES.damascus;
@@ -503,7 +486,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     openLbl.setAttribute("x", String(leftX - 32));
     openLbl.setAttribute("y", String(openRailY + 3.5));
     openLbl.setAttribute("text-anchor", "middle");
-    openLbl.setAttribute("fill", "#fef3c7");
+    openLbl.setAttribute("fill", extColors.courseLabel);
     openLbl.setAttribute("font-size", "9.5");
     openLbl.setAttribute("font-weight", "800");
     openLbl.textContent = isEn ? "OPEN" : "SOLTA";
@@ -573,7 +556,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     nutTag.setAttribute("x", String(leftX - 32));
     nutTag.setAttribute("y", String(nutY + 3.5));
     nutTag.setAttribute("text-anchor", "middle");
-    nutTag.setAttribute("fill", "#d4af37");
+    nutTag.setAttribute("fill", extColors.nutTag);
     nutTag.setAttribute("font-size", "8.5");
     nutTag.setAttribute("font-weight", "800");
     nutTag.textContent = "ANF";
@@ -599,7 +582,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         const ix = rightX + 28;
         inlayDiamond.setAttribute("points", `${ix},${gy - 4} ${ix + 4},${gy} ${ix},${gy + 4} ${ix - 4},${gy}`);
-        inlayDiamond.setAttribute("fill", isMicro ? "#d8b4fe" : palette.sadaf);
+        inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
         svg.appendChild(inlayDiamond);
       }
 
@@ -608,9 +591,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         lbl.setAttribute("x", String(leftX - 32));
         lbl.setAttribute("y", String(gy + 3.5));
         lbl.setAttribute("text-anchor", "middle");
-        lbl.setAttribute("fill", isMicro ? "#d8b4fe" : "#fde68a");
+        lbl.setAttribute("fill", isMicro ? extColors.microLabel : extColors.semiLabel);
         lbl.setAttribute("font-size", isMicro ? "9.5" : "10.5");
-        lbl.setAttribute("font-weight", "600");
+        lbl.setAttribute("font-weight", "700");
         lbl.textContent = isMicro ? `${q}q` : `S${q / 2}`;
         svg.appendChild(lbl);
       }
@@ -628,9 +611,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       cText.setAttribute("x", String(cx));
       cText.setAttribute("y", "22");
       cText.setAttribute("text-anchor", "middle");
-      cText.setAttribute("fill", "#fef3c7");
+      cText.setAttribute("fill", extColors.courseLabel);
       cText.setAttribute("font-size", "11");
-      cText.setAttribute("font-weight", "700");
+      cText.setAttribute("font-weight", "800");
       cText.textContent = cObj.label.replace(" ", "");
       svg.appendChild(cText);
 
@@ -834,7 +817,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   openLbl.setAttribute("x", String(openRailX));
   openLbl.setAttribute("y", String(bodyBotY + 21));
   openLbl.setAttribute("text-anchor", "middle");
-  openLbl.setAttribute("fill", "#fef3c7");
+  openLbl.setAttribute("fill", extColors.courseLabel);
   openLbl.setAttribute("font-size", "9.5");
   openLbl.setAttribute("font-weight", "800");
   openLbl.textContent = isEn ? "OPEN (0)" : "SOLTA (0)";
@@ -906,7 +889,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   nutTag.setAttribute("x", String(nutX));
   nutTag.setAttribute("y", String(nutTopY - 8));
   nutTag.setAttribute("text-anchor", "middle");
-  nutTag.setAttribute("fill", "#d4af37");
+  nutTag.setAttribute("fill", extColors.nutTag);
   nutTag.setAttribute("font-size", "9");
   nutTag.setAttribute("font-weight", "800");
   nutTag.textContent = isEn ? "NUT (ANF)" : "PESTANA (ANF)";
@@ -932,7 +915,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       const iy = bodyTopY - 6;
       inlayDiamond.setAttribute("points", `${gx},${iy - 4} ${gx + 4},${iy} ${gx},${iy + 4} ${gx - 4},${iy}`);
-      inlayDiamond.setAttribute("fill", isMicro ? "#d8b4fe" : palette.sadaf);
+      inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
       svg.appendChild(inlayDiamond);
     }
 
@@ -941,9 +924,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       lbl.setAttribute("x", String(gx));
       lbl.setAttribute("y", String(bodyBotY + 21));
       lbl.setAttribute("text-anchor", "middle");
-      lbl.setAttribute("fill", isMicro ? "#d8b4fe" : "#fde68a");
+      lbl.setAttribute("fill", isMicro ? extColors.microLabel : extColors.semiLabel);
       lbl.setAttribute("font-size", isMicro ? "9.5" : "10.5");
-      lbl.setAttribute("font-weight", "600");
+      lbl.setAttribute("font-weight", "700");
       lbl.textContent = isMicro ? `${q}q` : `S${q / 2}`;
       svg.appendChild(lbl);
     }
@@ -961,7 +944,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     cText.setAttribute("x", String(courseLabelX));
     cText.setAttribute("y", String(cy + 4));
     cText.setAttribute("text-anchor", "middle");
-    cText.setAttribute("fill", "#fef3c7");
+    cText.setAttribute("fill", extColors.courseLabel);
     cText.setAttribute("font-size", "11.5");
     cText.setAttribute("font-weight", "700");
     cText.textContent = cObj.label;

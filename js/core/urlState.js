@@ -3,6 +3,7 @@
 /**
  * @typedef {Object} OudAppState
  * @property {"pt"|"en"} lang
+ * @property {"dark"|"light"} theme
  * @property {string} tradition
  * @property {"HORIZONTAL"|"VERTICAL"} orientation
  * @property {string} tuningId
@@ -36,6 +37,7 @@
 export function getDefaultState() {
   return {
     lang: "pt",
+    theme: "dark",
     tradition: "damascus",
     orientation: "HORIZONTAL",
     tuningId: "syrian_arabic_c_c",
@@ -69,11 +71,21 @@ export function getDefaultState() {
 /** @returns {OudAppState} */
 export function getInitialStateFromUrl() {
   const state = getDefaultState();
+  try {
+    const savedTheme = localStorage.getItem("oud_theme_pref");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      state.theme = savedTheme;
+    }
+  } catch {
+    // Ignora se localStorage estiver indisponível
+  }
+
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash) return state;
 
   const p = new URLSearchParams(rawHash);
   if (p.get("lang") === "en" || p.get("lang") === "pt") state.lang = /** @type {"pt"|"en"} */ (p.get("lang"));
+  if (p.get("th") === "light" || p.get("th") === "dark") state.theme = /** @type {"dark"|"light"} */ (p.get("th"));
   if (p.has("tr")) state.tradition = p.get("tr") || state.tradition;
   if (p.get("or") === "VERTICAL" || p.get("or") === "HORIZONTAL") state.orientation = /** @type {"HORIZONTAL"|"VERTICAL"} */ (p.get("or"));
   if (p.has("t")) state.tuningId = p.get("t") || state.tuningId;
@@ -122,6 +134,7 @@ export function getInitialStateFromUrl() {
 export function syncStateToUrl(state) {
   const p = new URLSearchParams();
   p.set("lang", state.lang);
+  p.set("th", state.theme || "dark");
   p.set("tr", state.tradition);
   p.set("or", state.orientation);
   p.set("t", state.tuningId);
