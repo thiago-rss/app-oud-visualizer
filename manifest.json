@@ -1,0 +1,21 @@
+{
+  "name": "App Oud Visualizer — 24-TET Studio & Luthierie",
+  "short_name": "Oud Visualizer",
+  "description": "Método interativo 24-TET para Oud: Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0705",
+  "theme_color": "#180f0a",
+  "lang": "pt-BR",
+  "categories": ["music", "education"],
+  "icons": [
+    {
+      "src": "./assets/icon-oud.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

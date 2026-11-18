@@ -2,8 +2,16 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Oud Visualizer — v2.6 Interactive 24-TET Staff & Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>App Oud Visualizer — v2.7 Interactive 24-TET Staff, Studio & PWA</title>
+  <meta name="description" content="Método interativo 24-TET para Oud: Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria." />
+  <meta name="theme-color" content="#180f0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Oud Visualizer" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./assets/icon-oud.svg" />
+  <link rel="apple-touch-icon" href="./assets/icon-oud.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,7 +19,6 @@
 </head>
 <body data-tradition="damascus" data-orientation="HORIZONTAL">
 
-  <!-- Cabeçalho Ornamental (Astrolábio & Consola de Performance) -->
   <header class="astrolabe-header khatem-border">
     <div class="brand">
       <svg class="brand-rosette" viewBox="0 0 64 64">
@@ -28,7 +35,7 @@
         <h1>App Oud Visualizer</h1>
         <div class="brand-subtitle">
           <span data-i18n="appSubtitle">Método Interativo 24-TET, Partitura, Sayr, Iqa'at & Luthieria</span>
-          <span class="badge">v2.6 Staff & Studio</span>
+          <span class="badge">v2.7 Studio & PWA</span>
         </div>
       </div>
     </div>
@@ -76,9 +83,7 @@
     </div>
   </header>
 
-  <!-- Diwan Superior: Ala de Afinação + Santuário Modal + Motor Rítmico Iqa'at -->
   <section class="diwan-console-3col">
-    <!-- Coluna 1: Afinação & Qarar -->
     <div class="mihrab-card khatem-border">
       <div class="card-arch-header">
         <span class="arch-ornament">۞</span>
@@ -105,7 +110,6 @@
       </div>
     </div>
 
-    <!-- Coluna 2: Matriz Modal, Sayr & Qafla -->
     <div class="sanctuary-card khatem-border">
       <div class="card-arch-header">
         <span class="arch-ornament">☪</span>
@@ -166,7 +170,6 @@
       </div>
     </div>
 
-    <!-- Coluna 3: Motor Rítmico Árabe (Iqa'at - Darbuka & Riq) -->
     <div class="iqa-card khatem-border">
       <div class="card-arch-header">
         <span class="arch-ornament">🥁</span>
@@ -197,13 +200,11 @@
           </div>
         </div>
 
-        <!-- Grade Visual de Pulsos (Dum / Tak / Kah / Es) -->
         <div class="iqa-beat-grid" id="iqa-beat-grid"></div>
       </div>
     </div>
   </section>
 
-  <!-- Barra Interativa de Cadências Modais (Qafla Sequencer) -->
   <section class="cadence-bar khatem-border" id="cadence-bar">
     <div class="cadence-header">
       <div class="cadence-header-title">
@@ -218,7 +219,6 @@
     <div class="cadence-steps" id="cadence-steps-container"></div>
   </section>
 
-  <!-- Área Principal do Estúdio -->
   <main class="studio-stage">
     <section class="neck-showcase khatem-border">
       <div class="inlay-dock-top">
@@ -256,7 +256,6 @@
         </div>
       </div>
 
-      <!-- Módulo de Partitura Interativa 24-TET Sincronizada com o Espelho -->
       <div id="staff-stage-box" class="staff-stage-box">
         <div class="staff-toolbar">
           <div class="staff-title-group">
@@ -283,7 +282,6 @@
         </div>
       </div>
 
-      <!-- Canvas Vetorial do Oud (Horizontal ou Vertical) -->
       <div class="svg-stage-container">
         <svg id="oud-neck" viewBox="0 0 1120 365"></svg>
       </div>
@@ -320,14 +318,13 @@
 
       <div class="info-card khatem-border">
         <div class="ornamental-corner">۞</div>
-        <h2 style="font-size:1.15rem;" data-i18n="symmetryCardTitle">Simetria & Intervalos das Ordens</h2>
+        <h2 style="font-size:1.15rem;" data-i18n="symmetryCardTitle">🧭 Radar de Modulação & Ajnas (Intiqal)</h2>
         <p id="tuning-desc" class="tuning-description"></p>
         <div id="tuning-intervals-list" class="intervals-stack"></div>
       </div>
     </aside>
   </main>
 
-  <!-- Gaveta Deslizante do Glossário (Al-Mu'jam al-Musiqi) -->
   <div id="glossary-backdrop" class="glossary-backdrop"></div>
   <aside id="glossary-drawer" class="glossary-drawer khatem-border" aria-hidden="true">
     <div class="glossary-header">

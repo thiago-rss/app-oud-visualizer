@@ -2638,3 +2638,38 @@ function initApp() {
 }
 
 window.addEventListener("DOMContentLoaded", initApp);
+
+// ==========================================================================
+// PWA: Registro do Service Worker Offline & Botão de Instalação Nativa
+// ==========================================================================
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      // Ignora em ambientes sem suporte a Service Worker
+    });
+  });
+}
+
+/** @type {any} */
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+
+  const medallions = document.querySelector(".action-medallions");
+  if (medallions && !document.getElementById("btn-install-pwa")) {
+    const installBtn = document.createElement("button");
+    installBtn.id = "btn-install-pwa";
+    installBtn.type = "button";
+    installBtn.className = "sadaf-btn";
+    installBtn.textContent = state.lang === "en" ? "📲 Install App" : "📲 Instalar App";
+    installBtn.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      installBtn.remove();
+    });
+    medallions.appendChild(installBtn);
+  }
+});
