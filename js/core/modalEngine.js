@@ -4,84 +4,153 @@ import { DB } from "./database.js";
 export const MAX_NECK_Q = 16;
 
 /**
- * Calcula a posição física X no espelho em pixels usando progressão logarítmica 24-TET.
- * @param {number} qFromNut
- * @param {number} nutX
- * @param {number} neckLengthPx
- * @param {boolean} isLeftHanded
- * @returns {number}
+ * Calcula a posição física ao longo do braço (Horizontal ou Vertical) separando:
+ * - q === 0 (Corda Solta): posicionada no trilho dedicado ANTES da pestana (recuo de 26px),
+ *   deixando a barra de osso da pestana (Anf) 100% livre como marco zero físico.
+ * - q >= 1 (Notas Pressionadas): distribuídas logaritmicamente sobre o espelho de ébano
+ *   a partir da borda interna da pestana (+6px de margem física após o centro do osso).
+ *
+ * @param {number} q - Distância da pestana em quartos de tom (0 a 16)
+ * @param {number} nutCoord - Coordenada X (horizontal) ou Y (vertical) do centro da pestana
+ * @param {number} neckLengthPx - Comprimento visual do espelho em pixels
+ * @param {boolean} isReversed - true quando canhoto no modo horizontal
+ * @returns {number} Coordenada física exata no SVG
  */
-export function getPhysicalX(qFromNut, nutX, neckLengthPx, isLeftHanded) {
-  if (qFromNut === 0) return nutX;
-  const ratio = (q) => 1 - Math.pow(2, -q / 24);
-  const norm = ratio(qFromNut) / ratio(MAX_NECK_Q);
-  return isLeftHanded ? (nutX - norm * neckLengthPx) : (nutX + norm * neckLengthPx);
+export function getPhysicalX(q, nutCoord, neckLengthPx, isReversed) {
+  const dir = isReversed ? -1 : 1;
+
+  // Trilho de Cordas Soltas (q = 0) posicionado ANTES da pestana (na transição do cravelhal)
+  if (q <= 0) {
+    return nutCoord - dir * 26;
+  }
+
+  // Escala acústica logarítmica 24-TET: d(q) = L * (1 - 2^(-q/24))
+  // Normalizada em MAX_NECK_Q com leve offset inicial (+8px da linha central da pestana)
+  const fingerboardStart = nutCoord + dir * 8;
+  const usableLength = neckLengthPx - 8;
+  const maxRatio = 1 - Math.pow(2, -MAX_NECK_Q / 24);
+  const currentRatio = 1 - Math.pow(2, -q / 24);
+  const offsetPx = usableLength * (currentRatio / maxRatio);
+
+  return fingerboardStart + dir * offsetPx;
 }
 
 /**
- * Resolve de forma pura e imutável a estrutura ativa com base no estado atual.
- * @param {import("./urlState.js").OudAppState} state
+ * Avalia se uma posição qFromNut pertence ao Shape de mão esquerda selecionado
+ * e calcula o dedo ergonômico correspondente (0 = Solta, 1 = Indicador, 2 = Médio, 3 = Anelar, 4 = Mínimo).
+ *
+ * @param {number} qFromNut
+ * @param {"FULL_NECK"|"OPEN_FIRST_POS"|"CLOSED_BOX"} shapeMode
+ * @param {number} boxAnchorQ
+ * @returns {{ inBox: boolean, finger: number }}
  */
-export function getActiveStructure(state) {
-  if (state.mode === "MAQAM") {
-    const m = DB.maqamat.find(x => x.id === state.entityId) || DB.maqamat[0];
-    const rawIntervals = state.direction === "ASC" ? m.intervals_asc : m.intervals_desc;
-    const rawDegrees = state.direction === "ASC" ? m.degrees_asc : m.degrees_desc;
+export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
+  if (qFromNut === 0) {
+    const inBox = shapeMode !== "CLOSED_BOX";
+    return { inBox, finger: 0 };
+  }
 
-    let filteredIndices = rawIntervals.map((_, i) => i);
-    if (state.jinsFilter === "LOWER") {
-      filteredIndices = filteredIndices.filter(i => rawIntervals[i] <= m.lower_limit_q);
-    } else if (state.jinsFilter === "UPPER") {
-      filteredIndices = filteredIndices.filter(i => rawIntervals[i] >= m.ghammaz_q);
+  if (shapeMode === "OPEN_FIRST_POS") {
+    // 1ª Posição Clássica (Ancorada em S1 / q=2, abrangendo de 1q até 8q)
+    const inBox = qFromNut >= 1 && qFromNut <= 8;
+    let finger = 1;
+    if (qFromNut <= 3) finger = 1;      // 1q (Db-), 2q (C#/Db), 3q (D-)
+    else if (qFromNut <= 5) finger = 2; // 4q (D), 5q (Eb-)
+    else if (qFromNut <= 6) finger = 3; // 6q (Eb)
+    else finger = 4;                    // 7q (E-), 8q (E)
+    return { inBox, finger };
+  }
+
+  if (shapeMode === "CLOSED_BOX") {
+    // Shape Móvel Fechado (Sem cordas soltas, janela de 7 quartos de tom a partir de boxAnchorQ)
+    const relQ = qFromNut - boxAnchorQ;
+    const inBox = relQ >= -1 && relQ <= 6 && qFromNut >= 1;
+    let finger = 1;
+    if (relQ <= 1) finger = 1;
+    else if (relQ <= 3) finger = 2;
+    else if (relQ <= 4) finger = 3;
+    else finger = 4;
+    return { inBox, finger };
+  }
+
+  // FULL_NECK: Espelho completo ativo, dedilhado de referência por região
+  let finger = 1;
+  if (qFromNut <= 3) finger = 1;
+  else if (qFromNut <= 5) finger = 2;
+  else if (qFromNut <= 6) finger = 3;
+  else if (qFromNut <= 8) finger = 4;
+  else finger = Math.min(4, Math.max(1, Math.ceil((qFromNut - 8) / 2)));
+
+  return { inBox: true, finger };
+}
+
+/**
+ * Seleciona a melhor nota (1 nota ergonômica por ordem) para montar o Voicing de um Acorde ou passo de Qafla.
+ *
+ * @param {any} tuning
+ * @param {Map<number, { degree: string, centsDev: number, rawInterval?: number }>} activeOffsetMap
+ * @param {number} effectiveRootQ
+ * @param {"FULL_NECK"|"OPEN_FIRST_POS"|"CLOSED_BOX"} shapeMode
+ * @param {number} boxAnchorQ
+ * @returns {Record<number, number | null>} Mapa { [courseNumber]: qFromNut | null }
+ */
+export function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ, shapeMode, boxAnchorQ) {
+  /** @type {Record<number, number | null>} */
+  const voicing = {};
+
+  tuning.courses.forEach((/** @type {any} */ cObj) => {
+    /** @type {{ q: number, score: number }[]} */
+    const candidates = [];
+
+    for (let qFromNut = 0; qFromNut <= MAX_NECK_Q; qFromNut++) {
+      const absQ = cObj.abs_q + qFromNut;
+      const pitchClassQ = ((absQ % 24) + 24) % 24;
+      const offsetFromRoot = ((pitchClassQ - effectiveRootQ) % 24 + 24) % 24;
+      if (!activeOffsetMap.has(offsetFromRoot)) continue;
+
+      const shapeEval = evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ);
+      if (shapeMode === "CLOSED_BOX" && !shapeEval.inBox) continue;
+      if (shapeMode === "OPEN_FIRST_POS" && qFromNut > 8) continue;
+
+      let score = 100 - qFromNut * 4;
+      if (qFromNut === 0 && shapeMode !== "CLOSED_BOX") score += 25;
+      if (offsetFromRoot === 0) score += 18; // Prioriza a fundamental nas ordens disponíveis
+      if (shapeEval.inBox) score += 30;
+
+      candidates.push({ q: qFromNut, score });
     }
 
-    return {
-      entity: m,
-      effectiveRootQ: state.rootQ,
-      intervals: filteredIndices.map(i => rawIntervals[i]),
-      degrees: filteredIndices.map(i => rawDegrees[i]),
-      centsMap: m.cents_dev || {},
-      ghammazOffsets: [m.ghammaz_q]
-    };
-  }
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      voicing[cObj.course] = candidates[0].q;
+    } else {
+      voicing[cObj.course] = null;
+    }
+  });
 
-  if (state.mode === "JINS") {
-    const j = DB.ajnas.find(x => x.id === state.entityId) || DB.ajnas[0];
-    /** @type {Record<number, number>} */
-    const centsMap = {};
-    j.intervals_q.forEach((intQ, idx) => {
-      if (j.cents_dev[idx]) centsMap[intQ] = j.cents_dev[idx];
-    });
-    return {
-      entity: j,
-      effectiveRootQ: state.rootQ,
-      intervals: j.intervals_q,
-      degrees: j.degrees,
-      centsMap,
-      ghammazOffsets: [j.ghammaz_q]
-    };
-  }
+  return voicing;
+}
 
-  if (state.mode === "CHORD") {
-    const c = DB.chords.find(x => x.id === state.entityId) || DB.chords[0];
-    /** @type {Record<number, number>} */
-    const centsMap = {};
-    c.intervals_q.forEach((intQ, idx) => {
-      if (c.cents_dev && c.cents_dev[idx]) centsMap[intQ] = c.cents_dev[idx];
-    });
-    return {
-      entity: c,
-      effectiveRootQ: state.rootQ,
-      intervals: c.intervals_q,
-      degrees: c.degrees,
-      centsMap,
-      ghammazOffsets: c.ghammaz_q !== undefined ? [c.ghammaz_q] : []
-    };
-  }
-
+/**
+ * Resolve a estrutura teórica ativa (Maqam, Jins, Modo, Acorde ou Passo de Cadência Qafla)
+ * retornando intervalos em quartos de tom, graus, desvios em cents e Ghammaz.
+ *
+ * @param {import("./urlState.js").OudAppState} state
+ * @returns {{
+ *   entity: any,
+ *   effectiveRootQ: number,
+ *   intervals: number[],
+ *   degrees: string[],
+ *   centsMap: Record<number, number>,
+ *   ghammazOffsets: number[],
+ *   chordObj?: any,
+ *   stepObj?: any
+ * }}
+ */
+export function getActiveStructure(state) {
   if (state.mode === "CADENCE") {
     const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
-    const stepIdx = Math.min(state.cadenceStepIndex, cad.steps.length - 1);
+    const stepIdx = Math.max(0, Math.min(cad.steps.length - 1, state.cadenceStepIndex));
     const stepObj = cad.steps[stepIdx];
     const chordObj = DB.chords.find(c => c.id === stepObj.chord_id) || DB.chords[0];
     const effectiveRootQ = (state.rootQ + stepObj.offset_q) % 24;
@@ -89,108 +158,101 @@ export function getActiveStructure(state) {
     /** @type {Record<number, number>} */
     const centsMap = {};
     chordObj.intervals_q.forEach((intQ, idx) => {
-      if (chordObj.cents_dev && chordObj.cents_dev[idx]) centsMap[intQ] = chordObj.cents_dev[idx];
+      centsMap[intQ] = chordObj.cents_dev?.[idx] || 0;
     });
 
     return {
       entity: cad,
-      stepObj,
-      chordObj,
       effectiveRootQ,
       intervals: chordObj.intervals_q,
       degrees: chordObj.degrees,
       centsMap,
-      ghammazOffsets: chordObj.ghammaz_q !== undefined ? [chordObj.ghammaz_q] : []
+      ghammazOffsets: chordObj.ghammaz_q !== undefined ? [chordObj.ghammaz_q] : [],
+      chordObj,
+      stepObj
     };
   }
 
-  const s = DB.scales.find(x => x.id === state.entityId) || DB.scales[0];
-  /** @type {number[]} */
-  let ghammazOffsets = [];
-  if (s.symmetry_step_q && s.symmetry_step_q < 24) {
-    for (let q = s.symmetry_step_q; q < 24; q += s.symmetry_step_q) {
-      ghammazOffsets.push(q);
-    }
-  } else if (s.ghammaz_q !== undefined) {
-    ghammazOffsets = [s.ghammaz_q];
+  if (state.mode === "CHORD") {
+    const ch = DB.chords.find(x => x.id === state.entityId) || DB.chords[0];
+    /** @type {Record<number, number>} */
+    const centsMap = {};
+    ch.intervals_q.forEach((intQ, idx) => {
+      centsMap[intQ] = ch.cents_dev?.[idx] || 0;
+    });
+
+    return {
+      entity: ch,
+      effectiveRootQ: state.rootQ,
+      intervals: ch.intervals_q,
+      degrees: ch.degrees,
+      centsMap,
+      ghammazOffsets: ch.ghammaz_q !== undefined ? [ch.ghammaz_q] : []
+    };
   }
-  return {
-    entity: s,
-    effectiveRootQ: state.rootQ,
-    intervals: s.intervals_q,
-    degrees: s.degrees,
-    centsMap: {},
-    ghammazOffsets
-  };
-}
 
-/**
- * Avalia se a nota pertence à caixa de digitação atual e retorna o dedo sugerido (0..4).
- * @param {number} qFromNut
- * @param {string} shapeMode
- * @param {number} boxAnchorQ
- */
-export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
-  if (shapeMode === "FULL_NECK") {
-    const defaultFinger = qFromNut === 0 ? 0 : Math.min(4, Math.ceil(qFromNut / 2));
-    return { inBox: true, finger: defaultFinger };
+  if (state.mode === "JINS") {
+    const jins = DB.ajnas.find(x => x.id === state.entityId) || DB.ajnas[0];
+    /** @type {Record<number, number>} */
+    const centsMap = {};
+    jins.intervals_q.forEach((intQ, idx) => {
+      centsMap[intQ] = jins.cents_dev?.[idx] || 0;
+    });
+
+    return {
+      entity: jins,
+      effectiveRootQ: state.rootQ,
+      intervals: jins.intervals_q,
+      degrees: jins.degrees,
+      centsMap,
+      ghammazOffsets: jins.ghammaz_q !== undefined ? [jins.ghammaz_q] : []
+    };
   }
-  if (shapeMode === "OPEN_FIRST_POS") {
-    const inBox = qFromNut >= 0 && qFromNut <= 8;
-    const finger = qFromNut === 0 ? 0 : Math.ceil(qFromNut / 2);
-    return { inBox, finger };
-  }
-  const minQ = boxAnchorQ;
-  const maxQ = minQ + 7;
-  const inBox = qFromNut >= minQ && qFromNut <= maxQ;
-  const finger = inBox ? Math.min(4, Math.floor((qFromNut - minQ) / 2) + 1) : "-";
-  return { inBox, finger };
-}
 
-/**
- * Algoritmo heurístico que escolhe 1 nota ergonômica por ordem para acordes.
- * @param {any} tuning
- * @param {Map<number, any>} activeOffsetMap
- * @param {number} effectiveRootQ
- * @param {string} shapeMode
- * @param {number} boxAnchorQ
- * @returns {Record<number, number | null>}
- */
-export function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ, shapeMode, boxAnchorQ) {
-  /** @type {Record<number, number | null>} */
-  const selectedByCourse = {};
-  const minQ = shapeMode === "CLOSED_BOX" ? boxAnchorQ : 0;
-  const maxQ = shapeMode === "CLOSED_BOX" ? (boxAnchorQ + 7) : 8;
-
-  let lowestNoteFound = false;
-
-  for (let cIdx = 5; cIdx >= 0; cIdx--) {
-    const cObj = tuning.courses[cIdx];
-    const candidates = [];
-
-    for (let qFromNut = minQ; qFromNut <= maxQ; qFromNut++) {
-      const absQ = cObj.abs_q + qFromNut;
-      const pitchClassQ = ((absQ % 24) + 24) % 24;
-      const offsetFromRoot = ((pitchClassQ - effectiveRootQ) % 24 + 24) % 24;
-
-      if (activeOffsetMap.has(offsetFromRoot)) {
-        let score = 100 - qFromNut * 3;
-        if (qFromNut === 0 && shapeMode !== "CLOSED_BOX") score += 25;
-        if (!lowestNoteFound && offsetFromRoot === 0) score += 60;
-        if (cIdx <= 3 && offsetFromRoot !== 0 && offsetFromRoot !== 14) score += 20;
-
-        candidates.push({ qFromNut, offsetFromRoot, score });
+  if (state.mode === "SCALE") {
+    const sc = DB.scales.find(x => x.id === state.entityId) || DB.scales[0];
+    /** @type {number[]} */
+    const ghammazOffsets = [];
+    if (sc.ghammaz_q !== undefined) ghammazOffsets.push(sc.ghammaz_q);
+    if (sc.symmetry_step_q) {
+      for (let q = sc.symmetry_step_q; q < 24; q += sc.symmetry_step_q) {
+        ghammazOffsets.push(q);
       }
     }
 
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => b.score - a.score);
-      selectedByCourse[cObj.course] = candidates[0].qFromNut;
-      if (candidates[0].offsetFromRoot === 0) lowestNoteFound = true;
-    } else {
-      selectedByCourse[cObj.course] = null;
-    }
+    return {
+      entity: sc,
+      effectiveRootQ: state.rootQ,
+      intervals: sc.intervals_q,
+      degrees: sc.degrees,
+      centsMap: {},
+      ghammazOffsets
+    };
   }
 
-  return selectedByCourse;
+  // Modo padrão: MAQAM
+  const maq = DB.maqamat.find(x => x.id === state.entityId) || DB.maqamat[0];
+  const rawIntervals = state.direction === "ASC" ? maq.intervals_asc : maq.intervals_desc;
+  const rawDegrees = state.direction === "ASC" ? maq.degrees_asc : maq.degrees_desc;
+
+  /** @type {number[]} */
+  const filteredIntervals = [];
+  /** @type {string[]} */
+  const filteredDegrees = [];
+
+  rawIntervals.forEach((intQ, idx) => {
+    if (state.jinsFilter === "LOWER" && intQ > maq.lower_limit_q) return;
+    if (state.jinsFilter === "UPPER" && intQ < maq.ghammaz_q) return;
+    filteredIntervals.push(intQ);
+    filteredDegrees.push(rawDegrees[idx]);
+  });
+
+  return {
+    entity: maq,
+    effectiveRootQ: state.rootQ,
+    intervals: filteredIntervals,
+    degrees: filteredDegrees,
+    centsMap: maq.cents_dev || {},
+    ghammazOffsets: maq.ghammaz_q !== undefined ? [maq.ghammaz_q] : []
+  };
 }

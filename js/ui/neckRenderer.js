@@ -187,12 +187,14 @@ function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedS
 }
 
 /**
- * Desenha a joia de uma nota no espelho, incluindo os anéis de sincronização com a partitura.
+ * Desenha a joia de uma nota no espelho, distinguindo visualmente notas soltas (antes da pestana)
+ * com um anel externo pontilhado sutil quando qFromNut === 0.
  */
 function appendNoteJewel(
   svg,
   nx,
   ny,
+  qFromNut,
   absQ,
   pitchClassQ,
   courseNumber,
@@ -259,9 +261,23 @@ function appendNoteJewel(
     group.appendChild(halo);
   }
 
+  // Anel indicador de Corda Solta (qFromNut === 0) antes da pestana
+  if (qFromNut === 0 && isSelectedActiveNote) {
+    const openHalo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    openHalo.setAttribute("cx", String(nx));
+    openHalo.setAttribute("cy", String(ny));
+    openHalo.setAttribute("r", "15.5");
+    openHalo.setAttribute("fill", "none");
+    openHalo.setAttribute("stroke", "#fef3c7");
+    openHalo.setAttribute("stroke-width", "1.1");
+    openHalo.setAttribute("stroke-dasharray", "2,2");
+    openHalo.setAttribute("opacity", "0.75");
+    group.appendChild(openHalo);
+  }
+
   if (isMicroNote) {
-    const outerR = isRoot ? 16 : 14;
-    const innerR = isRoot ? 11.5 : 10;
+    const outerR = isRoot ? 15.5 : 13.8;
+    const innerR = isRoot ? 11.2 : 9.8;
     const star = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     star.setAttribute("points", createOctagramStarPath(nx, ny, outerR, innerR));
     star.setAttribute("fill", fillGrad);
@@ -269,7 +285,7 @@ function appendNoteJewel(
     star.setAttribute("stroke-width", isExactStaffMatch ? "2.6" : (isRoot ? "2.2" : "1.4"));
     group.appendChild(star);
   } else {
-    const radius = isRoot ? 14 : (isGhammaz ? 13 : 11.8);
+    const radius = isRoot ? 13.5 : (isGhammaz ? 12.6 : 11.5);
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", String(nx));
     circle.setAttribute("cy", String(ny));
@@ -306,7 +322,9 @@ function appendNoteJewel(
 }
 
 /**
- * Renderiza o espelho completo e retorna as frequências do voicing ativo.
+ * Renderiza o espelho completo com trilho dedicado de cordas soltas antes da pestana (Anf)
+ * e retorna as frequências do voicing ativo.
+ *
  * @param {import("../core/urlState.js").OudAppState} state
  * @param {() => void} onRosetteClick
  * @param {number} [highlightedSayrStep=-1]
@@ -323,7 +341,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const visibleActiveNodes = [];
 
   const isVert = state.orientation === "VERTICAL";
-  svg.setAttribute("viewBox", isVert ? "0 0 410 1050" : "0 0 1120 365");
+  const isEn = state.lang === "en";
+  svg.setAttribute("viewBox", isVert ? "0 0 410 1065" : "0 0 1120 370");
 
   const palette = TRADITION_PALETTES[/** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition)] || TRADITION_PALETTES.damascus;
   const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
@@ -390,16 +409,19 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
   const keySemitones = [2, 4, 5, 7, 9, 10, 12, 14];
 
+  // =========================================================================
+  // MODO VERTICAL (Bajak / Soltas no Topo -> Pestana -> Braço -> Corpo na Base)
+  // =========================================================================
   if (isVert) {
-    const nutY = 128;
-    const neckEndY = 895;
+    const nutY = 148;
+    const neckEndY = 905;
     const neckLengthPx = neckEndY - nutY;
     const leftX = 82;
     const rightX = 328;
     const centerX = (leftX + rightX) / 2;
 
     const bodyJointY = getPhysicalX(10, nutY, neckLengthPx, false);
-    const soundboardFarY = 1040;
+    const soundboardFarY = 1052;
 
     const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     sbPath.setAttribute(
@@ -411,7 +433,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     sbPath.setAttribute("stroke-width", "3");
     svg.appendChild(sbPath);
 
-    const rosetteCenterY = 975;
+    const rosetteCenterY = 985;
     const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
     raqma.setAttribute(
       "d",
@@ -427,12 +449,36 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     renderShamsiyyaRosette(svg, leftX - 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
     renderShamsiyyaRosette(svg, rightX + 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
 
+    // Cravelhal (Bajak) acomodando o trilho de Cordas Soltas antes da Pestana
     const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    pegbox.setAttribute("points", `${leftX - 12},${nutY} ${leftX + 6},14 ${rightX - 6},14 ${rightX + 12},${nutY}`);
+    pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
     pegbox.setAttribute("fill", "#1a110b");
     pegbox.setAttribute("stroke", palette.rosetteRing);
     pegbox.setAttribute("stroke-width", "1.5");
     svg.appendChild(pegbox);
+
+    // Faixa destacada do Trilho de Cordas Soltas (0q) antes da pestana
+    const openRailY = getPhysicalX(0, nutY, neckLengthPx, false);
+    const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    openZoneRect.setAttribute("x", String(leftX - 12));
+    openZoneRect.setAttribute("y", String(openRailY - 17));
+    openZoneRect.setAttribute("width", String((rightX - leftX) + 24));
+    openZoneRect.setAttribute("height", "34");
+    openZoneRect.setAttribute("rx", "6");
+    openZoneRect.setAttribute("fill", "rgba(254, 243, 199, 0.06)");
+    openZoneRect.setAttribute("stroke", "rgba(254, 243, 199, 0.22)");
+    openZoneRect.setAttribute("stroke-dasharray", "3,3");
+    svg.appendChild(openZoneRect);
+
+    const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    openLbl.setAttribute("x", String(leftX - 32));
+    openLbl.setAttribute("y", String(openRailY + 3.5));
+    openLbl.setAttribute("text-anchor", "middle");
+    openLbl.setAttribute("fill", "#fef3c7");
+    openLbl.setAttribute("font-size", "9.5");
+    openLbl.setAttribute("font-weight", "800");
+    openLbl.textContent = isEn ? "OPEN" : "SOLTA";
+    svg.appendChild(openLbl);
 
     const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     neckPolygon.setAttribute("points", `${leftX - 14},${nutY} ${rightX + 14},${nutY} ${rightX + 22},${neckEndY} ${leftX - 22},${neckEndY}`);
@@ -457,6 +503,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       svg.appendChild(line);
     });
 
+    // Caixa de Shape da Mão Esquerda (só começa APÓS a pestana no CLOSED_BOX, ou abrange o trilho 0q na 1ª Posição)
     if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
       const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
       const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
@@ -465,25 +512,45 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
       const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       boxRect.setAttribute("x", String(leftX - 16));
-      boxRect.setAttribute("y", String(y1 - 15));
+      boxRect.setAttribute("y", String(y1 - 16));
       boxRect.setAttribute("width", String((rightX - leftX) + 32));
-      boxRect.setAttribute("height", String((y2 - y1) + 30));
+      boxRect.setAttribute("height", String((y2 - y1) + 32));
       boxRect.setAttribute("rx", "8");
-      boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.09)");
+      boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.08)");
       boxRect.setAttribute("stroke", palette.rosetteRing);
       boxRect.setAttribute("stroke-width", "1.6");
       boxRect.setAttribute("stroke-dasharray", "6,4");
       svg.appendChild(boxRect);
     }
 
+    // Pestana de Osso (Anf) — 100% desobstruída como marco divisor
     const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    nutLine.setAttribute("x1", String(leftX - 14));
+    nutLine.setAttribute("x1", String(leftX - 15));
     nutLine.setAttribute("y1", String(nutY));
-    nutLine.setAttribute("x2", String(rightX + 14));
+    nutLine.setAttribute("x2", String(rightX + 15));
     nutLine.setAttribute("y2", String(nutY));
     nutLine.setAttribute("stroke", "#fef3c7");
-    nutLine.setAttribute("stroke-width", "8");
+    nutLine.setAttribute("stroke-width", "9");
     svg.appendChild(nutLine);
+
+    const nutBorder = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    nutBorder.setAttribute("x1", String(leftX - 15));
+    nutBorder.setAttribute("y1", String(nutY + 4.5));
+    nutBorder.setAttribute("x2", String(rightX + 15));
+    nutBorder.setAttribute("y2", String(nutY + 4.5));
+    nutBorder.setAttribute("stroke", "#78350f");
+    nutBorder.setAttribute("stroke-width", "1.5");
+    svg.appendChild(nutBorder);
+
+    const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    nutTag.setAttribute("x", String(leftX - 32));
+    nutTag.setAttribute("y", String(nutY + 3.5));
+    nutTag.setAttribute("text-anchor", "middle");
+    nutTag.setAttribute("fill", "#d4af37");
+    nutTag.setAttribute("font-size", "8.5");
+    nutTag.setAttribute("font-weight", "800");
+    nutTag.textContent = "ANF";
+    svg.appendChild(nutTag);
 
     for (let q = 1; q <= MAX_NECK_Q; q++) {
       const isMicro = q % 2 !== 0;
@@ -511,7 +578,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
       if (!isMicro || state.showMicroGuides) {
         const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        lbl.setAttribute("x", String(leftX - 30));
+        lbl.setAttribute("x", String(leftX - 32));
         lbl.setAttribute("y", String(gy + 3.5));
         lbl.setAttribute("text-anchor", "middle");
         lbl.setAttribute("fill", isMicro ? "#d8b4fe" : "#fde68a");
@@ -527,9 +594,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
 
+      // Rótulo da Ordem posicionado acima do trilho de corda solta
       const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
       cText.setAttribute("x", String(cx));
-      cText.setAttribute("y", String(nutY - 34));
+      cText.setAttribute("y", "22");
       cText.setAttribute("text-anchor", "middle");
       cText.setAttribute("fill", "#fef3c7");
       cText.setAttribute("font-size", "11");
@@ -540,10 +608,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
         const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
         mText.setAttribute("x", String(cx));
-        mText.setAttribute("y", String(nutY - 14));
+        mText.setAttribute("y", String(openRailY + 5));
         mText.setAttribute("text-anchor", "middle");
         mText.setAttribute("fill", "#f87171");
-        mText.setAttribute("font-size", "13");
+        mText.setAttribute("font-size", "14");
         mText.setAttribute("font-weight", "800");
         mText.textContent = "✕";
         svg.appendChild(mText);
@@ -551,6 +619,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
       const isWoundBass = cIdx >= 3;
       [-1.5, 1.5].forEach((offsetX) => {
+        // Corda no cravelhal (mais escura/tensa) até a pestana
+        const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        pegString.setAttribute("x1", String(cx + offsetX));
+        pegString.setAttribute("y1", "34");
+        pegString.setAttribute("x2", String(cx + offsetX));
+        pegString.setAttribute("y2", String(nutY));
+        pegString.setAttribute("stroke", isWoundBass ? "#92400e" : "#94a3b8");
+        pegString.setAttribute("stroke-width", "1.1");
+        pegString.setAttribute("opacity", "0.55");
+        svg.appendChild(pegString);
+
+        // Corda vibrante da Pestana até o Cavalete
         const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
         sLine.setAttribute("x1", String(cx + offsetX));
         sLine.setAttribute("y1", String(nutY));
@@ -600,6 +680,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
           svg,
           cx,
           ny,
+          qFromNut,
           absQ,
           pitchClassQ,
           cObj.course,
@@ -628,12 +709,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     return currentChordVoicingFreqs;
   }
 
-  // Modo Horizontal
-  const nutX = state.leftHanded ? 975 : 145;
+  // =========================================================================
+  // MODO HORIZONTAL (Cravelhal + Trilho 0q ANTES da Pestana -> Espelho -> Roseta)
+  // =========================================================================
+  const nutX = state.leftHanded ? 945 : 175;
   const neckEndX = state.leftHanded ? 155 : 965;
   const neckLengthPx = Math.abs(neckEndX - nutX);
-  const topY = 52;
-  const bottomY = 292;
+  const topY = 54;
+  const bottomY = 294;
   const centerY = (topY + bottomY) / 2;
 
   const bodyJointX = getPhysicalX(10, nutX, neckLengthPx, state.leftHanded);
@@ -644,7 +727,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   sbPath.setAttribute(
     "d",
-    `M ${bodyJointX},${topY - 22} Q ${curveCtrlX},6 ${bodyJointX + dir * 160},6 L ${soundboardFarX},6 L ${soundboardFarX},338 L ${bodyJointX + dir * 160},338 Q ${curveCtrlX},338 ${bodyJointX},${bottomY + 22} Z`
+    `M ${bodyJointX},${topY - 22} Q ${curveCtrlX},6 ${bodyJointX + dir * 160},6 L ${soundboardFarX},6 L ${soundboardFarX},340 L ${bodyJointX + dir * 160},340 Q ${curveCtrlX},340 ${bodyJointX},${bottomY + 22} Z`
   );
   sbPath.setAttribute("fill", "url(#soundboardGrad)");
   sbPath.setAttribute("stroke", palette.rosetteRing);
@@ -654,7 +737,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const sbInlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
   sbInlay.setAttribute(
     "d",
-    `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},12 ${bodyJointX + dir * 160},12 L ${soundboardFarX - dir * 6},12 L ${soundboardFarX - dir * 6},332 L ${bodyJointX + dir * 160},332 Q ${curveCtrlX + dir * 4},332 ${bodyJointX + dir * 5},${bottomY + 18}`
+    `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},12 ${bodyJointX + dir * 160},12 L ${soundboardFarX - dir * 6},12 L ${soundboardFarX - dir * 6},334 L ${bodyJointX + dir * 160},334 Q ${curveCtrlX + dir * 4},334 ${bodyJointX + dir * 5},${bottomY + 18}`
   );
   sbInlay.setAttribute("fill", "none");
   sbInlay.setAttribute("stroke", palette.sadaf);
@@ -682,18 +765,42 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, topY - 12, 16, palette, onRosetteClick);
   renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, bottomY + 12, 16, palette, onRosetteClick);
 
+  const nutTopY = topY - 14;
+  const nutBotY = bottomY + 14;
+  const bodyTopY = topY - 24;
+  const bodyBotY = bottomY + 24;
+
+  // Cravelhal (Bajak) acomodando o Trilho de Cordas Soltas antes da Pestana
   const pegboxEndX = state.leftHanded ? 1105 : 15;
   const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  pegbox.setAttribute("points", `${nutX},${topY - 14} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${bottomY + 14}`);
+  pegbox.setAttribute("points", `${nutX},${nutTopY} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${nutBotY}`);
   pegbox.setAttribute("fill", "#1a110b");
   pegbox.setAttribute("stroke", palette.rosetteRing);
   pegbox.setAttribute("stroke-width", "1.5");
   svg.appendChild(pegbox);
 
-  const nutTopY = topY - 14;
-  const nutBotY = bottomY + 14;
-  const bodyTopY = topY - 24;
-  const bodyBotY = bottomY + 24;
+  // Faixa vertical do Trilho de Cordas Soltas (q = 0) posicionada ANTES da Pestana
+  const openRailX = getPhysicalX(0, nutX, neckLengthPx, state.leftHanded);
+  const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  openZoneRect.setAttribute("x", String(openRailX - 17));
+  openZoneRect.setAttribute("y", String(nutTopY + 2));
+  openZoneRect.setAttribute("width", "34");
+  openZoneRect.setAttribute("height", String(nutBotY - nutTopY - 4));
+  openZoneRect.setAttribute("rx", "6");
+  openZoneRect.setAttribute("fill", "rgba(254, 243, 199, 0.06)");
+  openZoneRect.setAttribute("stroke", "rgba(254, 243, 199, 0.24)");
+  openZoneRect.setAttribute("stroke-dasharray", "3,3");
+  svg.appendChild(openZoneRect);
+
+  const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  openLbl.setAttribute("x", String(openRailX));
+  openLbl.setAttribute("y", String(bodyBotY + 21));
+  openLbl.setAttribute("text-anchor", "middle");
+  openLbl.setAttribute("fill", "#fef3c7");
+  openLbl.setAttribute("font-size", "9.5");
+  openLbl.setAttribute("font-weight", "800");
+  openLbl.textContent = isEn ? "OPEN (0)" : "SOLTA (0)";
+  svg.appendChild(openLbl);
 
   const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   neckPolygon.setAttribute("points", `${nutX},${nutTopY} ${neckEndX},${bodyTopY} ${neckEndX},${bodyBotY} ${nutX},${nutBotY}`);
@@ -732,21 +839,41 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     boxRect.setAttribute("width", String(rectW));
     boxRect.setAttribute("height", String(bodyBotY - bodyTopY - 10));
     boxRect.setAttribute("rx", "8");
-    boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.09)");
+    boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.08)");
     boxRect.setAttribute("stroke", palette.rosetteRing);
     boxRect.setAttribute("stroke-width", "1.6");
     boxRect.setAttribute("stroke-dasharray", "6,4");
     svg.appendChild(boxRect);
   }
 
+  // Pestana de Osso (Anf) — 100% livre de notas por cima, separando nitidamente Soltas (0) e Braço (1q..16q)
   const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
   nutLine.setAttribute("x1", String(nutX));
-  nutLine.setAttribute("y1", String(nutTopY));
+  nutLine.setAttribute("y1", String(nutTopY - 2));
   nutLine.setAttribute("x2", String(nutX));
-  nutLine.setAttribute("y2", String(nutBotY));
+  nutLine.setAttribute("y2", String(nutBotY + 2));
   nutLine.setAttribute("stroke", "#fef3c7");
-  nutLine.setAttribute("stroke-width", "8");
+  nutLine.setAttribute("stroke-width", "9");
   svg.appendChild(nutLine);
+
+  const nutInnerEdge = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  nutInnerEdge.setAttribute("x1", String(nutX + dir * 4.5));
+  nutInnerEdge.setAttribute("y1", String(nutTopY - 2));
+  nutInnerEdge.setAttribute("x2", String(nutX + dir * 4.5));
+  nutInnerEdge.setAttribute("y2", String(nutBotY + 2));
+  nutInnerEdge.setAttribute("stroke", "#78350f");
+  nutInnerEdge.setAttribute("stroke-width", "1.6");
+  svg.appendChild(nutInnerEdge);
+
+  const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  nutTag.setAttribute("x", String(nutX));
+  nutTag.setAttribute("y", String(nutTopY - 8));
+  nutTag.setAttribute("text-anchor", "middle");
+  nutTag.setAttribute("fill", "#d4af37");
+  nutTag.setAttribute("font-size", "9");
+  nutTag.setAttribute("font-weight", "800");
+  nutTag.textContent = isEn ? "NUT (ANF)" : "PESTANA (ANF)";
+  svg.appendChild(nutTag);
 
   for (let q = 1; q <= MAX_NECK_Q; q++) {
     const isMicro = q % 2 !== 0;
@@ -788,22 +915,22 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const courseSpacing = (bottomY - topY) / 5;
   tuning.courses.forEach((cObj, cIdx) => {
     const cy = topY + cIdx * courseSpacing;
-    const courseLabelX = state.leftHanded ? nutX + 62 : nutX - 62;
+    // Rótulo da Ordem posicionado na extremidade do cravelhal, antes do trilho de corda solta
+    const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
 
     const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     cText.setAttribute("x", String(courseLabelX));
     cText.setAttribute("y", String(cy + 4));
     cText.setAttribute("text-anchor", "middle");
     cText.setAttribute("fill", "#fef3c7");
-    cText.setAttribute("font-size", "12");
+    cText.setAttribute("font-size", "11.5");
     cText.setAttribute("font-weight", "700");
     cText.textContent = cObj.label;
     svg.appendChild(cText);
 
     if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
-      const muteX = state.leftHanded ? nutX + 20 : nutX - 20;
       const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      mText.setAttribute("x", String(muteX));
+      mText.setAttribute("x", String(openRailX));
       mText.setAttribute("y", String(cy + 5));
       mText.setAttribute("text-anchor", "middle");
       mText.setAttribute("fill", "#f87171");
@@ -815,6 +942,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
     const isWoundBass = cIdx >= 3;
     [-1.6, 1.6].forEach((offsetY) => {
+      // Trecho da corda no cravelhal (antes da pestana)
+      const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      pegString.setAttribute("x1", String(openRailX - dir * 18));
+      pegString.setAttribute("y1", String(cy + offsetY));
+      pegString.setAttribute("x2", String(nutX));
+      pegString.setAttribute("y2", String(cy + offsetY));
+      pegString.setAttribute("stroke", isWoundBass ? "#92400e" : "#94a3b8");
+      pegString.setAttribute("stroke-width", "1.1");
+      pegString.setAttribute("opacity", "0.55");
+      svg.appendChild(pegString);
+
+      // Corda vibrante da Pestana até o Cavalete
       const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
       sLine.setAttribute("x1", String(nutX));
       sLine.setAttribute("y1", String(cy + offsetY));
@@ -864,6 +1003,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
         svg,
         nx,
         cy,
+        qFromNut,
         absQ,
         pitchClassQ,
         cObj.course,
