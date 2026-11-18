@@ -11,6 +11,7 @@ import {
 } from "./core/i18n.js";
 import {
   clearSequenceTimers,
+  playPluckedNote,
   strumChordVoicing,
   arpeggiateChordVoicing,
   playScaleSequence,
@@ -28,12 +29,100 @@ const state = getInitialStateFromUrl();
 /** @type {{ course: number, freq: number }[]} */
 let currentChordVoicingFreqs = [];
 let highlightedSayrStep = -1;
-/** @type {{ absQ: number | null, pitchClassQ: number | null, course?: number, finger?: string | number, freq?: number } | null} */
+/** @type {{ absQ: number | null, pitchClassQ: number | null, qFromNut?: number, course?: number, finger?: string | number, freq?: number } | null} */
 let selectedStaffOrNeckPitch = null;
 let isIqaPlaying = false;
 let activeIqaBeatIdx = -1;
 let glossaryCategory = "ALL";
 let glossaryQuery = "";
+
+/**
+ * Resolve o índice 0..23 da nota selecionada a partir de pitchClassQ ou absQ.
+ * @param {{ absQ?: number | null, pitchClassQ?: number | null } | null} targetPitch
+ * @returns {number | null}
+ */
+function resolvePitchClassQ(targetPitch) {
+  if (!targetPitch) return null;
+  if (typeof targetPitch.pitchClassQ === "number" && !Number.isNaN(targetPitch.pitchClassQ)) {
+    return ((targetPitch.pitchClassQ % 24) + 24) % 24;
+  }
+  if (typeof targetPitch.absQ === "number" && !Number.isNaN(targetPitch.absQ)) {
+    return ((targetPitch.absQ % 24) + 24) % 24;
+  }
+  return null;
+}
+
+/**
+ * Define a nota selecionada no espelho ou na pauta como a nova Tônica (rootQ),
+ * atualiza o seletor, reposiciona a caixa fechada (se ativa) e toca a nova fundamental.
+ * @param {{ absQ?: number | null, pitchClassQ?: number | null, qFromNut?: number, freq?: number } | null} targetPitch
+ */
+function applySelectedPitchAsRoot(targetPitch) {
+  const newRootQ = resolvePitchClassQ(targetPitch);
+  if (newRootQ === null) return;
+
+  clearSequenceTimers();
+  highlightedSayrStep = -1;
+  state.rootQ = newRootQ;
+
+  if (state.mode === "CADENCE") {
+    state.cadenceStepIndex = 0;
+  }
+
+  const selRoot = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-root"));
+  if (selRoot) {
+    selRoot.value = String(state.rootQ);
+  }
+
+  // Se estiver em Shape Móvel Fechado (CLOSED_BOX) e a nota veio do braço (qFromNut >= 1), ancora o Dedo 1 na posição
+  if (state.shapeMode === "CLOSED_BOX" && targetPitch && typeof targetPitch.qFromNut === "number" && targetPitch.qFromNut >= 1) {
+    state.boxAnchorQ = Math.max(1, Math.min(10, targetPitch.qFromNut));
+    const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
+    const labelBoxPos = document.getElementById("label-box-pos");
+    if (sliderBox) sliderBox.value = String(state.boxAnchorQ);
+    if (labelBoxPos) {
+      const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
+      labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
+    }
+  }
+
+  // Feedback sonoro imediato da nova tônica
+  const feedbackFreq = (targetPitch && typeof targetPitch.freq === "number")
+    ? targetPitch.freq
+    : 130.81 * Math.pow(2, state.rootQ / 24);
+  playPluckedNote(feedbackFreq, 1.4);
+
+  // Limpa o filtro de inspeção para revelar toda a escala/maqam/acorde na nova tônica
+  selectedStaffOrNeckPitch = null;
+  syncControlsWithState();
+  refreshAll();
+}
+
+/**
+ * Garante que o botão #btn-set-root-from-selection exista na barra da pauta
+ * e também cria um espelho dele na doca do instrumento caso a pauta esteja oculta.
+ */
+function ensureSetTonicButtonsExist() {
+  const staffPills = document.querySelector(".staff-toolbar .brass-pills");
+  if (staffPills && !document.getElementById("btn-set-root-from-selection")) {
+    const btn = document.createElement("button");
+    btn.id = "btn-set-root-from-selection";
+    btn.className = "primary";
+    btn.style.display = "none";
+    btn.textContent = t(state.lang, "btnSetRootFromNote");
+    staffPills.insertBefore(btn, document.getElementById("btn-clear-staff-filter"));
+  }
+
+  const dockPills = document.querySelector(".inlay-dock-top .brass-pills");
+  if (dockPills && !document.getElementById("btn-dock-set-tonic")) {
+    const dockBtn = document.createElement("button");
+    dockBtn.id = "btn-dock-set-tonic";
+    dockBtn.className = "primary";
+    dockBtn.style.display = "none";
+    dockBtn.textContent = t(state.lang, "btnSetRootFromNote");
+    dockPills.insertBefore(dockBtn, dockPills.firstChild);
+  }
+}
 
 /**
  * @param {string} [focusTermId]
@@ -442,6 +531,34 @@ function populateEntitySelect() {
   sel.value = state.entityId;
 }
 
+function syncSelectionActionButtons() {
+  ensureSetTonicButtonsExist();
+  const btnClearFilter = document.getElementById("btn-clear-staff-filter");
+  const btnSetRoot = document.getElementById("btn-set-root-from-selection");
+  const btnDockSetTonic = document.getElementById("btn-dock-set-tonic");
+
+  const pcQ = resolvePitchClassQ(selectedStaffOrNeckPitch);
+
+  if (selectedStaffOrNeckPitch !== null && pcQ !== null) {
+    const pc = PITCH_CLASSES_24[pcQ];
+    const labelText = `${t(state.lang, "btnSetRootFromNote")}: ${pc.flat} (${pc.arabic})`;
+
+    if (btnClearFilter) btnClearFilter.style.display = "inline-flex";
+    if (btnSetRoot) {
+      btnSetRoot.style.display = "inline-flex";
+      btnSetRoot.textContent = labelText;
+    }
+    if (btnDockSetTonic) {
+      btnDockSetTonic.style.display = state.showStaff ? "none" : "inline-flex";
+      btnDockSetTonic.textContent = labelText;
+    }
+  } else {
+    if (btnClearFilter) btnClearFilter.style.display = "none";
+    if (btnSetRoot) btnSetRoot.style.display = "none";
+    if (btnDockSetTonic) btnDockSetTonic.style.display = "none";
+  }
+}
+
 function syncControlsWithState() {
   applyStaticTranslations(state.lang);
   populateAllLocalizedSelects();
@@ -487,10 +604,7 @@ function syncControlsWithState() {
     btnStaffScale.classList.toggle("selected", state.mode !== "MAQAM" || state.staffMode === "SCALE");
   }
 
-  const btnClearFilter = document.getElementById("btn-clear-staff-filter");
-  if (btnClearFilter) {
-    btnClearFilter.style.display = selectedStaffOrNeckPitch !== null ? "inline-flex" : "none";
-  }
+  syncSelectionActionButtons();
 
   document.querySelectorAll(".tab-btn").forEach(btn => {
     const el = /** @type {HTMLElement} */ (btn);
@@ -538,11 +652,7 @@ function syncControlsWithState() {
 function refreshAll() {
   renderCadenceBar();
   renderIqaBeatGrid();
-
-  const btnClearFilter = document.getElementById("btn-clear-staff-filter");
-  if (btnClearFilter) {
-    btnClearFilter.style.display = selectedStaffOrNeckPitch !== null ? "inline-flex" : "none";
-  }
+  syncSelectionActionButtons();
 
   if (state.showStaff) {
     renderMusicalStaffSVG(state, selectedStaffOrNeckPitch, highlightedSayrStep, (staffSelection) => {
@@ -558,7 +668,11 @@ function refreshAll() {
     selectedStaffOrNeckPitch,
     (neckNoteInfo) => {
       selectedStaffOrNeckPitch = neckNoteInfo;
-      refreshAll();
+      if (neckNoteInfo.makeRoot) {
+        applySelectedPitchAsRoot(neckNoteInfo);
+      } else {
+        refreshAll();
+      }
     }
   );
 
@@ -571,6 +685,18 @@ function refreshAll() {
 function initApp() {
   document.body.setAttribute("data-tradition", state.tradition);
   document.body.setAttribute("data-orientation", state.orientation);
+  ensureSetTonicButtonsExist();
+
+  // Delegação global para garantir que o clique em "Definir Tônica" funcione em qualquer barra
+  document.addEventListener("click", (e) => {
+    const target = /** @type {HTMLElement | null} */ (e.target);
+    if (!target) return;
+    const btn = target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic");
+    if (btn) {
+      e.preventDefault();
+      applySelectedPitchAsRoot(selectedStaffOrNeckPitch);
+    }
+  });
 
   const selTradition = /** @type {HTMLSelectElement} */ (document.getElementById("select-tradition"));
   selTradition.value = state.tradition;
@@ -593,7 +719,6 @@ function initApp() {
     refreshAll();
   });
 
-  // Controles do Módulo de Partitura Interativa 24-TET
   document.getElementById("btn-toggle-staff")?.addEventListener("click", () => {
     state.showStaff = !state.showStaff;
     syncControlsWithState();
@@ -881,7 +1006,6 @@ function initApp() {
     refreshAll();
   });
 
-  // Eventos do Glossário
   document.getElementById("btn-open-glossary")?.addEventListener("click", () => openGlossary());
   document.getElementById("btn-close-glossary")?.addEventListener("click", closeGlossary);
   document.getElementById("glossary-backdrop")?.addEventListener("click", closeGlossary);

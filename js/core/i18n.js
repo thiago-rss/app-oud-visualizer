@@ -74,6 +74,7 @@ export const UI_STRINGS = {
     staffHint: "Clique em uma nota na pauta para localizar todas as digitações no espelho, ou clique no espelho para inspecionar na pauta",
     btnStaffScale: "Exibir: Escala / Voicing",
     btnStaffSayr: "Exibir: Frase Taqsim (Sayr)",
+    btnSetRootFromNote: "🎯 Definir Tônica",
     btnClearStaffFilter: "✕ Limpar Filtro de Nota",
     staffInspectorTitle: "🔍 Inspetor (Espelho → Pauta)",
     staffInspectorEmpty: "Toque numa joia do braço",
@@ -83,7 +84,7 @@ export const UI_STRINGS = {
     legMicro: "1/4 Tom (Sadaf)",
     legSayr: "➔ ①②③ Trajeto Melódico (Sayr)",
     touchHintPrefix: "✨ Toque nas joias ou na roseta (Shamsiyya",
-    touchHintSuffix: ") para ouvir",
+    touchHintSuffix: ") para ouvir • Duplo clique define Tônica",
     symmetryCardTitle: "Simetria & Intervalos das Ordens",
     rootIn: "Fundamental em",
     qararIn: "Qarar em",
@@ -187,6 +188,7 @@ export const UI_STRINGS = {
     staffHint: "Click any staff note to locate all fingerings on the neck, or click the neck to inspect its exact staff position",
     btnStaffScale: "View: Scale / Voicing",
     btnStaffSayr: "View: Taqsim Phrase (Sayr)",
+    btnSetRootFromNote: "🎯 Set Tonic",
     btnClearStaffFilter: "✕ Clear Note Filter",
     staffInspectorTitle: "🔍 Inspector (Neck → Staff)",
     staffInspectorEmpty: "Click any jewel on neck",
@@ -196,7 +198,7 @@ export const UI_STRINGS = {
     legMicro: "1/4 Tone (Sadaf)",
     legSayr: "➔ ①②③ Melodic Path (Sayr)",
     touchHintPrefix: "✨ Click any jewel or the rosette (Shamsiyya",
-    touchHintSuffix: ") to hear",
+    touchHintSuffix: ") to hear • Double-click sets Tonic",
     symmetryCardTitle: "Course Symmetry & Intervals",
     rootIn: "Root on",
     qararIn: "Qarar on",
@@ -213,7 +215,7 @@ export const UI_STRINGS = {
     btnSeeMaqam: "View Maqam",
     intSemitones: "semitones",
     intPerfect4th: "Perfect Fourth (10q / 5 semitones)",
-    intMajor3rd: "❖ Major Third (8q / 4 semitones — Shape Shift)",
+    intMajor3rd: "❖ Major Third (8q / 4 semitons — Shape Shift)",
     intMajor2nd: "Major Second (4q / 1 whole tone)",
     intOctave: "Perfect Octave (24q)",
     glossaryTitle: "Modal & Luthierie Glossary",
@@ -236,7 +238,6 @@ export const UI_STRINGS = {
  * @type {Record<string, any>}
  */
 export const DB_EN = {
-  // Tunings
   syrian_arabic_c_c: {
     name: "Standard Arabic / Syrian (C - F - A - d - g - c)",
     description: "Four upper courses tuned in Perfect Fourths (A-d-g-c), a Major Third shift between F and A, and a low C bass course."
@@ -257,8 +258,6 @@ export const DB_EN = {
     name: "Iraqi / Mounir Bashir (C - D - G - c - f - f')",
     description: "Built on Perfect Fourths from the 5th to 2nd courses with a resonant high F4 octave course."
   },
-
-  // Ajnas
   jins_rast: {
     name: "Jins Rast (Tetrachord)",
     description: "Foundational tetrachord of the Rast family, defined by its neutral third (Sikah ~335 cents)."
@@ -299,8 +298,6 @@ export const DB_EN = {
     name: "Jins Athar Kurd (Pentachord)",
     description: "Hybrid pentachord combining a Jins Kurd base with the raised #4 leap of Nikriz."
   },
-
-  // Maqamat + Sayr Phrases
   maqam_rast: {
     name: "Maqam Rast",
     lower_jins: "Jins Rast (on 1st degree)",
@@ -532,8 +529,6 @@ export const DB_EN = {
       }
     ]
   },
-
-  // Scales & Modes
   mode_ionian: { name: "[Greek Mode] Ionian (Natural Major)", bridge_text: "Maqam Ajam (Ascending)", description: "Standard Major mode. Characteristic note: Perfect 4th." },
   mode_dorian: { name: "[Greek Mode] Dorian", bridge_text: "Maqam Nahawand (Major 6th Variant)", description: "Minor mode featuring a characteristic Major 6th (18q)." },
   mode_phrygian: { name: "[Greek Mode] Phrygian", bridge_text: "Maqam Kurd (Identical)", description: "Minor mode with a characteristic minor 2nd (b2). Exact mirror of Maqam Kurd." },
@@ -551,8 +546,6 @@ export const DB_EN = {
   sym_augmented: { name: "[Symmetric] Augmented (Hexatonic)", description: "Symmetric every Major 3rd (8 quarter tones). Ideal for exploring the F-A shift between the 5th and 4th courses." },
   sym_chromatic_12: { name: "[Symmetric] Western Chromatic (12-TET)", description: "All 12 tempered semitones for 4-finger-per-course mechanical workouts." },
   sym_arab_24: { name: "[Symmetric] Full Microtonal Grid (24-TET)", description: "Complete map of all 24 quarter tones per octave." },
-
-  // Chords
   chord_oud_power: { name: "[Oud Modal] Open Fifth / Drone (1 - 5 - 8)", bridge_text: "Universal (All Maqamat)", description: "Traditional Oud accompaniment voicing (no 3rd), preserving the microtonal purity of the melody." },
   chord_rast_triad: { name: "[Microtonal] Rast Neutral Triad (1 - 3- - 5)", bridge_text: "Maqam Rast / Jins Rast", description: "Triad with a Neutral Third (Sikah at 7q / ~335 cents). Neither major nor minor — authentic Rast sonority." },
   chord_rast_7: { name: "[Microtonal] Rast Neutral 7th (1 - 3- - 5 - 7-)", bridge_text: "Maqam Rast (Ascending with Awj)", description: "Microtonal tetrad combining the neutral 3rd (Sikah) and neutral 7th (Awj)." },
@@ -571,8 +564,6 @@ export const DB_EN = {
   chord_maj7: { name: "[Tetrad] Major 7th — Maj7 (1 - 3 - 5 - 7)", bridge_text: "Maqam Ajam", description: "Major tetrad with a major 7th (22q)." },
   chord_min7: { name: "[Tetrad] Minor 7th — m7 (1 - b3 - 5 - b7)", bridge_text: "Maqam Nahawand (Descending) / Kurd", description: "Minor tetrad with a minor 7th." },
   chord_m7b5: { name: "[Tetrad] Half-Diminished — m7b5 (1 - b3 - b5 - b7)", bridge_text: "Maqam Lami / Saba", description: "Half-diminished chord, ideal for harmonizing cadences in Saba and Lami." },
-
-  // Cadences (Qafla)
   cad_rast: {
     name: "Qafla Maqam Rast (I - IV - V - bVII - I)",
     description: "Classical modal cadence for Maqam Rast: departs from the neutral tonic triad (Rast), moves to IV (Jaharkah), touches the Ghammaz on V (Nawa), and uses the descending bVII major chord (Ajam) to resolve to the Qarar.",
@@ -623,8 +614,6 @@ export const DB_EN = {
     description: "Blends bright major tonality with the signature descending minor 7th inflection (bVII chord) before final dominant preparation.",
     roles: ["Ajam Tonic", "Subdominant", "Descending Inflection", "Dominant (5th Degree)", "Major Resolution"]
   },
-
-  // Iqa'at
   iqa_maqsum: {
     name: "Maqsum (4/4) — Pillar of Arabic Music",
     description: "The most fundamental rhythmic cycle in classical and folk Arabic music (DUM TAK - TAK DUM - TAK -)."

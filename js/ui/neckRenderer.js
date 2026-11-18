@@ -187,8 +187,9 @@ function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedS
 }
 
 /**
- * Desenha a joia de uma nota no espelho, distinguindo visualmente notas soltas (antes da pestana)
- * com um anel externo pontilhado sutil quando qFromNut === 0.
+ * Desenha a joia de uma nota no espelho, com suporte a:
+ * - Clique simples: Toca a nota e seleciona no Inspetor da Partitura
+ * - Duplo clique ou Shift+Clique: Define imediatamente esta nota como novo Qarar / Tônica
  */
 function appendNoteJewel(
   svg,
@@ -235,20 +236,38 @@ function appendNoteJewel(
   group.setAttribute("class", "note-node");
   group.setAttribute("opacity", nodeOpacity);
 
-  group.addEventListener("click", () => {
+  group.addEventListener("click", (ev) => {
     playPluckedNote(noteFreq, 1.35);
     if (onNeckJewelSelect) {
       onNeckJewelSelect({
         absQ,
         pitchClassQ,
+        qFromNut,
         course: courseNumber,
         finger: fingerLabel,
-        freq: noteFreq
+        freq: noteFreq,
+        makeRoot: Boolean(ev.shiftKey)
       });
     }
   });
 
-  // Halo de Sincronização Pauta <-> Espelho
+  group.addEventListener("dblclick", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    playPluckedNote(noteFreq, 1.5);
+    if (onNeckJewelSelect) {
+      onNeckJewelSelect({
+        absQ,
+        pitchClassQ,
+        qFromNut,
+        course: courseNumber,
+        finger: fingerLabel,
+        freq: noteFreq,
+        makeRoot: true
+      });
+    }
+  });
+
   if (isExactStaffMatch || isOctaveStaffMatch) {
     const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     halo.setAttribute("cx", String(nx));
@@ -261,7 +280,6 @@ function appendNoteJewel(
     group.appendChild(halo);
   }
 
-  // Anel indicador de Corda Solta (qFromNut === 0) antes da pestana
   if (qFromNut === 0 && isSelectedActiveNote) {
     const openHalo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     openHalo.setAttribute("cx", String(nx));
@@ -322,14 +340,11 @@ function appendNoteJewel(
 }
 
 /**
- * Renderiza o espelho completo com trilho dedicado de cordas soltas antes da pestana (Anf)
- * e retorna as frequências do voicing ativo.
- *
  * @param {import("../core/urlState.js").OudAppState} state
  * @param {() => void} onRosetteClick
  * @param {number} [highlightedSayrStep=-1]
  * @param {{ absQ: number | null, pitchClassQ: number | null } | null} [selectedPitch=null]
- * @param {(noteInfo: { absQ: number, pitchClassQ: number, course: number, finger: string | number, freq: number }) => void} [onNeckJewelSelect]
+ * @param {(noteInfo: { absQ: number, pitchClassQ: number, qFromNut: number, course: number, finger: string | number, freq: number, makeRoot?: boolean }) => void} [onNeckJewelSelect]
  * @returns {{ course: number, freq: number }[]}
  */
 export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1, selectedPitch = null, onNeckJewelSelect) {
@@ -409,9 +424,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
   const keySemitones = [2, 4, 5, 7, 9, 10, 12, 14];
 
-  // =========================================================================
-  // MODO VERTICAL (Bajak / Soltas no Topo -> Pestana -> Braço -> Corpo na Base)
-  // =========================================================================
+  // MODO VERTICAL
   if (isVert) {
     const nutY = 148;
     const neckEndY = 905;
@@ -449,7 +462,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     renderShamsiyyaRosette(svg, leftX - 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
     renderShamsiyyaRosette(svg, rightX + 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
 
-    // Cravelhal (Bajak) acomodando o trilho de Cordas Soltas antes da Pestana
     const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
     pegbox.setAttribute("fill", "#1a110b");
@@ -457,7 +469,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     pegbox.setAttribute("stroke-width", "1.5");
     svg.appendChild(pegbox);
 
-    // Faixa destacada do Trilho de Cordas Soltas (0q) antes da pestana
     const openRailY = getPhysicalX(0, nutY, neckLengthPx, false);
     const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     openZoneRect.setAttribute("x", String(leftX - 12));
@@ -503,7 +514,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       svg.appendChild(line);
     });
 
-    // Caixa de Shape da Mão Esquerda (só começa APÓS a pestana no CLOSED_BOX, ou abrange o trilho 0q na 1ª Posição)
     if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
       const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
       const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
@@ -523,7 +533,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       svg.appendChild(boxRect);
     }
 
-    // Pestana de Osso (Anf) — 100% desobstruída como marco divisor
     const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
     nutLine.setAttribute("x1", String(leftX - 15));
     nutLine.setAttribute("y1", String(nutY));
@@ -594,7 +603,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
 
-      // Rótulo da Ordem posicionado acima do trilho de corda solta
       const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
       cText.setAttribute("x", String(cx));
       cText.setAttribute("y", "22");
@@ -619,7 +627,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
       const isWoundBass = cIdx >= 3;
       [-1.5, 1.5].forEach((offsetX) => {
-        // Corda no cravelhal (mais escura/tensa) até a pestana
         const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
         pegString.setAttribute("x1", String(cx + offsetX));
         pegString.setAttribute("y1", "34");
@@ -630,7 +637,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
         pegString.setAttribute("opacity", "0.55");
         svg.appendChild(pegString);
 
-        // Corda vibrante da Pestana até o Cavalete
         const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
         sLine.setAttribute("x1", String(cx + offsetX));
         sLine.setAttribute("y1", String(nutY));
@@ -709,9 +715,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     return currentChordVoicingFreqs;
   }
 
-  // =========================================================================
-  // MODO HORIZONTAL (Cravelhal + Trilho 0q ANTES da Pestana -> Espelho -> Roseta)
-  // =========================================================================
+  // MODO HORIZONTAL
   const nutX = state.leftHanded ? 945 : 175;
   const neckEndX = state.leftHanded ? 155 : 965;
   const neckLengthPx = Math.abs(neckEndX - nutX);
@@ -770,7 +774,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const bodyTopY = topY - 24;
   const bodyBotY = bottomY + 24;
 
-  // Cravelhal (Bajak) acomodando o Trilho de Cordas Soltas antes da Pestana
   const pegboxEndX = state.leftHanded ? 1105 : 15;
   const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   pegbox.setAttribute("points", `${nutX},${nutTopY} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${nutBotY}`);
@@ -779,7 +782,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   pegbox.setAttribute("stroke-width", "1.5");
   svg.appendChild(pegbox);
 
-  // Faixa vertical do Trilho de Cordas Soltas (q = 0) posicionada ANTES da Pestana
   const openRailX = getPhysicalX(0, nutX, neckLengthPx, state.leftHanded);
   const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   openZoneRect.setAttribute("x", String(openRailX - 17));
@@ -846,7 +848,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     svg.appendChild(boxRect);
   }
 
-  // Pestana de Osso (Anf) — 100% livre de notas por cima, separando nitidamente Soltas (0) e Braço (1q..16q)
   const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
   nutLine.setAttribute("x1", String(nutX));
   nutLine.setAttribute("y1", String(nutTopY - 2));
@@ -915,7 +916,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const courseSpacing = (bottomY - topY) / 5;
   tuning.courses.forEach((cObj, cIdx) => {
     const cy = topY + cIdx * courseSpacing;
-    // Rótulo da Ordem posicionado na extremidade do cravelhal, antes do trilho de corda solta
     const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
 
     const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -942,7 +942,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
 
     const isWoundBass = cIdx >= 3;
     [-1.6, 1.6].forEach((offsetY) => {
-      // Trecho da corda no cravelhal (antes da pestana)
       const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
       pegString.setAttribute("x1", String(openRailX - dir * 18));
       pegString.setAttribute("y1", String(cy + offsetY));
@@ -953,7 +952,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       pegString.setAttribute("opacity", "0.55");
       svg.appendChild(pegString);
 
-      // Corda vibrante da Pestana até o Cavalete
       const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
       sLine.setAttribute("x1", String(nutX));
       sLine.setAttribute("y1", String(cy + offsetY));
