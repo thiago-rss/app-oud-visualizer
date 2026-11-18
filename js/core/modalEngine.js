@@ -8,24 +8,21 @@ export const MAX_NECK_Q = 16;
  * - q === 0 (Corda Solta): posicionada no trilho dedicado ANTES da pestana (recuo de 26px),
  *   deixando a barra de osso da pestana (Anf) 100% livre como marco zero físico.
  * - q >= 1 (Notas Pressionadas): distribuídas logaritmicamente sobre o espelho de ébano
- *   a partir da borda interna da pestana (+6px de margem física após o centro do osso).
+ *   a partir da borda interna da pestana (+8px de margem física após o centro do osso).
  *
- * @param {number} q - Distância da pestana em quartos de tom (0 a 16)
- * @param {number} nutCoord - Coordenada X (horizontal) ou Y (vertical) do centro da pestana
- * @param {number} neckLengthPx - Comprimento visual do espelho em pixels
- * @param {boolean} isReversed - true quando canhoto no modo horizontal
- * @returns {number} Coordenada física exata no SVG
+ * @param {number} q
+ * @param {number} nutCoord
+ * @param {number} neckLengthPx
+ * @param {boolean} isReversed
+ * @returns {number}
  */
 export function getPhysicalX(q, nutCoord, neckLengthPx, isReversed) {
   const dir = isReversed ? -1 : 1;
 
-  // Trilho de Cordas Soltas (q = 0) posicionado ANTES da pestana (na transição do cravelhal)
   if (q <= 0) {
     return nutCoord - dir * 26;
   }
 
-  // Escala acústica logarítmica 24-TET: d(q) = L * (1 - 2^(-q/24))
-  // Normalizada em MAX_NECK_Q com leve offset inicial (+8px da linha central da pestana)
   const fingerboardStart = nutCoord + dir * 8;
   const usableLength = neckLengthPx - 8;
   const maxRatio = 1 - Math.pow(2, -MAX_NECK_Q / 24);
@@ -36,9 +33,6 @@ export function getPhysicalX(q, nutCoord, neckLengthPx, isReversed) {
 }
 
 /**
- * Avalia se uma posição qFromNut pertence ao Shape de mão esquerda selecionado
- * e calcula o dedo ergonômico correspondente (0 = Solta, 1 = Indicador, 2 = Médio, 3 = Anelar, 4 = Mínimo).
- *
  * @param {number} qFromNut
  * @param {"FULL_NECK"|"OPEN_FIRST_POS"|"CLOSED_BOX"} shapeMode
  * @param {number} boxAnchorQ
@@ -51,18 +45,16 @@ export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
   }
 
   if (shapeMode === "OPEN_FIRST_POS") {
-    // 1ª Posição Clássica (Ancorada em S1 / q=2, abrangendo de 1q até 8q)
     const inBox = qFromNut >= 1 && qFromNut <= 8;
     let finger = 1;
-    if (qFromNut <= 3) finger = 1;      // 1q (Db-), 2q (C#/Db), 3q (D-)
-    else if (qFromNut <= 5) finger = 2; // 4q (D), 5q (Eb-)
-    else if (qFromNut <= 6) finger = 3; // 6q (Eb)
-    else finger = 4;                    // 7q (E-), 8q (E)
+    if (qFromNut <= 3) finger = 1;
+    else if (qFromNut <= 5) finger = 2;
+    else if (qFromNut <= 6) finger = 3;
+    else finger = 4;
     return { inBox, finger };
   }
 
   if (shapeMode === "CLOSED_BOX") {
-    // Shape Móvel Fechado (Sem cordas soltas, janela de 7 quartos de tom a partir de boxAnchorQ)
     const relQ = qFromNut - boxAnchorQ;
     const inBox = relQ >= -1 && relQ <= 6 && qFromNut >= 1;
     let finger = 1;
@@ -73,7 +65,6 @@ export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
     return { inBox, finger };
   }
 
-  // FULL_NECK: Espelho completo ativo, dedilhado de referência por região
   let finger = 1;
   if (qFromNut <= 3) finger = 1;
   else if (qFromNut <= 5) finger = 2;
@@ -85,14 +76,12 @@ export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
 }
 
 /**
- * Seleciona a melhor nota (1 nota ergonômica por ordem) para montar o Voicing de um Acorde ou passo de Qafla.
- *
  * @param {any} tuning
  * @param {Map<number, { degree: string, centsDev: number, rawInterval?: number }>} activeOffsetMap
  * @param {number} effectiveRootQ
  * @param {"FULL_NECK"|"OPEN_FIRST_POS"|"CLOSED_BOX"} shapeMode
  * @param {number} boxAnchorQ
- * @returns {Record<number, number | null>} Mapa { [courseNumber]: qFromNut | null }
+ * @returns {Record<number, number | null>}
  */
 export function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ, shapeMode, boxAnchorQ) {
   /** @type {Record<number, number | null>} */
@@ -114,7 +103,7 @@ export function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effecti
 
       let score = 100 - qFromNut * 4;
       if (qFromNut === 0 && shapeMode !== "CLOSED_BOX") score += 25;
-      if (offsetFromRoot === 0) score += 18; // Prioriza a fundamental nas ordens disponíveis
+      if (offsetFromRoot === 0) score += 18;
       if (shapeEval.inBox) score += 30;
 
       candidates.push({ q: qFromNut, score });
@@ -132,9 +121,6 @@ export function selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effecti
 }
 
 /**
- * Resolve a estrutura teórica ativa (Maqam, Jins, Modo, Acorde ou Passo de Cadência Qafla)
- * retornando intervalos em quartos de tom, graus, desvios em cents e Ghammaz.
- *
  * @param {import("./urlState.js").OudAppState} state
  * @returns {{
  *   entity: any,
@@ -230,7 +216,6 @@ export function getActiveStructure(state) {
     };
   }
 
-  // Modo padrão: MAQAM
   const maq = DB.maqamat.find(x => x.id === state.entityId) || DB.maqamat[0];
   const rawIntervals = state.direction === "ASC" ? maq.intervals_asc : maq.intervals_desc;
   const rawDegrees = state.direction === "ASC" ? maq.degrees_asc : maq.degrees_desc;
@@ -255,4 +240,147 @@ export function getActiveStructure(state) {
     centsMap: maq.cents_dev || {},
     ghammazOffsets: maq.ghammaz_q !== undefined ? [maq.ghammaz_q] : []
   };
+}
+
+/**
+ * Calcula o percurso melódico e ergonômico de 1 Oitava completa (ascendente +24q ou descendente -24q)
+ * ancorado exatamente na nota física (`anchorAbsQ`) escolhida pelo músico no braço do Oud.
+ *
+ * @param {import("./urlState.js").OudAppState} state
+ * @returns {{
+ *   stepIndex: number,
+ *   absQ: number,
+ *   pitchClassQ: number,
+ *   course: number,
+ *   qFromNut: number,
+ *   finger: number,
+ *   degree: string,
+ *   freq: number,
+ *   intervalQ: number
+ * }[]}
+ */
+export function computeAnchoredOctavePath(state) {
+  if (state.anchorAbsQ === null || state.anchorAbsQ === undefined) return [];
+
+  const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
+  const activeStruct = getActiveStructure(state);
+
+  // Para MAQAM na direção DESC do caminho de 1 oitava, usa intervalos descendentes autênticos (ex: b7 em Rast)
+  let intervals = [...activeStruct.intervals];
+  let degrees = [...activeStruct.degrees];
+  if (state.mode === "MAQAM" && state.octavePathDir === "DESC") {
+    const maq = /** @type {any} */ (activeStruct.entity);
+    if (maq.intervals_desc && maq.degrees_desc) {
+      intervals = [];
+      degrees = [];
+      maq.intervals_desc.forEach((/** @type {number} */ intQ, /** @type {number} */ idx) => {
+        if (state.jinsFilter === "LOWER" && intQ > maq.lower_limit_q) return;
+        if (state.jinsFilter === "UPPER" && intQ < maq.ghammaz_q) return;
+        intervals.push(intQ);
+        degrees.push(maq.degrees_desc[idx]);
+      });
+    }
+  }
+
+  // Garante fechamento na oitava (24q) para escalas/maqamat completos
+  if (intervals.length > 1 && intervals[0] === 0 && intervals[intervals.length - 1] < 24 && state.jinsFilter === "ALL" && state.mode !== "JINS" && state.mode !== "CHORD" && state.mode !== "CADENCE") {
+    intervals.push(24);
+    degrees.push("8");
+  }
+
+  const orderedPairs = intervals.map((intQ, idx) => ({
+    intQ,
+    degree: degrees[idx] || "",
+    centsDev: activeStruct.centsMap[intQ] || 0
+  }));
+
+  /** @type {{ absQ: number, intQ: number, degree: string, centsDev: number }[]} */
+  const targetNotes = [];
+
+  if (state.octavePathDir === "ASC") {
+    orderedPairs.forEach(p => {
+      targetNotes.push({
+        absQ: state.anchorAbsQ + p.intQ,
+        intQ: p.intQ,
+        degree: p.degree,
+        centsDev: p.centsDev
+      });
+    });
+  } else {
+    // Descendente: começa na nota âncora (anchorAbsQ) e desce 1 oitava (anchorAbsQ - 24)
+    const rev = [...orderedPairs].reverse();
+    rev.forEach(p => {
+      const offsetDown = p.intQ - 24;
+      targetNotes.push({
+        absQ: state.anchorAbsQ + offsetDown,
+        intQ: p.intQ,
+        degree: p.degree,
+        centsDev: p.centsDev
+      });
+    });
+  }
+
+  /** @type {ReturnType<typeof computeAnchoredOctavePath>} */
+  const resolvedPath = [];
+  let prevCourse = -1;
+  let prevQFromNut = -1;
+
+  targetNotes.forEach((tNote, stepIndex) => {
+    /** @type {{ course: number, qFromNut: number, finger: number, freq: number, score: number }[]} */
+    const candidates = [];
+
+    tuning.courses.forEach(cObj => {
+      const qFromNut = tNote.absQ - cObj.abs_q;
+      if (qFromNut < 0 || qFromNut > MAX_NECK_Q) return;
+
+      const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
+      if (state.shapeMode === "CLOSED_BOX" && !shapeEval.inBox) return;
+
+      let score = 100 - qFromNut * 2.5;
+      // Bônus forte para cordas soltas na 1ª posição ou espelho completo
+      if (qFromNut === 0 && state.shapeMode !== "CLOSED_BOX") score += 28;
+      // Mantém continuidade na mesma ordem ou avança para a ordem vizinha sem saltos bruscos
+      if (prevCourse !== -1) {
+        const courseDiff = Math.abs(cObj.course - prevCourse);
+        if (courseDiff === 0) score += 16;
+        else if (courseDiff === 1) score += 12;
+        else score -= courseDiff * 14;
+
+        if (qFromNut > 0 && prevQFromNut > 0) {
+          score -= Math.abs(qFromNut - prevQFromNut) * 3;
+        }
+      }
+      if (shapeEval.inBox) score += 20;
+
+      const freq = cObj.freq_hz * Math.pow(2, (qFromNut * 50 + tNote.centsDev) / 1200);
+      candidates.push({
+        course: cObj.course,
+        qFromNut,
+        finger: shapeEval.finger,
+        freq,
+        score
+      });
+    });
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      const best = candidates[0];
+      prevCourse = best.course;
+      prevQFromNut = best.qFromNut;
+
+      resolvedPath.push({
+        stepIndex,
+        absQ: tNote.absQ,
+        pitchClassQ: ((tNote.absQ % 24) + 24) % 24,
+        course: best.course,
+        qFromNut: best.qFromNut,
+        finger: best.finger,
+        degree: tNote.degree,
+        freq: best.freq,
+        intervalQ: tNote.intQ
+      });
+    }
+  });
+
+  return resolvedPath;
 }

@@ -93,6 +93,76 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
 }
 
 /**
+ * Desenha setas curvas numeradas conectando uma sequência ordenada de coordenadas físicas no espelho.
+ * Usado tanto para o Sayr (Taqsim) quanto para o Caminho de 1 Oitava Ancorado.
+ *
+ * @param {SVGElement} svg
+ * @param {{ x: number, y: number, stepIdx: number }[]} orderedPoints
+ * @param {number} highlightedStepIdx
+ * @param {string} baseColor
+ */
+function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#fde047") {
+  if (orderedPoints.length < 2) return;
+
+  const trailGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  trailGroup.setAttribute("pointer-events", "none");
+
+  for (let i = 0; i < orderedPoints.length - 1; i++) {
+    const p1 = orderedPoints[i];
+    const p2 = orderedPoints[i + 1];
+    if (p1.x === p2.x && p1.y === p2.y) continue;
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+
+    const normOffset = (i % 2 === 0 ? -1 : 1) * 14;
+    const dist = Math.hypot(dx, dy) || 1;
+    const ctrlX = midX - (dy / dist) * normOffset;
+    const ctrlY = midY + (dx / dist) * normOffset;
+
+    const isCurrentSegment = highlightedStepIdx === i || highlightedStepIdx === i + 1;
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M ${p1.x.toFixed(1)},${p1.y.toFixed(1)} Q ${ctrlX.toFixed(1)},${ctrlY.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", isCurrentSegment ? "#67e8f9" : baseColor);
+    path.setAttribute("stroke-width", isCurrentSegment ? "3.2" : "2.2");
+    path.setAttribute("stroke-opacity", isCurrentSegment ? "0.96" : "0.82");
+    path.setAttribute("marker-end", isCurrentSegment ? "url(#sayrArrowActive)" : "url(#sayrArrow)");
+    trailGroup.appendChild(path);
+  }
+
+  orderedPoints.forEach((pt, idx) => {
+    const isHighlighted = highlightedStepIdx === pt.stepIdx;
+    const badgeX = pt.x + 11;
+    const badgeY = pt.y - 11;
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", String(badgeX));
+    circle.setAttribute("cy", String(badgeY));
+    circle.setAttribute("r", isHighlighted ? "9.5" : "7.2");
+    circle.setAttribute("fill", isHighlighted ? "#06b6d4" : "#140c08");
+    circle.setAttribute("stroke", isHighlighted ? "#ffffff" : baseColor);
+    circle.setAttribute("stroke-width", "1.4");
+    trailGroup.appendChild(circle);
+
+    const num = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    num.setAttribute("x", String(badgeX));
+    num.setAttribute("y", String(badgeY + 2.8));
+    num.setAttribute("text-anchor", "middle");
+    num.setAttribute("fill", isHighlighted ? "#ffffff" : baseColor);
+    num.setAttribute("font-size", "8");
+    num.setAttribute("font-weight", "800");
+    num.textContent = String(idx + 1);
+    trailGroup.appendChild(num);
+  });
+
+  svg.appendChild(trailGroup);
+}
+
+/**
  * @param {SVGElement} svg
  * @param {{ x: number, y: number, absQ: number, modOffsetQ: number }[]} visibleActiveNodes
  * @param {{ interval_q: number, dur_ms: number, accent?: boolean }[]} sayrSteps
@@ -126,71 +196,9 @@ function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedS
     resolvedPathNodes.push({ x: chosen.x, y: chosen.y, absQ: chosen.absQ, stepIdx });
   });
 
-  if (resolvedPathNodes.length < 2) return;
-
-  const trailGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  trailGroup.setAttribute("pointer-events", "none");
-
-  for (let i = 0; i < resolvedPathNodes.length - 1; i++) {
-    const p1 = resolvedPathNodes[i];
-    const p2 = resolvedPathNodes[i + 1];
-    if (p1.x === p2.x && p1.y === p2.y) continue;
-
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const midX = (p1.x + p2.x) / 2;
-    const midY = (p1.y + p2.y) / 2;
-
-    const normOffset = (i % 2 === 0 ? -1 : 1) * 16;
-    const dist = Math.hypot(dx, dy) || 1;
-    const ctrlX = midX - (dy / dist) * normOffset;
-    const ctrlY = midY + (dx / dist) * normOffset;
-
-    const isCurrentSegment = highlightedStepIdx === i || highlightedStepIdx === i + 1;
-
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", `M ${p1.x.toFixed(1)},${p1.y.toFixed(1)} Q ${ctrlX.toFixed(1)},${ctrlY.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", isCurrentSegment ? "#67e8f9" : "#fde047");
-    path.setAttribute("stroke-width", isCurrentSegment ? "3.2" : "2.1");
-    path.setAttribute("stroke-opacity", isCurrentSegment ? "0.95" : "0.78");
-    path.setAttribute("marker-end", isCurrentSegment ? "url(#sayrArrowActive)" : "url(#sayrArrow)");
-    trailGroup.appendChild(path);
-  }
-
-  resolvedPathNodes.forEach((pt, idx) => {
-    const isHighlighted = highlightedStepIdx === pt.stepIdx;
-    const badgeX = pt.x + 11;
-    const badgeY = pt.y - 11;
-
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", String(badgeX));
-    circle.setAttribute("cy", String(badgeY));
-    circle.setAttribute("r", isHighlighted ? "9" : "7");
-    circle.setAttribute("fill", isHighlighted ? "#06b6d4" : "#140c08");
-    circle.setAttribute("stroke", isHighlighted ? "#ffffff" : "#fde047");
-    circle.setAttribute("stroke-width", "1.3");
-    trailGroup.appendChild(circle);
-
-    const num = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    num.setAttribute("x", String(badgeX));
-    num.setAttribute("y", String(badgeY + 2.8));
-    num.setAttribute("text-anchor", "middle");
-    num.setAttribute("fill", isHighlighted ? "#ffffff" : "#fde047");
-    num.setAttribute("font-size", "8");
-    num.setAttribute("font-weight", "800");
-    num.textContent = String(idx + 1);
-    trailGroup.appendChild(num);
-  });
-
-  svg.appendChild(trailGroup);
+  renderConnectedVectorTrail(svg, resolvedPathNodes, highlightedStepIdx, "#fde047");
 }
 
-/**
- * Desenha a joia de uma nota no espelho, com suporte a:
- * - Clique simples: Toca a nota e seleciona no Inspetor da Partitura
- * - Duplo clique ou Shift+Clique: Define imediatamente esta nota como novo Qarar / Tônica
- */
 function appendNoteJewel(
   svg,
   nx,
@@ -204,6 +212,7 @@ function appendNoteJewel(
   isGhammaz,
   isMicroNote,
   isSelectedActiveNote,
+  isPlaybackStepHit,
   displayText,
   labelMode,
   noteFreq,
@@ -224,7 +233,7 @@ function appendNoteJewel(
     strokeColor = palette.inlayStripe;
   }
 
-  const isExactStaffMatch = selectedPitch !== null && selectedPitch.absQ === absQ;
+  const isExactStaffMatch = (selectedPitch !== null && selectedPitch.absQ === absQ) || isPlaybackStepHit;
   const isOctaveStaffMatch = selectedPitch !== null && !isExactStaffMatch && selectedPitch.pitchClassQ === pitchClassQ;
 
   let nodeOpacity = isSelectedActiveNote ? "1.0" : "0.18";
@@ -342,12 +351,13 @@ function appendNoteJewel(
 /**
  * @param {import("../core/urlState.js").OudAppState} state
  * @param {() => void} onRosetteClick
- * @param {number} [highlightedSayrStep=-1]
+ * @param {number} [highlightedStep=-1]
  * @param {{ absQ: number | null, pitchClassQ: number | null } | null} [selectedPitch=null]
  * @param {(noteInfo: { absQ: number, pitchClassQ: number, qFromNut: number, course: number, finger: string | number, freq: number, makeRoot?: boolean }) => void} [onNeckJewelSelect]
+ * @param {ReturnType<import("../core/modalEngine.js").computeAnchoredOctavePath>} [octavePathNodes=[]]
  * @returns {{ course: number, freq: number }[]}
  */
-export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1, selectedPitch = null, onNeckJewelSelect) {
+export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, selectedPitch = null, onNeckJewelSelect, octavePathNodes = []) {
   const svg = /** @type {SVGElement} */ (/** @type {unknown} */ (document.getElementById("oud-neck")));
   svg.innerHTML = "";
   /** @type {{ course: number, freq: number }[]} */
@@ -363,6 +373,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
   const activeStruct = getActiveStructure(state);
   const effectiveRootQ = activeStruct.effectiveRootQ;
+
+  const isOctaveFilterActive = state.octavePathOnly && state.anchorAbsQ !== null && octavePathNodes.length > 0;
+  const octaveNodeMap = new Map();
+  if (isOctaveFilterActive) {
+    octavePathNodes.forEach(n => {
+      octaveNodeMap.set(`${n.course}:${n.qFromNut}`, n);
+    });
+  }
 
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
   defs.innerHTML = `
@@ -417,7 +435,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   });
 
   const isChordLikeMode = state.mode === "CHORD" || state.mode === "CADENCE";
-  const isChordVoicingActive = isChordLikeMode && state.chordVoicingOnly;
+  const isChordVoicingActive = isChordLikeMode && state.chordVoicingOnly && !isOctaveFilterActive;
   const chordVoicingMap = isChordVoicingActive
     ? selectBestChordVoicingPerCourse(tuning, activeOffsetMap, effectiveRootQ, state.shapeMode, state.boxAnchorQ)
     : null;
@@ -599,6 +617,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     }
 
     const courseSpacingX = (rightX - leftX) / 5;
+    /** @type {Map<string, { x: number, y: number }>} */
+    const coordLookup = new Map();
+
     tuning.courses.forEach((cObj, cIdx) => {
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
@@ -658,8 +679,11 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
         const pcData = PITCH_CLASSES_24[pitchClassQ];
         const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
 
+        const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
         let isSelectedActiveNote = shapeEval.inBox;
-        if (isChordVoicingActive && chordVoicingMap) {
+        if (isOctaveFilterActive) {
+          isSelectedActiveNote = Boolean(octMatch);
+        } else if (isChordVoicingActive && chordVoicingMap) {
           isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut);
         }
         if (!isSelectedActiveNote && !state.showGhostNotes) continue;
@@ -670,15 +694,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
         }
 
         const ny = getPhysicalX(qFromNut, nutY, neckLengthPx, false);
+        coordLookup.set(`${cObj.course}:${qFromNut}`, { x: cx, y: ny });
+
         if (isSelectedActiveNote) {
           visibleActiveNodes.push({ x: cx, y: ny, absQ, modOffsetQ: offsetFromRoot });
         }
 
         const isRoot = offsetFromRoot === 0;
         const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
+        const isPlaybackStepHit = isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex;
 
         let displayText = pcData.flat;
-        if (state.labelMode === "DEGREE") displayText = noteInfo.degree;
+        if (state.labelMode === "DEGREE") displayText = octMatch ? octMatch.degree : noteInfo.degree;
         else if (state.labelMode === "FINGER") displayText = String(shapeEval.finger);
         else if (state.labelMode === "ARABIC") displayText = pcData.arabic.slice(0, 5);
 
@@ -695,6 +722,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
           isGhammaz,
           pcData.micro,
           isSelectedActiveNote,
+          Boolean(isPlaybackStepHit),
           displayText,
           state.labelMode,
           noteFreq,
@@ -705,10 +733,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       }
     });
 
-    if (state.mode === "MAQAM" && state.showSayr) {
+    if (isOctaveFilterActive) {
+      const octPoints = octavePathNodes
+        .map(n => {
+          const pt = coordLookup.get(`${n.course}:${n.qFromNut}`);
+          return pt ? { x: pt.x, y: pt.y, stepIdx: n.stepIndex } : null;
+        })
+        .filter(Boolean);
+      renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#67e8f9");
+    } else if (state.mode === "MAQAM" && state.showSayr) {
       const entity = /** @type {any} */ (activeStruct.entity);
       const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
-      if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedSayrStep);
+      if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedStep);
     }
 
     currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
@@ -914,6 +950,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
   }
 
   const courseSpacing = (bottomY - topY) / 5;
+  /** @type {Map<string, { x: number, y: number }>} */
+  const coordLookup = new Map();
+
   tuning.courses.forEach((cObj, cIdx) => {
     const cy = topY + cIdx * courseSpacing;
     const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
@@ -973,8 +1012,11 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       const pcData = PITCH_CLASSES_24[pitchClassQ];
       const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
 
+      const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
       let isSelectedActiveNote = shapeEval.inBox;
-      if (isChordVoicingActive && chordVoicingMap) {
+      if (isOctaveFilterActive) {
+        isSelectedActiveNote = Boolean(octMatch);
+      } else if (isChordVoicingActive && chordVoicingMap) {
         isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut);
       }
       if (!isSelectedActiveNote && !state.showGhostNotes) continue;
@@ -985,15 +1027,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
       }
 
       const nx = getPhysicalX(qFromNut, nutX, neckLengthPx, state.leftHanded);
+      coordLookup.set(`${cObj.course}:${qFromNut}`, { x: nx, y: cy });
+
       if (isSelectedActiveNote) {
         visibleActiveNodes.push({ x: nx, y: cy, absQ, modOffsetQ: offsetFromRoot });
       }
 
       const isRoot = offsetFromRoot === 0;
       const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
+      const isPlaybackStepHit = isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex;
 
       let displayText = pcData.flat;
-      if (state.labelMode === "DEGREE") displayText = noteInfo.degree;
+      if (state.labelMode === "DEGREE") displayText = octMatch ? octMatch.degree : noteInfo.degree;
       else if (state.labelMode === "FINGER") displayText = String(shapeEval.finger);
       else if (state.labelMode === "ARABIC") displayText = pcData.arabic.slice(0, 5);
 
@@ -1010,6 +1055,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
         isGhammaz,
         pcData.micro,
         isSelectedActiveNote,
+        Boolean(isPlaybackStepHit),
         displayText,
         state.labelMode,
         noteFreq,
@@ -1020,10 +1066,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedSayrStep = -1
     }
   });
 
-  if (state.mode === "MAQAM" && state.showSayr) {
+  if (isOctaveFilterActive) {
+    const octPoints = octavePathNodes
+      .map(n => {
+        const pt = coordLookup.get(`${n.course}:${n.qFromNut}`);
+        return pt ? { x: pt.x, y: pt.y, stepIdx: n.stepIndex } : null;
+      })
+      .filter(Boolean);
+    renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#67e8f9");
+  } else if (state.mode === "MAQAM" && state.showSayr) {
     const entity = /** @type {any} */ (activeStruct.entity);
     const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
-    if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedSayrStep);
+    if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedStep);
   }
 
   currentChordVoicingFreqs.sort((a, b) => b.course - a.course);

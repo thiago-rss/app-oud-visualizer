@@ -1,6 +1,6 @@
 // @ts-check
 import { DB, PITCH_CLASSES_24 } from "./core/database.js";
-import { getActiveStructure } from "./core/modalEngine.js";
+import { getActiveStructure, computeAnchoredOctavePath } from "./core/modalEngine.js";
 import { getInitialStateFromUrl, syncStateToUrl } from "./core/urlState.js";
 import { GLOSSARY_ENTRIES } from "./core/glossary.js";
 import {
@@ -26,15 +26,44 @@ import { renderOudNeckSVG } from "./ui/neckRenderer.js";
 import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 
 const state = getInitialStateFromUrl();
+
+// Normalização defensiva na carga inicial (garante que espelho e pauta sempre renderizem no startup)
+if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) {
+  state.rootQ = 0;
+}
+if (typeof state.anchorAbsQ !== "number" || Number.isNaN(state.anchorAbsQ)) {
+  state.anchorAbsQ = null;
+}
+if (typeof state.octavePathOnly !== "boolean") {
+  state.octavePathOnly = false;
+}
+if (state.octavePathDir !== "ASC" && state.octavePathDir !== "DESC") {
+  state.octavePathDir = "ASC";
+}
+if (typeof state.showStaff !== "boolean") {
+  state.showStaff = true;
+}
+if (state.staffMode !== "SCALE" && state.staffMode !== "SAYR") {
+  state.staffMode = "SCALE";
+}
+
 /** @type {{ course: number, freq: number }[]} */
 let currentChordVoicingFreqs = [];
-let highlightedSayrStep = -1;
+let highlightedSequenceStep = -1;
 /** @type {{ absQ: number | null, pitchClassQ: number | null, qFromNut?: number, course?: number, finger?: string | number, freq?: number } | null} */
 let selectedStaffOrNeckPitch = null;
 let isIqaPlaying = false;
 let activeIqaBeatIdx = -1;
 let glossaryCategory = "ALL";
 let glossaryQuery = "";
+
+/**
+ * Verifica se há uma nota física válida ancorada para o caminho de 1 oitava.
+ * @returns {boolean}
+ */
+function hasValidAnchor() {
+  return typeof state.anchorAbsQ === "number" && !Number.isNaN(state.anchorAbsQ) && state.anchorAbsQ >= 0;
+}
 
 /**
  * Resolve o índice 0..23 da nota selecionada a partir de pitchClassQ ou absQ.
@@ -54,7 +83,7 @@ function resolvePitchClassQ(targetPitch) {
 
 /**
  * Define a nota selecionada no espelho ou na pauta como a nova Tônica (rootQ),
- * atualiza o seletor, reposiciona a caixa fechada (se ativa) e toca a nova fundamental.
+ * ancora a altura absoluta (anchorAbsQ) e ativa o Caminho de 1 Oitava para visualização.
  * @param {{ absQ?: number | null, pitchClassQ?: number | null, qFromNut?: number, freq?: number } | null} targetPitch
  */
 function applySelectedPitchAsRoot(targetPitch) {
@@ -62,8 +91,17 @@ function applySelectedPitchAsRoot(targetPitch) {
   if (newRootQ === null) return;
 
   clearSequenceTimers();
-  highlightedSayrStep = -1;
+  highlightedSequenceStep = -1;
   state.rootQ = newRootQ;
+
+  if (targetPitch && typeof targetPitch.absQ === "number" && !Number.isNaN(targetPitch.absQ)) {
+    state.anchorAbsQ = targetPitch.absQ;
+    state.octavePathOnly = true;
+    state.octavePathDir = "ASC";
+  } else {
+    state.anchorAbsQ = null;
+    state.octavePathOnly = false;
+  }
 
   if (state.mode === "CADENCE") {
     state.cadenceStepIndex = 0;
@@ -74,7 +112,6 @@ function applySelectedPitchAsRoot(targetPitch) {
     selRoot.value = String(state.rootQ);
   }
 
-  // Se estiver em Shape Móvel Fechado (CLOSED_BOX) e a nota veio do braço (qFromNut >= 1), ancora o Dedo 1 na posição
   if (state.shapeMode === "CLOSED_BOX" && targetPitch && typeof targetPitch.qFromNut === "number" && targetPitch.qFromNut >= 1) {
     state.boxAnchorQ = Math.max(1, Math.min(10, targetPitch.qFromNut));
     const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
@@ -86,23 +123,50 @@ function applySelectedPitchAsRoot(targetPitch) {
     }
   }
 
-  // Feedback sonoro imediato da nova tônica
   const feedbackFreq = (targetPitch && typeof targetPitch.freq === "number")
     ? targetPitch.freq
     : 130.81 * Math.pow(2, state.rootQ / 24);
   playPluckedNote(feedbackFreq, 1.4);
 
-  // Limpa o filtro de inspeção para revelar toda a escala/maqam/acorde na nova tônica
   selectedStaffOrNeckPitch = null;
   syncControlsWithState();
   refreshAll();
 }
 
 /**
- * Garante que o botão #btn-set-root-from-selection exista na barra da pauta
- * e também cria um espelho dele na doca do instrumento caso a pauta esteja oculta.
+ * Toca o Caminho de 1 Oitava ancorado (ascendente ou descendente) iluminando passo a passo
+ * no espelho e na partitura.
  */
-function ensureSetTonicButtonsExist() {
+function handlePlayAnchoredOctavePath() {
+  if (!hasValidAnchor()) return;
+  const pathNodes = computeAnchoredOctavePath(state);
+  if (!pathNodes.length) return;
+
+  clearSequenceTimers();
+  highlightedSequenceStep = -1;
+
+  if (!state.octavePathOnly) {
+    state.octavePathOnly = true;
+    syncControlsWithState();
+  }
+
+  const steps = pathNodes.map(n => ({
+    interval_q: n.absQ - state.rootQ,
+    dur_ms: 360,
+    accent: n.degree === "1" || n.degree === "8" || n.degree === "5"
+  }));
+
+  playTaqsimPhrase(state.rootQ, steps, {}, (stepIdx) => {
+    highlightedSequenceStep = stepIdx;
+    refreshAll();
+  });
+}
+
+/**
+ * Garante que os botões contextuais de "Definir Tônica" e a Barra de Caminho de 1 Oitava
+ * existam no DOM.
+ */
+function ensureDynamicTonicControlsExist() {
   const staffPills = document.querySelector(".staff-toolbar .brass-pills");
   if (staffPills && !document.getElementById("btn-set-root-from-selection")) {
     const btn = document.createElement("button");
@@ -121,6 +185,42 @@ function ensureSetTonicButtonsExist() {
     dockBtn.style.display = "none";
     dockBtn.textContent = t(state.lang, "btnSetRootFromNote");
     dockPills.insertBefore(dockBtn, dockPills.firstChild);
+  }
+
+  const neckShowcase = document.querySelector(".neck-showcase");
+  const svgContainer = document.querySelector(".svg-stage-container");
+  if (neckShowcase && svgContainer && !document.getElementById("octave-path-bar")) {
+    const bar = document.createElement("div");
+    bar.id = "octave-path-bar";
+    bar.style.cssText = [
+      "display:none",
+      "flex-wrap:wrap",
+      "align-items:center",
+      "justify-content:space-between",
+      "gap:8px",
+      "padding:8px 14px",
+      "background:linear-gradient(90deg, rgba(6,182,212,0.12), rgba(212,175,55,0.12))",
+      "border-bottom:1px solid rgba(103,232,249,0.35)"
+    ].join(";");
+
+    bar.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <strong id="octave-bar-label" style="color:#67e8f9; font-size:0.82rem;">📍 Caminho da Tônica</strong>
+        <div class="brass-pills compact-pills">
+          <button id="btn-oct-mode-all">${t(state.lang, "btnOctaveAll")}</button>
+          <button id="btn-oct-mode-single" class="selected">${t(state.lang, "btnOctaveSingle")}</button>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="brass-pills compact-pills">
+          <button id="btn-oct-dir-asc" class="selected">${t(state.lang, "btnOctaveAsc")}</button>
+          <button id="btn-oct-dir-desc">${t(state.lang, "btnOctaveDesc")}</button>
+        </div>
+        <button id="btn-play-octave-path" class="sadaf-btn" style="padding:4px 12px; font-size:0.78rem;">${t(state.lang, "btnPlayOctavePath")}</button>
+        <button id="btn-close-octave-bar" style="padding:4px 9px; font-size:0.78rem; border-color:rgba(255,255,255,0.25);">✕</button>
+      </div>
+    `;
+    neckShowcase.insertBefore(bar, svgContainer);
   }
 }
 
@@ -250,8 +350,8 @@ function renderCadenceBar() {
 
   cad.steps.forEach((/** @type {any} */ step, /** @type {number} */ idx) => {
     const chordObj = DB.chords.find(c => c.id === step.chord_id) || DB.chords[0];
-    const chordRootQ = (state.rootQ + step.offset_q) % 24;
-    const rootName = PITCH_CLASSES_24[chordRootQ].flat;
+    const chordRootQ = ((state.rootQ + step.offset_q) % 24 + 24) % 24;
+    const rootName = PITCH_CLASSES_24[chordRootQ]?.flat || "C";
 
     const card = document.createElement("div");
     card.className = `cadence-step-card ${idx === state.cadenceStepIndex ? "active-step" : ""}`;
@@ -279,8 +379,10 @@ function renderCadenceBar() {
 function updateInfoPanel() {
   const activeStruct = getActiveStructure(state);
   const entity = localizeEntity(state.lang, activeStruct.entity);
-  const globalRootName = PITCH_CLASSES_24[state.rootQ].flat;
-  const effectiveRootName = PITCH_CLASSES_24[activeStruct.effectiveRootQ].flat;
+  const safeRootQ = ((state.rootQ % 24) + 24) % 24;
+  const safeEffRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
+  const globalRootName = PITCH_CLASSES_24[safeRootQ]?.flat || "C";
+  const effectiveRootName = PITCH_CLASSES_24[safeEffRootQ]?.flat || "C";
 
   const titleEl = document.getElementById("info-title");
   const descEl = document.getElementById("info-desc");
@@ -307,7 +409,7 @@ function updateInfoPanel() {
     addPill(t(state.lang, "pillQaflaRole"), `${activeStruct.stepObj.roman} — ${stepRole}`);
   }
 
-  const noteNamesList = activeStruct.intervals.map(intQ => PITCH_CLASSES_24[(activeStruct.effectiveRootQ + intQ) % 24].flat);
+  const noteNamesList = activeStruct.intervals.map(intQ => PITCH_CLASSES_24[((safeEffRootQ + intQ) % 24 + 24) % 24]?.flat || "");
   addPill(t(state.lang, "pillNotes"), noteNamesList.join(" – "));
   addPill(t(state.lang, "pillDegrees"), activeStruct.degrees.join(" · "));
 
@@ -320,7 +422,7 @@ function updateInfoPanel() {
   if (sayrBox) {
     if (state.mode === "MAQAM" && entity.sayr_phrases?.[state.sayrPhraseIndex]) {
       const phrase = entity.sayr_phrases[state.sayrPhraseIndex];
-      const phraseNotes = phrase.steps.map((/** @type {any} */ s) => PITCH_CLASSES_24[(activeStruct.effectiveRootQ + s.interval_q) % 24].flat).join(" → ");
+      const phraseNotes = phrase.steps.map((/** @type {any} */ s) => PITCH_CLASSES_24[((safeEffRootQ + s.interval_q) % 24 + 24) % 24]?.flat || "").join(" → ");
       sayrBox.style.display = "flex";
       sayrBox.innerHTML = `
         <div>
@@ -349,7 +451,7 @@ function updateInfoPanel() {
       bridgeContainer.appendChild(box);
       document.getElementById("btn-jump-cadence")?.addEventListener("click", () => {
         clearSequenceTimers();
-        highlightedSayrStep = -1;
+        highlightedSequenceStep = -1;
         selectedStaffOrNeckPitch = null;
         state.mode = "CADENCE";
         state.entityId = entity.linked_cadence;
@@ -412,7 +514,13 @@ function updateInfoPanel() {
 
 function handlePrimaryAudioAction() {
   clearSequenceTimers();
-  highlightedSayrStep = -1;
+  highlightedSequenceStep = -1;
+
+  if (state.octavePathOnly && hasValidAnchor()) {
+    handlePlayAnchoredOctavePath();
+    return;
+  }
+
   if (state.mode === "CADENCE") {
     const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
     scheduleCadenceSequence(cad.steps.length, (stepIdx) => {
@@ -439,13 +547,14 @@ function handlePlayTaqsim() {
   const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
   if (!phrase) return;
 
+  state.octavePathOnly = false;
   state.showSayr = true;
   state.staffMode = "SAYR";
   document.getElementById("btn-toggle-sayr")?.classList.add("selected");
   syncControlsWithState();
 
   playTaqsimPhrase(activeStruct.effectiveRootQ, phrase.steps, activeStruct.centsMap, (stepIdx) => {
-    highlightedSayrStep = stepIdx;
+    highlightedSequenceStep = stepIdx;
     refreshAll();
   });
 }
@@ -532,14 +641,14 @@ function populateEntitySelect() {
 }
 
 function syncSelectionActionButtons() {
-  ensureSetTonicButtonsExist();
+  ensureDynamicTonicControlsExist();
   const btnClearFilter = document.getElementById("btn-clear-staff-filter");
   const btnSetRoot = document.getElementById("btn-set-root-from-selection");
   const btnDockSetTonic = document.getElementById("btn-dock-set-tonic");
 
   const pcQ = resolvePitchClassQ(selectedStaffOrNeckPitch);
 
-  if (selectedStaffOrNeckPitch !== null && pcQ !== null) {
+  if (selectedStaffOrNeckPitch !== null && pcQ !== null && PITCH_CLASSES_24[pcQ]) {
     const pc = PITCH_CLASSES_24[pcQ];
     const labelText = `${t(state.lang, "btnSetRootFromNote")}: ${pc.flat} (${pc.arabic})`;
 
@@ -556,6 +665,60 @@ function syncSelectionActionButtons() {
     if (btnClearFilter) btnClearFilter.style.display = "none";
     if (btnSetRoot) btnSetRoot.style.display = "none";
     if (btnDockSetTonic) btnDockSetTonic.style.display = "none";
+  }
+
+  // Sincroniza a Barra Contextual de Caminho de 1 Oitava apenas quando anchorAbsQ for um número válido
+  const octBar = document.getElementById("octave-path-bar");
+  if (octBar) {
+    if (hasValidAnchor() && typeof state.anchorAbsQ === "number") {
+      octBar.style.display = "flex";
+      const pcIdx = ((state.anchorAbsQ % 24) + 24) % 24;
+      const pc = PITCH_CLASSES_24[pcIdx] || PITCH_CLASSES_24[0];
+      const octNum = Math.floor(state.anchorAbsQ / 24) + 2;
+      const lbl = document.getElementById("octave-bar-label");
+      const titlePrefix = t(state.lang, "octaveBarTitle") !== "octaveBarTitle"
+        ? t(state.lang, "octaveBarTitle")
+        : (state.lang === "en" ? "📍 Tonic Path:" : "📍 Caminho da Tônica:");
+      if (lbl) lbl.textContent = `${titlePrefix} ${pc.flat}${octNum} (${pc.arabic})`;
+
+      const btnAll = document.getElementById("btn-oct-mode-all");
+      const btnSingle = document.getElementById("btn-oct-mode-single");
+      const btnAsc = document.getElementById("btn-oct-dir-asc");
+      const btnDesc = document.getElementById("btn-oct-dir-desc");
+      const btnPlayOct = document.getElementById("btn-play-octave-path");
+
+      if (btnAll) {
+        btnAll.textContent = t(state.lang, "btnOctaveAll") !== "btnOctaveAll"
+          ? t(state.lang, "btnOctaveAll")
+          : (state.lang === "en" ? "🌐 All Octaves" : "🌐 Todas as Oitavas");
+        btnAll.classList.toggle("selected", !state.octavePathOnly);
+      }
+      if (btnSingle) {
+        btnSingle.textContent = t(state.lang, "btnOctaveSingle") !== "btnOctaveSingle"
+          ? t(state.lang, "btnOctaveSingle")
+          : (state.lang === "en" ? "🎯 1-Octave Path" : "🎯 Caminho 1 Oitava");
+        btnSingle.classList.toggle("selected", state.octavePathOnly);
+      }
+      if (btnAsc) {
+        btnAsc.textContent = t(state.lang, "btnOctaveAsc") !== "btnOctaveAsc"
+          ? t(state.lang, "btnOctaveAsc")
+          : (state.lang === "en" ? "↑ Ascending (+8ve)" : "↑ Ascendente (+8ª)");
+        btnAsc.classList.toggle("selected", state.octavePathDir === "ASC");
+      }
+      if (btnDesc) {
+        btnDesc.textContent = t(state.lang, "btnOctaveDesc") !== "btnOctaveDesc"
+          ? t(state.lang, "btnOctaveDesc")
+          : (state.lang === "en" ? "↓ Descending (-8ve)" : "↓ Descendente (-8ª)");
+        btnDesc.classList.toggle("selected", state.octavePathDir === "DESC");
+      }
+      if (btnPlayOct) {
+        btnPlayOct.textContent = t(state.lang, "btnPlayOctavePath") !== "btnPlayOctavePath"
+          ? t(state.lang, "btnPlayOctavePath")
+          : (state.lang === "en" ? "▶ Play Path" : "▶ Ouvir Caminho");
+      }
+    } else {
+      octBar.style.display = "none";
+    }
   }
 }
 
@@ -654,17 +817,25 @@ function refreshAll() {
   renderIqaBeatGrid();
   syncSelectionActionButtons();
 
+  const octavePathNodes = hasValidAnchor() ? computeAnchoredOctavePath(state) : [];
+
   if (state.showStaff) {
-    renderMusicalStaffSVG(state, selectedStaffOrNeckPitch, highlightedSayrStep, (staffSelection) => {
-      selectedStaffOrNeckPitch = staffSelection;
-      refreshAll();
-    });
+    renderMusicalStaffSVG(
+      state,
+      selectedStaffOrNeckPitch,
+      highlightedSequenceStep,
+      (staffSelection) => {
+        selectedStaffOrNeckPitch = staffSelection;
+        refreshAll();
+      },
+      octavePathNodes
+    );
   }
 
   currentChordVoicingFreqs = renderOudNeckSVG(
     state,
     handlePrimaryAudioAction,
-    highlightedSayrStep,
+    highlightedSequenceStep,
     selectedStaffOrNeckPitch,
     (neckNoteInfo) => {
       selectedStaffOrNeckPitch = neckNoteInfo;
@@ -673,7 +844,8 @@ function refreshAll() {
       } else {
         refreshAll();
       }
-    }
+    },
+    octavePathNodes
   );
 
   updateInfoPanel();
@@ -685,16 +857,70 @@ function refreshAll() {
 function initApp() {
   document.body.setAttribute("data-tradition", state.tradition);
   document.body.setAttribute("data-orientation", state.orientation);
-  ensureSetTonicButtonsExist();
+  ensureDynamicTonicControlsExist();
 
-  // Delegação global para garantir que o clique em "Definir Tônica" funcione em qualquer barra
   document.addEventListener("click", (e) => {
     const target = /** @type {HTMLElement | null} */ (e.target);
     if (!target) return;
-    const btn = target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic");
-    if (btn) {
+
+    if (target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic")) {
       e.preventDefault();
       applySelectedPitchAsRoot(selectedStaffOrNeckPitch);
+      return;
+    }
+
+    if (target.closest("#btn-oct-mode-all")) {
+      e.preventDefault();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      state.octavePathOnly = false;
+      refreshAll();
+      return;
+    }
+
+    if (target.closest("#btn-oct-mode-single")) {
+      e.preventDefault();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      state.octavePathOnly = true;
+      state.staffMode = "SCALE";
+      refreshAll();
+      return;
+    }
+
+    if (target.closest("#btn-oct-dir-asc")) {
+      e.preventDefault();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      state.octavePathDir = "ASC";
+      state.octavePathOnly = true;
+      refreshAll();
+      return;
+    }
+
+    if (target.closest("#btn-oct-dir-desc")) {
+      e.preventDefault();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      state.octavePathDir = "DESC";
+      state.octavePathOnly = true;
+      refreshAll();
+      return;
+    }
+
+    if (target.closest("#btn-play-octave-path")) {
+      e.preventDefault();
+      handlePlayAnchoredOctavePath();
+      return;
+    }
+
+    if (target.closest("#btn-close-octave-bar")) {
+      e.preventDefault();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      state.anchorAbsQ = null;
+      state.octavePathOnly = false;
+      refreshAll();
     }
   });
 
@@ -734,6 +960,7 @@ function initApp() {
 
   document.getElementById("btn-staff-mode-sayr")?.addEventListener("click", () => {
     state.staffMode = "SAYR";
+    state.octavePathOnly = false;
     selectedStaffOrNeckPitch = null;
     syncControlsWithState();
     refreshAll();
@@ -754,17 +981,21 @@ function initApp() {
   const selRoot = /** @type {HTMLSelectElement} */ (document.getElementById("select-root"));
   selRoot.addEventListener("change", (e) => {
     clearSequenceTimers();
-    highlightedSayrStep = -1;
+    highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
-    state.rootQ = parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10);
+    state.anchorAbsQ = null;
+    state.octavePathOnly = false;
+    state.rootQ = parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0;
     refreshAll();
   });
 
   document.getElementById("btn-trad-root")?.addEventListener("click", (e) => {
     e.preventDefault();
     clearSequenceTimers();
-    highlightedSayrStep = -1;
+    highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
+    state.anchorAbsQ = null;
+    state.octavePathOnly = false;
     const active = /** @type {any} */ (getActiveStructure(state).entity);
     if (active.traditional_root_q !== undefined) {
       state.rootQ = active.traditional_root_q;
@@ -819,7 +1050,7 @@ function initApp() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       clearSequenceTimers();
-      highlightedSayrStep = -1;
+      highlightedSequenceStep = -1;
       selectedStaffOrNeckPitch = null;
       state.mode = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode);
       state.cadenceStepIndex = 0;
@@ -828,10 +1059,12 @@ function initApp() {
         /** @type {HTMLSelectElement} */ (document.getElementById("select-shape")).value = "OPEN_FIRST_POS";
       }
       syncControlsWithState();
-      const active = /** @type {any} */ (getActiveStructure(state).entity);
-      if (active.traditional_root_q !== undefined) {
-        state.rootQ = active.traditional_root_q;
-        selRoot.value = String(state.rootQ);
+      if (!hasValidAnchor()) {
+        const active = /** @type {any} */ (getActiveStructure(state).entity);
+        if (active.traditional_root_q !== undefined) {
+          state.rootQ = active.traditional_root_q;
+          selRoot.value = String(state.rootQ);
+        }
       }
       refreshAll();
     });
@@ -839,14 +1072,16 @@ function initApp() {
 
   document.getElementById("select-entity")?.addEventListener("change", (e) => {
     clearSequenceTimers();
-    highlightedSayrStep = -1;
+    highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
     state.entityId = /** @type {HTMLSelectElement} */ (e.target).value;
     state.cadenceStepIndex = 0;
-    const active = /** @type {any} */ (getActiveStructure(state).entity);
-    if (active.traditional_root_q !== undefined) {
-      state.rootQ = active.traditional_root_q;
-      selRoot.value = String(state.rootQ);
+    if (!hasValidAnchor()) {
+      const active = /** @type {any} */ (getActiveStructure(state).entity);
+      if (active.traditional_root_q !== undefined) {
+        state.rootQ = active.traditional_root_q;
+        selRoot.value = String(state.rootQ);
+      }
     }
     refreshAll();
   });
@@ -862,8 +1097,9 @@ function initApp() {
   document.querySelectorAll(".sayr-phrase-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       clearSequenceTimers();
-      highlightedSayrStep = -1;
+      highlightedSequenceStep = -1;
       selectedStaffOrNeckPitch = null;
+      state.octavePathOnly = false;
       state.sayrPhraseIndex = Number(/** @type {HTMLElement} */ (btn).dataset.phrase);
       state.showSayr = true;
       state.staffMode = "SAYR";
