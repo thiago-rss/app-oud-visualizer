@@ -232,12 +232,13 @@ button.active-toggle {
   border: 1px solid var(--sadaf-cyan);
 }
 
-/* Diwan 3 Colunas */
+/* Diwan 3 Colunas & Compartimentalização Sanfonada */
 .diwan-console-3col {
   display: grid;
   grid-template-columns: 1fr 1.65fr 1.05fr;
   gap: 12px;
   margin-bottom: 14px;
+  align-items: start;
 }
 
 .mihrab-card,
@@ -247,6 +248,7 @@ button.active-toggle {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: padding 0.2s ease;
 }
 
 .card-arch-header {
@@ -262,6 +264,43 @@ button.active-toggle {
   font-size: 1.08rem;
   color: var(--accent);
   font-weight: 700;
+  flex: 1;
+}
+
+.card-collapse-btn {
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  border-radius: 6px;
+  opacity: 0.85;
+  margin-left: auto;
+}
+
+.card-compact-summary {
+  display: none;
+  font-size: 0.76rem;
+  color: var(--sadaf-cyan);
+  background: var(--sadaf-bg);
+  border: 1px dashed var(--border-gold);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.card-collapsed {
+  padding-bottom: 10px;
+}
+
+.card-collapsed .card-arch-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.card-collapsed > :not(.card-arch-header):not(.card-compact-summary) {
+  display: none !important;
+}
+
+.card-collapsed .card-compact-summary {
+  display: block;
 }
 
 .mihrab-body {
@@ -481,22 +520,75 @@ button.active-toggle {
   color: var(--sadaf-cyan);
 }
 
-/* Palco Principal */
+/* Palco Principal & Compartimentalização Lateral / Modo Imersivo */
 .studio-stage {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) 365px;
   gap: 14px;
   align-items: start;
+  transition: grid-template-columns 0.25s ease;
 }
 
 body[data-orientation="VERTICAL"] .studio-stage {
-  grid-template-columns: minmax(380px, 540px) 1fr;
+  grid-template-columns: minmax(380px, 540px) minmax(0, 1fr);
+}
+
+body[data-sidebar="collapsed"] .studio-stage,
+body[data-zen="true"] .studio-stage {
+  grid-template-columns: 1fr !important;
+}
+
+body[data-sidebar="collapsed"] .info-panel,
+body[data-zen="true"] .info-panel {
+  display: none !important;
+}
+
+body[data-zen="true"] .astrolabe-header,
+body[data-zen="true"] .diwan-console-3col {
+  display: none !important;
+}
+
+.zen-floating-hud {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 16px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--sadaf-cyan);
+  box-shadow: var(--shadow-card);
+}
+
+body[data-zen="true"] .zen-floating-hud {
+  display: flex;
+}
+
+.zen-telemetry-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.zen-telemetry-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--border-gold);
+  padding: 4px 10px;
+  border-radius: 99px;
 }
 
 .neck-showcase {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
 }
 
 .inlay-dock-top,
@@ -589,6 +681,10 @@ body[data-orientation="VERTICAL"] .studio-stage {
   display: block;
 }
 
+body[data-zen="true"] #oud-neck {
+  max-height: 84vh;
+}
+
 .note-node {
   cursor: pointer;
   transition: opacity 0.15s ease;
@@ -624,11 +720,13 @@ body[data-orientation="VERTICAL"] .studio-stage {
   font-size: 0.74rem;
 }
 
-/* Painel Lateral de Informações */
+/* Painel Lateral & Radar de Modulação e Ajnas (Intiqal) */
 .info-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .info-card {
@@ -636,35 +734,40 @@ body[data-orientation="VERTICAL"] .studio-stage {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ornamental-corner {
   position: absolute;
-  top: 10px;
-  right: 12px;
+  top: 12px;
+  right: 14px;
   color: var(--accent);
-  opacity: 0.5;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .info-card h2 {
   font-family: "Cormorant Garamond", serif;
-  font-size: 1.32rem;
+  font-size: 1.24rem;
   color: var(--accent);
-  padding-right: 20px;
+  padding-right: 26px;
+  line-height: 1.25;
 }
 
 .info-description,
 .tuning-description {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
+  line-height: 1.45;
 }
 
 .info-meta {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .meta-pill {
@@ -676,7 +779,7 @@ body[data-orientation="VERTICAL"] .studio-stage {
 }
 
 .bridge-box {
-  margin-top: 6px;
+  margin-top: 4px;
   padding: 8px 10px;
   background: var(--accent-soft);
   border-left: 3px solid var(--accent);
@@ -688,11 +791,100 @@ body[data-orientation="VERTICAL"] .studio-stage {
   gap: 8px;
 }
 
+/* Cartões do Radar de Modulação & Ajnas Vizinhos */
+.mod-origin-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  font-size: 0.76rem;
+}
+
+.mod-origin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mod-origin-text strong {
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
 .intervals-stack {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.76rem;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.mod-route-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-gold);
+  transition: all 0.16s ease;
+}
+
+.mod-route-card:hover {
+  border-color: var(--sadaf-cyan);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.mod-route-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mod-pivot-badge {
+  font-size: 0.69rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--sadaf-bg);
+  color: var(--sadaf-cyan);
+  border: 1px solid var(--sadaf-cyan);
+}
+
+.mod-pivot-badge.is-ghammaz-pivot {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.mod-target-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.mod-route-desc {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  line-height: 1.38;
+}
+
+.mod-route-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.mod-route-actions button {
+  padding: 4px 10px;
+  font-size: 0.73rem;
 }
 
 /* Gaveta do Glossário */

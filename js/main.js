@@ -27,7 +27,6 @@ import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 
 const state = getInitialStateFromUrl();
 
-// Inicializa o tema a partir do estado, localStorage ou padrão "dark"
 try {
   const savedTheme = localStorage.getItem("oud_theme_pref");
   if (!window.location.hash.includes("th=") && (savedTheme === "light" || savedTheme === "dark")) {
@@ -68,9 +67,477 @@ let activeIqaBeatIdx = -1;
 let glossaryCategory = "ALL";
 let glossaryQuery = "";
 
+let isZenMode = false;
+let isSidebarCollapsed = false;
+
 /**
- * Injeta as regras de tema Claro (Nahar — Pergaminho Iluminado) e Escuro (Layl — Majlis)
- * diretamente no <head>, garantindo funcionamento imediato mesmo com cache de CSS do navegador.
+ * Memória de Origem do Taqsim (permite modular por vários Ajnas/Maqamat e retornar à base com 1 clique).
+ * @type {{ mode: any, entityId: string, rootQ: number, anchorAbsQ: number | null, label: string } | null}
+ */
+let modulationOrigin = null;
+
+/**
+ * Mapa Musicológico de Modulações Tradicionais (Intiqal / Tahwil) para cada Maqam.
+ * Cada rota define: targetMode, targetId, offsetQ (a partir da tônica atual), isGhammaz, e descrições PT/EN.
+ * @type {Record<string, { targetMode: "MAQAM"|"JINS", targetId: string, offsetQ: number, isGhammaz?: boolean, pivotPt: string, pivotEn: string, reasonPt: string, reasonEn: string }[]>}
+ */
+const MODULATION_RADAR_MAP = {
+  maqam_rast: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Converte o 2º Jins em Hijaz sobre o Ghammaz, criando a célebre sonoridade de Maqam Suznak.",
+      reasonEn: "Converts the upper Jins into Hijaz on the Ghammaz, creating the classic Maqam Suznak color."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_nahawand",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Inflexão descendente natural do Rast introduzindo o 7º grau menor (Ajam) rumo à resolução.",
+      reasonEn: "Natural descending inflection of Rast introducing the minor 7th (Ajam) toward resolution."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_bayati",
+      offsetQ: 4,
+      pivotPt: "2º Grau (Dukah +1 Tom)",
+      pivotEn: "2nd Degree (Dukah +1 Tone)",
+      reasonPt: "Modulação lírica para o 2º grau aproveitando as notas comuns da família Rast/Bayati.",
+      reasonEn: "Lyrical modulation to the 2nd degree sharing the core pitches of the Rast/Bayati family."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_sikah",
+      offsetQ: 7,
+      pivotPt: "3º Grau Neutro (Sikah)",
+      pivotEn: "Neutral 3rd (Sikah)",
+      reasonPt: "Ancora temporariamente o repouso sobre a terça neutra microtonal (3-) do próprio Rast.",
+      reasonEn: "Temporarily anchors the tonic directly on Rast's microtonal neutral third (3-)."
+    }
+  ],
+  maqam_bayati: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 10,
+      isGhammaz: true,
+      pivotPt: "4º Grau (Ghammaz)",
+      pivotEn: "4th Degree (Ghammaz)",
+      reasonPt: "Transforma o 4º grau em Jins Hijaz (caminho de Bayati Shuri / Karjighar), muito frequente no Taqsim.",
+      reasonEn: "Turns the 4th degree into Jins Hijaz (Bayati Shuri / Karjighar pathway), a staple in Taqsim."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_rast",
+      offsetQ: 10,
+      isGhammaz: true,
+      pivotPt: "4º Grau (Ghammaz)",
+      pivotEn: "4th Degree (Ghammaz)",
+      reasonPt: "Abre o registro superior com Jins Rast sobre a 4ª justa, iluminando o fraseado ascendente.",
+      reasonEn: "Opens the upper register with Jins Rast on the 4th degree, brightening ascending phrases."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_saba",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Bemoliza o 4º grau (b4 diminuta) mantendo a mesma tônica, mergulhando na tensão do Saba.",
+      reasonEn: "Lowers the 4th degree (diminished b4) on the same tonic, shifting into the tension of Saba."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_rast",
+      offsetQ: 20,
+      pivotPt: "7º Grau Subtônico (-1 Tom)",
+      pivotEn: "Subtonic b7 (-1 Whole Tone)",
+      reasonPt: "Desce 1 tom inteiro abaixo do Qarar para repousar na matriz fundamental do Maqam Rast.",
+      reasonEn: "Steps down 1 whole tone below the Qarar to rest on the foundational Maqam Rast matrix."
+    }
+  ],
+  maqam_saba: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 6,
+      isGhammaz: true,
+      pivotPt: "3º Grau Menor (Ghammaz b3)",
+      pivotEn: "Minor 3rd (Ghammaz b3)",
+      reasonPt: "Isola o Jins Hijaz superposto no 3º grau onde o Saba constrói seu clímax melódico.",
+      reasonEn: "Isolates the overlapping Jins Hijaz on the 3rd degree where Saba builds its melodic climax."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_bayati",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Relaxa a 4ª diminuta de volta para a 4ª justa, dissolvendo a tensão do Saba em Bayati.",
+      reasonEn: "Relaxes the diminished 4th back to a perfect 4th, resolving Saba's tension into Bayati."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_ajam",
+      offsetQ: 16,
+      pivotPt: "6º Grau Menor (b6)",
+      pivotEn: "Minor 6th Degree (b6)",
+      reasonPt: "Janela luminosa em modo maior (Jins Ajam) sobre o 6º grau antes da descida final.",
+      reasonEn: "Bright major window (Jins Ajam) on the 6th degree before the final cadential descent."
+    }
+  ],
+  maqam_hijaz: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_rast",
+      offsetQ: 10,
+      isGhammaz: true,
+      pivotPt: "4º Grau (Ghammaz)",
+      pivotEn: "4th Degree (Ghammaz)",
+      reasonPt: "Rota ascendente clássica do Hijaz introduzindo o 6º grau neutro microtonal.",
+      reasonEn: "Classic ascending pathway of Hijaz introducing the microtonal neutral 6th."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_nahawand",
+      offsetQ: 10,
+      isGhammaz: true,
+      pivotPt: "4º Grau (Ghammaz)",
+      pivotEn: "4th Degree (Ghammaz)",
+      reasonPt: "Estabelece repouso menor suave sobre o Ghammaz preparando a descida pelo b6.",
+      reasonEn: "Establishes a gentle minor rest on the Ghammaz preparing the descent through b6."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_bayati",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Suaviza a tônica convertendo o salto de 2ª aumentada do Hijaz na 2ª neutra do Bayati.",
+      reasonEn: "Softens the tonic by converting Hijaz's augmented 2nd leap into Bayati's neutral 2nd."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_nikriz",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Desloca o salto de 2ª aumentada dos graus b2–3 para os graus b3–#4 na mesma tônica.",
+      reasonEn: "Shifts the augmented 2nd leap from degrees b2–3 to degrees b3–#4 on the same tonic."
+    }
+  ],
+  maqam_nahawand: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_ajam",
+      offsetQ: 6,
+      pivotPt: "3º Grau (Relativo Maior b3)",
+      pivotEn: "3rd Degree (Relative Major b3)",
+      reasonPt: "Modulação clássica para o Jins Ajam relativo maior sobre a mediante.",
+      reasonEn: "Classic modulation to the relative major Jins Ajam on the mediant."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Ativa a sensível (7º grau maior) no tetracorde superior para impulsionar a resolução.",
+      reasonEn: "Activates the leading tone (major 7th) in the upper tetrachord to drive resolution."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_bayati",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Introduz inflexão microtonal sobre a dominante (6º grau neutro).",
+      reasonEn: "Introduces a microtonal inflection on the dominant (neutral 6th degree)."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_nikriz",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Eleva o 4º grau (#4) sobre a mesma base menor para criar tensão cromática.",
+      reasonEn: "Raises the 4th degree (#4) over the same minor base to create chromatic pull."
+    }
+  ],
+  maqam_kurd: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_nahawand",
+      offsetQ: 10,
+      isGhammaz: true,
+      pivotPt: "4º Grau (Ghammaz)",
+      pivotEn: "4th Degree (Ghammaz)",
+      reasonPt: "Expande o desenvolvimento melódico sobre o tetracorde menor do 4º grau.",
+      reasonEn: "Expands melodic development over the minor tetrachord on the 4th degree."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_hijaz",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Eleva a 3ª menor para 3ª maior mantendo o b2, transformando Kurd em Hijaz.",
+      reasonEn: "Raises the minor 3rd to a major 3rd while keeping b2, transforming Kurd into Hijaz."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_bayati",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Eleva o b2 em 1 quarto de tom (2-), transitando do mundo 12-TET para o Bayati.",
+      reasonEn: "Raises b2 by a quarter tone (2-), transitioning from 12-TET Phrygian into Bayati."
+    }
+  ],
+  maqam_sikah: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_rast",
+      offsetQ: 7,
+      isGhammaz: true,
+      pivotPt: "3º Grau (Ghammaz)",
+      pivotEn: "3rd Degree (Ghammaz)",
+      reasonPt: "Desenvolve o Jins Rast sobre a nota natural 7 quartos de tom acima da tônica Sikah.",
+      reasonEn: "Develops Jins Rast on the natural pitch 7 quarter tones above the Sikah tonic."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_huzam",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Converte o 2º Jins em Hijaz mantendo a mesma tônica microtonal Sikah.",
+      reasonEn: "Converts the upper Jins into Hijaz while keeping the same microtonal Sikah tonic."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_rast",
+      offsetQ: 17,
+      pivotPt: "Base Rast (-3ª Neutra)",
+      pivotEn: "Rast Matrix (-Neutral 3rd)",
+      reasonPt: "Resolve descendentemente na fundamental Rast situada uma terça neutra abaixo.",
+      reasonEn: "Resolves downward onto the underlying Rast tonic a neutral third below."
+    }
+  ],
+  maqam_huzam: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 7,
+      isGhammaz: true,
+      pivotPt: "3º Grau (Ghammaz)",
+      pivotEn: "3rd Degree (Ghammaz)",
+      reasonPt: "Isola o brilho do Jins Hijaz ancorado no 3º grau do Huzam.",
+      reasonEn: "Isolates the bright Jins Hijaz anchored on Huzam's 3rd degree."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_sikah",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Suaviza o tetracorde superior trocando Hijaz por Jins Rast.",
+      reasonEn: "Softens the upper tetrachord by replacing Hijaz with Jins Rast."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_rast",
+      offsetQ: 17,
+      pivotPt: "Base Rast (-3ª Neutra)",
+      pivotEn: "Rast Matrix (-Neutral 3rd)",
+      reasonPt: "Conecta o Huzam à sua matriz Rast subjacente.",
+      reasonEn: "Connects Huzam to its underlying Rast parent scale."
+    }
+  ],
+  maqam_nikriz: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_nahawand",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Explora o tetracorde menor superior a partir do Ghammaz de 5ª justa.",
+      reasonEn: "Explores the upper minor tetrachord starting on the perfect 5th Ghammaz."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_nawa_athar",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Troca o 2º Jins por Hijaz, criando dois saltos de 2ª aumentada na mesma oitava.",
+      reasonEn: "Replaces the upper Jins with Hijaz, creating two augmented 2nd leaps in one octave."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 4,
+      pivotPt: "2º Grau (+1 Tom)",
+      pivotEn: "2nd Degree (+1 Tone)",
+      reasonPt: "Pivô interno: o pentacorde Nikriz contém exatamente um Jins Hijaz a partir do 2º grau.",
+      reasonEn: "Internal pivot: the Nikriz pentachord embeds a complete Jins Hijaz starting on its 2nd degree."
+    }
+  ],
+  maqam_nawa_athar: [
+    {
+      targetMode: "JINS",
+      targetId: "jins_hijaz",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Isola o Jins Hijaz superior responsável pela sensível dramática rumo à oitava.",
+      reasonEn: "Isolates the upper Jins Hijaz responsible for the dramatic leading tone to the octave."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_nikriz",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Relaxa o registro superior convertendo o 2º Jins em Nahawand.",
+      reasonEn: "Relaxes the upper register by converting the 2nd Jins into Nahawand."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_nahawand",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Resolve o #4 de volta para a 4ª justa mantendo a tônica e a dominante.",
+      reasonEn: "Resolves #4 back to a perfect 4th while keeping the same tonic and dominant."
+    }
+  ],
+  maqam_ajam: [
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_nahawand",
+      offsetQ: 18,
+      pivotPt: "6º Grau (Relativo Menor)",
+      pivotEn: "6th Degree (Relative Minor)",
+      reasonPt: "Modulação clássica para o Maqam Nahawand relativo menor.",
+      reasonEn: "Classic modulation to the relative minor Maqam Nahawand."
+    },
+    {
+      targetMode: "JINS",
+      targetId: "jins_nahawand",
+      offsetQ: 14,
+      isGhammaz: true,
+      pivotPt: "5º Grau (Ghammaz)",
+      pivotEn: "5th Degree (Ghammaz)",
+      reasonPt: "Inflexão descendente com b7 menor (caminho Mixolídio de fechamento do Ajam).",
+      reasonEn: "Descending inflection with minor b7 (Mixolydian cadential path of Ajam)."
+    },
+    {
+      targetMode: "MAQAM",
+      targetId: "maqam_rast",
+      offsetQ: 0,
+      pivotPt: "1º Grau (Mesmo Qarar)",
+      pivotEn: "1st Degree (Same Qarar)",
+      reasonPt: "Inflexiona a 3ª e a 7ª maiores em 1 quarto de tom para baixo, entrando em Rast.",
+      reasonEn: "Inflects the major 3rd and 7th down by a quarter tone, entering Maqam Rast."
+    }
+  ]
+};
+
+/**
+ * Gera rotas inteligentes de modulação para qualquer estado ativo (Maqam, Jins, Escala, Acorde ou Cadência).
+ */
+function getModulationRoutesForCurrentState() {
+  const activeStruct = getActiveStructure(state);
+  const effRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
+
+  // Se for um Maqam mapeado diretamente, usa as rotas tradicionais
+  if (state.mode === "MAQAM" && MODULATION_RADAR_MAP[state.entityId]) {
+    return MODULATION_RADAR_MAP[state.entityId].map(r => ({
+      ...r,
+      absTargetRootQ: (effRootQ + r.offsetQ) % 24
+    }));
+  }
+
+  // Se o modo atual possuir um Maqam-Ponte (ex: Escala, Acorde ou Cadência), oferece o Maqam-Ponte + suas rotas
+  const entityObj = /** @type {any} */ (activeStruct.entity);
+  const ghammazQ = activeStruct.ghammazOffsets?.[0] ?? 14;
+
+  /** @type {{ targetMode: "MAQAM"|"JINS", targetId: string, offsetQ: number, isGhammaz?: boolean, pivotPt: string, pivotEn: string, reasonPt: string, reasonEn: string, absTargetRootQ: number }[]} */
+  const fallbackRoutes = [];
+
+  if (entityObj.bridge_maqam && MODULATION_RADAR_MAP[entityObj.bridge_maqam]) {
+    fallbackRoutes.push({
+      targetMode: "MAQAM",
+      targetId: entityObj.bridge_maqam,
+      offsetQ: 0,
+      pivotPt: "1º Grau (Matriz Modal Completa)",
+      pivotEn: "1st Degree (Full Modal Matrix)",
+      reasonPt: "Expande o estudo atual para o Maqam completo correspondente na mesma tônica.",
+      reasonEn: "Expands the current study into its full parent Maqam on the same tonic.",
+      absTargetRootQ: effRootQ
+    });
+    MODULATION_RADAR_MAP[entityObj.bridge_maqam].slice(0, 2).forEach(r => {
+      fallbackRoutes.push({
+        ...r,
+        absTargetRootQ: (effRootQ + r.offsetQ) % 24
+      });
+    });
+    return fallbackRoutes;
+  }
+
+  // Se estiver estudando um Jins isolado, oferece os Maqamat que começam com esse Jins + Jins no Ghammaz
+  const parentMaqam = DB.maqamat.find(m => m.id.replace("maqam_", "") === state.entityId.replace("jins_", "")) || DB.maqamat[0];
+  fallbackRoutes.push({
+    targetMode: "MAQAM",
+    targetId: parentMaqam.id,
+    offsetQ: 0,
+    pivotPt: "1º Grau (Maqam Completo)",
+    pivotEn: "1st Degree (Full Maqam)",
+    reasonPt: "Conecta este Jins ao Maqam completo para praticar o 1º e 2º tetracordes encadeados.",
+    reasonEn: "Connects this Jins to its full Maqam to practice the lower and upper tetrachords together.",
+    absTargetRootQ: effRootQ
+  });
+
+  fallbackRoutes.push({
+    targetMode: "JINS",
+    targetId: "jins_rast",
+    offsetQ: ghammazQ,
+    isGhammaz: true,
+    pivotPt: `Pivô Ghammaz (+${ghammazQ}q)`,
+    pivotEn: `Ghammaz Pivot (+${ghammazQ}q)`,
+    reasonPt: "Abre um Jins Rast sobre a nota-pivô (Ghammaz) para desenvolver o registro agudo.",
+    reasonEn: "Opens a Jins Rast on the Ghammaz pivot note to develop the upper register.",
+    absTargetRootQ: (effRootQ + ghammazQ) % 24
+  });
+
+  fallbackRoutes.push({
+    targetMode: "JINS",
+    targetId: "jins_hijaz",
+    offsetQ: ghammazQ,
+    isGhammaz: true,
+    pivotPt: `Pivô Ghammaz (+${ghammazQ}q)`,
+    pivotEn: `Ghammaz Pivot (+${ghammazQ}q)`,
+    reasonPt: "Introduz tensão de 2ª aumentada (Jins Hijaz) sobre o Ghammaz antes de retornar à tônica.",
+    reasonEn: "Introduces augmented 2nd tension (Jins Hijaz) on the Ghammaz before returning to the tonic.",
+    absTargetRootQ: (effRootQ + ghammazQ) % 24
+  });
+
+  return fallbackRoutes;
+}
+
+/**
+ * Injeta as regras de Tema Claro/Escuro, Compartimentalização e Radar de Modulação no <head>.
  */
 function ensureThemeStyleEngine() {
   if (document.getElementById("oud-theme-engine")) return;
@@ -120,7 +587,8 @@ function ensureThemeStyleEngine() {
     body[data-theme="light"] .neck-showcase,
     body[data-theme="light"] .info-card,
     body[data-theme="light"] .cadence-bar,
-    body[data-theme="light"] .glossary-drawer {
+    body[data-theme="light"] .glossary-drawer,
+    body[data-theme="light"] .zen-floating-hud {
       background: var(--bg-card) !important;
       border-color: var(--border-gold) !important;
       box-shadow: var(--shadow-card) !important;
@@ -143,7 +611,8 @@ function ensureThemeStyleEngine() {
     body[data-theme="light"] .iqa-beat-cell,
     body[data-theme="light"] .cadence-step-card,
     body[data-theme="light"] .glossary-item,
-    body[data-theme="light"] .glossary-search-box input {
+    body[data-theme="light"] .glossary-search-box input,
+    body[data-theme="light"] .mod-route-card {
       background-color: var(--bg-input) !important;
       color: var(--text-main) !important;
       border-color: var(--border-gold) !important;
@@ -185,8 +654,203 @@ function ensureThemeStyleEngine() {
     body[data-theme="light"] .dock-title,
     body[data-theme="light"] .ribbon-label,
     body[data-theme="light"] .touch-hint,
-    body[data-theme="light"] .field-block label {
+    body[data-theme="light"] .field-block label,
+    body[data-theme="light"] .mod-route-desc {
       color: var(--text-muted) !important;
+    }
+
+    /* Alinhamento estrutural e Radar de Modulação */
+    .studio-stage {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 365px !important;
+      gap: 14px !important;
+      align-items: start !important;
+    }
+    body[data-orientation="VERTICAL"] .studio-stage {
+      grid-template-columns: minmax(380px, 540px) minmax(0, 1fr) !important;
+    }
+    .info-panel {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+    }
+    .info-card {
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 14px 16px !important;
+      box-sizing: border-box !important;
+    }
+    .mod-origin-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--accent-soft);
+      border: 1.5px solid var(--accent);
+      font-size: 0.76rem;
+    }
+    .mod-origin-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .mod-origin-text strong {
+      color: var(--accent);
+      font-size: 0.8rem;
+    }
+    .intervals-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .mod-route-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 9px 11px;
+      border-radius: 9px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-gold);
+      transition: all 0.16s ease;
+    }
+    .mod-route-card:hover {
+      border-color: var(--sadaf-cyan);
+    }
+    .mod-route-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .mod-pivot-badge {
+      font-size: 0.69rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--sadaf-bg);
+      color: var(--sadaf-cyan);
+      border: 1px solid var(--sadaf-cyan);
+    }
+    .mod-pivot-badge.is-ghammaz-pivot {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .mod-target-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .mod-route-desc {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.38;
+    }
+    .mod-route-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .mod-route-actions button {
+      padding: 4px 10px !important;
+      font-size: 0.73rem !important;
+    }
+
+    /* Fase A: Compartimentalização Desktop & Modo Imersivo (Zen Stage) */
+    body[data-sidebar="collapsed"] .studio-stage,
+    body[data-zen="true"] .studio-stage {
+      grid-template-columns: 1fr !important;
+    }
+    body[data-sidebar="collapsed"] .info-panel,
+    body[data-zen="true"] .info-panel {
+      display: none !important;
+    }
+    body[data-zen="true"] .astrolabe-header,
+    body[data-zen="true"] .diwan-console-3col {
+      display: none !important;
+    }
+    .zen-floating-hud {
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      background: var(--bg-card);
+      border: 1.5px solid var(--sadaf-cyan);
+      box-shadow: var(--shadow-card);
+    }
+    body[data-zen="true"] .zen-floating-hud {
+      display: flex !important;
+    }
+    .zen-telemetry-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .zen-telemetry-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--border-gold);
+      padding: 4px 10px;
+      border-radius: 99px;
+    }
+    .card-arch-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-arch-header h3 {
+      flex: 1;
+    }
+    .card-collapse-btn {
+      padding: 2px 8px !important;
+      font-size: 0.72rem !important;
+      border-radius: 6px !important;
+      margin-left: auto;
+    }
+    .card-compact-summary {
+      display: none;
+      font-size: 0.75rem;
+      color: var(--sadaf-cyan);
+      background: var(--sadaf-bg);
+      border: 1px dashed var(--border-gold);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .card-collapsed {
+      padding-bottom: 10px !important;
+    }
+    .card-collapsed .card-arch-header {
+      border-bottom: none !important;
+      padding-bottom: 0 !important;
+    }
+    .card-collapsed > :not(.card-arch-header):not(.card-compact-summary) {
+      display: none !important;
+    }
+    .card-collapsed .card-compact-summary {
+      display: block !important;
+    }
+    @media (max-width: 1024px) {
+      .studio-stage,
+      body[data-orientation="VERTICAL"] .studio-stage {
+        grid-template-columns: 1fr !important;
+      }
     }
   `;
   document.head.appendChild(styleEl);
@@ -216,6 +880,41 @@ function toggleAppTheme() {
   }
   syncControlsWithState();
   refreshAll();
+}
+
+function toggleZenMode(forceVal) {
+  isZenMode = typeof forceVal === "boolean" ? forceVal : !isZenMode;
+  document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
+  syncControlsWithState();
+  refreshAll();
+}
+
+function toggleSidebarCollapsed(forceVal) {
+  isSidebarCollapsed = typeof forceVal === "boolean" ? forceVal : !isSidebarCollapsed;
+  document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
+  syncControlsWithState();
+}
+
+function toggleIqaPlayback() {
+  const btnToggleIqa = document.getElementById("btn-toggle-iqa");
+  if (isIqaPlaying) {
+    stopIqaEngine();
+    isIqaPlaying = false;
+    activeIqaBeatIdx = -1;
+    if (btnToggleIqa) {
+      btnToggleIqa.textContent = t(state.lang, "btnStartIqa");
+      btnToggleIqa.classList.remove("active-toggle");
+    }
+    renderIqaBeatGrid();
+  } else {
+    isIqaPlaying = true;
+    if (btnToggleIqa) {
+      btnToggleIqa.textContent = t(state.lang, "btnStopIqa");
+      btnToggleIqa.classList.add("active-toggle");
+    }
+    restartIqaIfPlaying();
+  }
+  syncWorkspaceTelemetry();
 }
 
 function applySelectedPitchAsRoot(targetPitch) {
@@ -316,6 +1015,63 @@ function ensureDynamicTonicControlsExist() {
     });
   }
 
+  if (medallions && !document.getElementById("btn-zen-mode")) {
+    const zenBtn = document.createElement("button");
+    zenBtn.id = "btn-zen-mode";
+    zenBtn.type = "button";
+    zenBtn.className = "sadaf-btn";
+    zenBtn.title = "Atalho: Tecla F";
+    if (themeBtn) {
+      medallions.insertBefore(zenBtn, themeBtn);
+    } else {
+      medallions.appendChild(zenBtn);
+    }
+  }
+
+  const studioStage = document.querySelector(".studio-stage");
+  if (studioStage && !document.getElementById("zen-floating-hud")) {
+    const hud = document.createElement("section");
+    hud.id = "zen-floating-hud";
+    hud.className = "zen-floating-hud khatem-border";
+    hud.innerHTML = `
+      <div class="zen-telemetry-group">
+        <span style="font-size:1.05rem;">🪷</span>
+        <span id="zen-badge-entity" class="zen-telemetry-badge">Maqam Rast (C)</span>
+        <span id="zen-badge-tuning" class="zen-telemetry-badge" style="color:var(--sadaf-cyan);">Síria C–c</span>
+        <span id="zen-badge-iqa" class="zen-telemetry-badge">Maqsum • 96 BPM</span>
+      </div>
+      <div class="brass-pills compact-pills">
+        <button type="button" id="btn-zen-play" class="primary">▶ Tocar</button>
+        <button type="button" id="btn-zen-taqsim" class="sadaf-btn">🎶 Taqsim</button>
+        <button type="button" id="btn-zen-drone">🔊 Drone</button>
+        <button type="button" id="btn-zen-iqa">🥁 Iqa'</button>
+        <button type="button" id="btn-zen-theme" class="sadaf-btn">☀️/🌙</button>
+        <button type="button" id="btn-zen-exit" style="border-color:#f87171; color:#f87171;">✕ Sair Imersivo (Esc)</button>
+      </div>
+    `;
+    studioStage.parentNode?.insertBefore(hud, studioStage);
+  }
+
+  const diwanCards = document.querySelectorAll(".diwan-console-3col > div");
+  diwanCards.forEach((cardEl, idx) => {
+    const headerEl = cardEl.querySelector(".card-arch-header");
+    if (headerEl && !headerEl.querySelector(".card-collapse-btn")) {
+      const cBtn = document.createElement("button");
+      cBtn.type = "button";
+      cBtn.className = "card-collapse-btn";
+      cBtn.dataset.cardIdx = String(idx);
+      cBtn.textContent = "—";
+      cBtn.title = "Minimizar / Expandir painel";
+      headerEl.appendChild(cBtn);
+    }
+    if (!cardEl.querySelector(".card-compact-summary")) {
+      const sumDiv = document.createElement("div");
+      sumDiv.className = "card-compact-summary";
+      sumDiv.id = `diwan-summary-${idx}`;
+      cardEl.appendChild(sumDiv);
+    }
+  });
+
   const staffPills = document.querySelector(".staff-toolbar .brass-pills");
   if (staffPills && !document.getElementById("btn-set-root-from-selection")) {
     const btn = document.createElement("button");
@@ -336,6 +1092,14 @@ function ensureDynamicTonicControlsExist() {
     dockBtn.style.display = "none";
     dockBtn.textContent = t(state.lang, "btnSetRootFromNote");
     dockPills.insertBefore(dockBtn, dockPills.firstChild);
+  }
+
+  if (dockPills && !document.getElementById("btn-toggle-sidebar")) {
+    const sideBtn = document.createElement("button");
+    sideBtn.id = "btn-toggle-sidebar";
+    sideBtn.type = "button";
+    sideBtn.className = "sadaf-btn";
+    dockPills.appendChild(sideBtn);
   }
 
   const neckShowcase = document.querySelector(".neck-showcase");
@@ -372,6 +1136,54 @@ function ensureDynamicTonicControlsExist() {
       </div>
     `;
     neckShowcase.insertBefore(bar, svgContainer);
+  }
+}
+
+function syncWorkspaceTelemetry() {
+  const activeStruct = getActiveStructure(state);
+  const entity = localizeEntity(state.lang, activeStruct.entity);
+  const safeRootQ = ((state.rootQ % 24) + 24) % 24;
+  const safeEffRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
+  const rootName = PITCH_CLASSES_24[safeRootQ]?.flat || "C";
+  const effRootName = PITCH_CLASSES_24[safeEffRootQ]?.flat || "C";
+
+  const rawTuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
+  const tuning = localizeEntity(state.lang, rawTuning);
+  const rawIqa = DB.iqaat.find(x => x.id === state.iqaId) || DB.iqaat[0];
+  const iqa = localizeEntity(state.lang, rawIqa);
+
+  const sum0 = document.getElementById("diwan-summary-0");
+  const sum1 = document.getElementById("diwan-summary-1");
+  const sum2 = document.getElementById("diwan-summary-2");
+  if (sum0) sum0.textContent = `🪕 ${tuning.name.split("(")[0].trim()} • Qarar: ${rootName}`;
+  if (sum1) sum1.textContent = `☪ ${entity.name} (${effRootName}) • ${state.direction === "ASC" ? "↑" : "↓"}`;
+  if (sum2) sum2.textContent = `🥁 ${iqa.name.split("—")[0].trim()} • ${state.bpm} BPM ${isIqaPlaying ? "(ON)" : ""}`;
+
+  const zenEntity = document.getElementById("zen-badge-entity");
+  const zenTuning = document.getElementById("zen-badge-tuning");
+  const zenIqa = document.getElementById("zen-badge-iqa");
+  if (zenEntity) zenEntity.textContent = `${entity.name} (${effRootName})`;
+  if (zenTuning) zenTuning.textContent = tuning.name.split("(")[0].trim();
+  if (zenIqa) zenIqa.textContent = `${iqa.name.split("(")[0].trim()} • ${state.bpm} BPM`;
+
+  const btnZenTaqsim = document.getElementById("btn-zen-taqsim");
+  if (btnZenTaqsim) btnZenTaqsim.style.display = state.mode === "MAQAM" ? "inline-flex" : "none";
+
+  const btnZenDrone = document.getElementById("btn-zen-drone");
+  if (btnZenDrone) {
+    btnZenDrone.classList.toggle("active-toggle", state.droneActive);
+    btnZenDrone.textContent = state.droneActive ? `🔊 Drone: ${rootName}` : "🔊 Drone: OFF";
+  }
+
+  const btnZenIqa = document.getElementById("btn-zen-iqa");
+  if (btnZenIqa) {
+    btnZenIqa.classList.toggle("active-toggle", isIqaPlaying);
+    btnZenIqa.textContent = isIqaPlaying ? "⏹ Iqa'" : "▶ Iqa'";
+  }
+
+  const btnZenExit = document.getElementById("btn-zen-exit");
+  if (btnZenExit) {
+    btnZenExit.textContent = state.lang === "en" ? "✕ Exit Zen (Esc / F)" : "✕ Sair Imersivo (Esc / F)";
   }
 }
 
@@ -521,6 +1333,154 @@ function renderCadenceBar() {
   });
 }
 
+/**
+ * Renderiza o Radar de Modulação & Ajnas Vizinhos no segundo cartão do painel lateral.
+ */
+function renderModulationRadarCard() {
+  const radarHeaderEl = document.querySelector('[data-i18n="symmetryCardTitle"]');
+  const radarDescEl = document.getElementById("tuning-desc");
+  const radarListEl = document.getElementById("tuning-intervals-list");
+  if (!radarDescEl || !radarListEl) return;
+
+  const isEn = state.lang === "en";
+  if (radarHeaderEl) {
+    radarHeaderEl.textContent = isEn
+      ? "🧭 Modulation Radar & Pivot Ajnas"
+      : "🧭 Radar de Modulação & Ajnas (Intiqal)";
+  }
+
+  radarDescEl.textContent = isEn
+    ? "Traditional modal transition pathways (Tahwil) from the current structure and tonic:"
+    : "Rotas tradicionais de transição modal (Tahwil) a partir da estrutura e tônica atuais:";
+
+  radarListEl.innerHTML = "";
+
+  // Se o aluno estiver em uma modulação ativa, exibe o banner de retorno ao Maqam/Jins de origem
+  if (modulationOrigin) {
+    const isSameAsOrigin = modulationOrigin.mode === state.mode &&
+      modulationOrigin.entityId === state.entityId &&
+      modulationOrigin.rootQ === state.rootQ;
+
+    if (!isSameAsOrigin) {
+      const originBanner = document.createElement("div");
+      originBanner.className = "mod-origin-banner";
+      originBanner.innerHTML = `
+        <div class="mod-origin-text">
+          <span style="color:var(--text-muted); font-size:0.69rem;">${isEn ? "🧭 Taqsim Origin:" : "🧭 Origem do Taqsim:"}</span>
+          <strong>${modulationOrigin.label}</strong>
+        </div>
+        <button type="button" class="primary" id="btn-return-mod-origin" style="padding:4px 10px; font-size:0.74rem;">
+          ${isEn ? "↩ Return to Origin" : "↩ Voltar à Origem"}
+        </button>
+      `;
+      radarListEl.appendChild(originBanner);
+
+      originBanner.querySelector("#btn-return-mod-origin")?.addEventListener("click", () => {
+        if (!modulationOrigin) return;
+        clearSequenceTimers();
+        highlightedSequenceStep = -1;
+        selectedStaffOrNeckPitch = null;
+        state.mode = modulationOrigin.mode;
+        state.entityId = modulationOrigin.entityId;
+        state.rootQ = modulationOrigin.rootQ;
+        state.anchorAbsQ = modulationOrigin.anchorAbsQ;
+        state.octavePathOnly = Boolean(modulationOrigin.anchorAbsQ !== null);
+        modulationOrigin = null;
+        playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
+        syncControlsWithState();
+        refreshAll();
+      });
+    }
+  }
+
+  const routes = getModulationRoutesForCurrentState();
+  routes.forEach((route) => {
+    const rawTarget = route.targetMode === "MAQAM"
+      ? DB.maqamat.find(m => m.id === route.targetId)
+      : DB.ajnas.find(j => j.id === route.targetId);
+    if (!rawTarget) return;
+
+    const locTarget = localizeEntity(state.lang, rawTarget);
+    const targetPitch = PITCH_CLASSES_24[route.absTargetRootQ] || PITCH_CLASSES_24[0];
+    const pivotLabel = isEn ? route.pivotEn : route.pivotPt;
+    const reasonText = isEn ? route.reasonEn : route.reasonPt;
+
+    const card = document.createElement("div");
+    card.className = "mod-route-card";
+    card.innerHTML = `
+      <div class="mod-route-top">
+        <span class="mod-pivot-badge ${route.isGhammaz ? "is-ghammaz-pivot" : ""}">
+          ${pivotLabel} → ${targetPitch.flat} (${targetPitch.arabic})
+        </span>
+      </div>
+      <div class="mod-target-title">
+        ${locTarget.name} <span style="color:var(--accent); font-weight:700;">${isEn ? "in" : "em"} ${targetPitch.flat}</span>
+      </div>
+      <div class="mod-route-desc">${reasonText}</div>
+      <div class="mod-route-actions">
+        <button type="button" class="sadaf-btn btn-preview-mod">
+          ${isEn ? "🔊 Preview" : "🔊 Ouvir"}
+        </button>
+        <button type="button" class="primary btn-apply-mod">
+          ${isEn ? "⚡ Modulate" : "⚡ Modular"}
+        </button>
+      </div>
+    `;
+
+    // Botão Ouvir Prévia (toca o Jins ou Maqam de destino na nota-pivô sem sair da visualização atual)
+    card.querySelector(".btn-preview-mod")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      clearSequenceTimers();
+      const targetIntervals = route.targetMode === "MAQAM"
+        ? /** @type {any} */ (rawTarget).intervals_asc
+        : /** @type {any} */ (rawTarget).intervals_q;
+      /** @type {Record<number, number>} */
+      const centsMap = {};
+      if (route.targetMode === "MAQAM" && /** @type {any} */ (rawTarget).cents_dev) {
+        Object.assign(centsMap, /** @type {any} */ (rawTarget).cents_dev);
+      } else if (Array.isArray(/** @type {any} */ (rawTarget).cents_dev)) {
+        targetIntervals.forEach((/** @type {number} */ intQ, /** @type {number} */ idx) => {
+          centsMap[intQ] = /** @type {any} */ (rawTarget).cents_dev[idx] || 0;
+        });
+      }
+      playScaleSequence(route.absTargetRootQ, targetIntervals, centsMap);
+    });
+
+    // Botão Modular Agora (aplica a transição modal e salva a origem do Taqsim)
+    card.querySelector(".btn-apply-mod")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      clearSequenceTimers();
+      highlightedSequenceStep = -1;
+      selectedStaffOrNeckPitch = null;
+
+      if (!modulationOrigin) {
+        const curStruct = getActiveStructure(state);
+        const curLoc = localizeEntity(state.lang, curStruct.entity);
+        const curRootName = PITCH_CLASSES_24[((state.rootQ % 24) + 24) % 24]?.flat || "C";
+        modulationOrigin = {
+          mode: state.mode,
+          entityId: state.entityId,
+          rootQ: state.rootQ,
+          anchorAbsQ: state.anchorAbsQ,
+          label: `${curLoc.name} (${curRootName})`
+        };
+      }
+
+      state.mode = route.targetMode;
+      state.entityId = route.targetId;
+      state.rootQ = route.absTargetRootQ;
+      state.anchorAbsQ = null;
+      state.octavePathOnly = false;
+
+      playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
+      syncControlsWithState();
+      refreshAll();
+    });
+
+    radarListEl.appendChild(card);
+  });
+}
+
 function updateInfoPanel() {
   const activeStruct = getActiveStructure(state);
   const entity = localizeEntity(state.lang, activeStruct.entity);
@@ -630,31 +1590,8 @@ function updateInfoPanel() {
     }
   }
 
-  const rawTuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
-  const tuning = localizeEntity(state.lang, rawTuning);
-  const tuningDescEl = document.getElementById("tuning-desc");
-  const listEl = document.getElementById("tuning-intervals-list");
-  if (tuningDescEl && listEl) {
-    tuningDescEl.textContent = tuning.description;
-    listEl.innerHTML = "";
-    for (let i = 5; i > 0; i--) {
-      const lowC = tuning.courses[i];
-      const highC = tuning.courses[i - 1];
-      const diffQ = highC.abs_q - lowC.abs_q;
-      let intName = `${diffQ / 2} ${t(state.lang, "intSemitones")}`;
-      if (diffQ === 10) intName = t(state.lang, "intPerfect4th");
-      else if (diffQ === 8) intName = t(state.lang, "intMajor3rd");
-      else if (diffQ === 4) intName = t(state.lang, "intMajor2nd");
-      else if (diffQ === 24) intName = t(state.lang, "intOctave");
-
-      const item = document.createElement("div");
-      item.style.padding = "4px 8px";
-      item.style.background = diffQ === 8 ? "var(--accent-soft)" : "rgba(128,128,128,0.08)";
-      item.style.borderRadius = "4px";
-      item.innerHTML = `<strong>${lowC.label} → ${highC.label}:</strong> ${intName}`;
-      listEl.appendChild(item);
-    }
-  }
+  // Renderiza o Radar de Modulação & Ajnas Vizinhos no segundo cartão
+  renderModulationRadarCard();
 }
 
 function handlePrimaryAudioAction() {
@@ -863,6 +1800,8 @@ function syncControlsWithState() {
   document.body.setAttribute("data-theme", state.theme);
   document.body.setAttribute("data-tradition", state.tradition);
   document.body.setAttribute("data-orientation", state.orientation);
+  document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
+  document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
   const btnTheme = document.getElementById("btn-theme");
   if (btnTheme) {
@@ -870,6 +1809,23 @@ function syncControlsWithState() {
       btnTheme.textContent = state.lang === "en" ? "🌙 Dark Mode (Majlis)" : "🌙 Modo Escuro (Majlis)";
     } else {
       btnTheme.textContent = state.lang === "en" ? "☀️ Light Mode (Parchment)" : "☀️ Modo Claro (Pergaminho)";
+    }
+  }
+
+  const btnZen = document.getElementById("btn-zen-mode");
+  if (btnZen) {
+    btnZen.textContent = state.lang === "en" ? "🪷 Zen Stage (F)" : "🪷 Modo Imersivo (F)";
+    btnZen.classList.toggle("selected", isZenMode);
+  }
+
+  const btnSidebar = document.getElementById("btn-toggle-sidebar");
+  if (btnSidebar) {
+    if (isSidebarCollapsed) {
+      btnSidebar.textContent = state.lang === "en" ? "⇤ Theory Panel" : "⇤ Painel Teórico";
+      btnSidebar.classList.add("selected");
+    } else {
+      btnSidebar.textContent = state.lang === "en" ? "⇥ Hide Theory" : "⇥ Ocultar Teoria";
+      btnSidebar.classList.remove("selected");
     }
   }
 
@@ -955,13 +1911,10 @@ function syncControlsWithState() {
     }
   }
 
+  syncWorkspaceTelemetry();
   renderGlossaryList();
 }
 
-/**
- * Pós-processador visual de segurança para os SVGs da Pauta e do Espelho no Modo Claro,
- * garantindo contraste perfeito mesmo que submódulos antigos estejam em cache.
- */
 function applySvgThemePolish() {
   const isLight = state.theme === "light";
   const staffSvg = document.getElementById("oud-staff");
@@ -992,7 +1945,7 @@ function applySvgThemePolish() {
   const neckSvg = document.getElementById("oud-neck");
   if (neckSvg && isLight) {
     neckSvg.querySelectorAll("text").forEach(tx => {
-      if (tx.closest(".note-node")) return; // Mantém o texto branco dentro das joias
+      if (tx.closest(".note-node")) return;
       const fl = tx.getAttribute("fill") || "";
       if (fl === "#fef3c7") {
         tx.setAttribute("fill", "#2c1d11");
@@ -1043,6 +1996,7 @@ function refreshAll() {
 
   applySvgThemePolish();
   updateInfoPanel();
+  syncWorkspaceTelemetry();
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
   syncStateToUrl(state);
@@ -1059,6 +2013,62 @@ function initApp() {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
+
+    if (target.closest("#btn-zen-mode")) {
+      e.preventDefault();
+      toggleZenMode();
+      return;
+    }
+    if (target.closest("#btn-zen-exit")) {
+      e.preventDefault();
+      toggleZenMode(false);
+      return;
+    }
+    if (target.closest("#btn-zen-play")) {
+      e.preventDefault();
+      handlePrimaryAudioAction();
+      return;
+    }
+    if (target.closest("#btn-zen-taqsim")) {
+      e.preventDefault();
+      handlePlayTaqsim();
+      return;
+    }
+    if (target.closest("#btn-zen-drone")) {
+      e.preventDefault();
+      const droneBtn = document.getElementById("btn-drone");
+      if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
+      syncWorkspaceTelemetry();
+      return;
+    }
+    if (target.closest("#btn-zen-iqa")) {
+      e.preventDefault();
+      toggleIqaPlayback();
+      return;
+    }
+    if (target.closest("#btn-zen-theme")) {
+      e.preventDefault();
+      toggleAppTheme();
+      return;
+    }
+
+    if (target.closest("#btn-toggle-sidebar")) {
+      e.preventDefault();
+      toggleSidebarCollapsed();
+      return;
+    }
+
+    const collapseBtn = /** @type {HTMLElement | null} */ (target.closest(".card-collapse-btn"));
+    if (collapseBtn) {
+      e.preventDefault();
+      const card = collapseBtn.closest(".mihrab-card, .sanctuary-card, .iqa-card");
+      if (card) {
+        const isCollapsed = card.classList.toggle("card-collapsed");
+        collapseBtn.textContent = isCollapsed ? "+" : "—";
+        syncWorkspaceTelemetry();
+      }
+      return;
+    }
 
     if (target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic")) {
       e.preventDefault();
@@ -1180,6 +2190,7 @@ function initApp() {
     clearSequenceTimers();
     highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
+    modulationOrigin = null;
     state.anchorAbsQ = null;
     state.octavePathOnly = false;
     state.rootQ = parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0;
@@ -1191,6 +2202,7 @@ function initApp() {
     clearSequenceTimers();
     highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
+    modulationOrigin = null;
     state.anchorAbsQ = null;
     state.octavePathOnly = false;
     const active = /** @type {any} */ (getActiveStructure(state).entity);
@@ -1217,6 +2229,7 @@ function initApp() {
     }
     activeIqaBeatIdx = -1;
     restartIqaIfPlaying();
+    syncWorkspaceTelemetry();
     syncStateToUrl(state);
   });
 
@@ -1224,24 +2237,13 @@ function initApp() {
     state.bpm = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10);
     if (labelBpm) labelBpm.textContent = String(state.bpm);
     restartIqaIfPlaying();
+    syncWorkspaceTelemetry();
     syncStateToUrl(state);
   });
 
   const btnToggleIqa = document.getElementById("btn-toggle-iqa");
   btnToggleIqa?.addEventListener("click", () => {
-    if (isIqaPlaying) {
-      stopIqaEngine();
-      isIqaPlaying = false;
-      activeIqaBeatIdx = -1;
-      btnToggleIqa.textContent = t(state.lang, "btnStartIqa");
-      btnToggleIqa.classList.remove("active-toggle");
-      renderIqaBeatGrid();
-    } else {
-      isIqaPlaying = true;
-      btnToggleIqa.textContent = t(state.lang, "btnStopIqa");
-      btnToggleIqa.classList.add("active-toggle");
-      restartIqaIfPlaying();
-    }
+    toggleIqaPlayback();
   });
 
   document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -1249,6 +2251,7 @@ function initApp() {
       clearSequenceTimers();
       highlightedSequenceStep = -1;
       selectedStaffOrNeckPitch = null;
+      modulationOrigin = null;
       state.mode = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode);
       state.cadenceStepIndex = 0;
       if ((state.mode === "CHORD" || state.mode === "CADENCE") && state.shapeMode === "FULL_NECK") {
@@ -1271,6 +2274,7 @@ function initApp() {
     clearSequenceTimers();
     highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
+    modulationOrigin = null;
     state.entityId = /** @type {HTMLSelectElement} */ (e.target).value;
     state.cadenceStepIndex = 0;
     if (!hasValidAnchor()) {
@@ -1418,6 +2422,7 @@ function initApp() {
   const btnDrone = document.getElementById("btn-drone");
   btnDrone?.addEventListener("click", () => {
     state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, btnDrone);
+    syncWorkspaceTelemetry();
   });
 
   const btnShare = document.getElementById("btn-share");
@@ -1467,7 +2472,23 @@ function initApp() {
   });
 
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeGlossary();
+    const activeTag = document.activeElement?.tagName.toLowerCase();
+    const isTyping = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
+
+    if (e.key === "Escape") {
+      const drawer = document.getElementById("glossary-drawer");
+      if (drawer?.classList.contains("open")) {
+        closeGlossary();
+      } else if (isZenMode) {
+        toggleZenMode(false);
+      }
+      return;
+    }
+
+    if (!isTyping && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key === "f" || e.key === "F")) {
+      e.preventDefault();
+      toggleZenMode();
+    }
   });
 
   syncControlsWithState();
