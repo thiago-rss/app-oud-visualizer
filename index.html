@@ -332,7 +332,7 @@
     <div class="cadence-steps" id="cadence-steps-container"></div>
   </section>
 
-  <!-- Palco Principal: Espelho + Pauta 24-TET + Painel Lateral Teórico -->
+  <!-- Palco Principal (100% Largura): Espelho + Pauta 24-TET + Deck Horizontal Único -->
   <main class="studio-stage">
     <section class="neck-showcase">
       <!-- Barra Contextual Rápida (Mobile pauta + Definir Tônica quando uma nota é selecionada) -->
@@ -367,7 +367,7 @@
         </div>
       </div>
 
-      <!-- Barra de Caminho de 1 Oitava Ancorado (visível ao definir tônica em uma nota física) -->
+      <!-- Barra de Caminho de 1 Oitava Ancorado -->
       <div id="octave-path-bar" class="octave-path-bar" style="display:none;">
         <div class="octave-bar-group">
           <strong id="octave-bar-label" class="octave-bar-title">📍 Caminho da Tônica</strong>
@@ -413,22 +413,56 @@
       </div>
     </section>
 
-    <!-- Painel Lateral de Teoria & Modulação -->
-    <aside class="info-panel">
-      <div class="info-card">
-        <h2 id="info-title">Maqam Rast</h2>
-        <p id="info-desc" class="info-description"></p>
-        <div class="info-meta" id="info-pills"></div>
-        <div id="sayr-detail-box" class="bridge-box sayr-highlight-box" style="display:none;"></div>
-        <div id="bridge-container"></div>
+    <!-- Deck Horizontal Único (Teoria & Sayr | Radar de Modulação) -->
+    <section class="studio-deck info-panel" id="studio-deck" aria-label="Teoria Modal e Modulação">
+      <div class="deck-header">
+        <div class="deck-tabs" role="tablist">
+          <button type="button" class="deck-tab-btn active" id="tab-deck-theory" data-deck-tab="theory" role="tab" aria-selected="true">
+            <span>📖</span>
+            <span data-i18n="deckTabTheory">Teoria & Sayr</span>
+          </button>
+          <button type="button" class="deck-tab-btn" id="tab-deck-modulation" data-deck-tab="modulation" role="tab" aria-selected="false">
+            <span>🧭</span>
+            <span data-i18n="deckTabModulation">Radar de Modulação</span>
+            <span class="deck-tab-count" id="deck-mod-count">4</span>
+          </button>
+        </div>
+
+        <div class="deck-header-right">
+          <span class="deck-mini-status" id="deck-mini-status">Maqam Rast • C</span>
+          <button type="button" id="btn-deck-collapse" class="ghost-btn compact-btn" aria-expanded="true">▾ Recolher</button>
+        </div>
       </div>
 
-      <div class="info-card">
-        <h2 class="info-subhead" data-i18n="symmetryCardTitle">🧭 Radar de Modulação & Ajnas (Intiqal)</h2>
-        <p id="tuning-desc" class="tuning-description"></p>
-        <div id="tuning-intervals-list" class="intervals-stack"></div>
+      <div class="deck-body" id="deck-body">
+        <!-- Aba 1: Teoria & Sayr -->
+        <div class="deck-pane active-pane" id="deck-pane-theory" data-deck-pane="theory" role="tabpanel">
+          <div class="deck-theory-grid">
+            <div class="deck-theory-main">
+              <h2 id="info-title">Maqam Rast</h2>
+              <p id="info-desc" class="info-description"></p>
+              <div id="sayr-detail-box" class="bridge-box sayr-highlight-box" style="display:none;"></div>
+              <div id="bridge-container"></div>
+            </div>
+            <div class="deck-theory-meta">
+              <div class="info-meta" id="info-pills"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aba 2: Radar de Modulação & Ajnas -->
+        <div class="deck-pane" id="deck-pane-modulation" data-deck-pane="modulation" role="tabpanel">
+          <div class="deck-mod-top">
+            <div class="deck-mod-heading">
+              <h2 class="info-subhead" data-i18n="symmetryCardTitle">🧭 Radar de Modulação & Ajnas (Intiqal)</h2>
+              <p id="tuning-desc" class="tuning-description"></p>
+            </div>
+            <div id="mod-origin-slot" class="mod-origin-slot"></div>
+          </div>
+          <div id="tuning-intervals-list" class="mod-routes-grid"></div>
+        </div>
       </div>
-    </aside>
+    </section>
   </main>
 
   <!-- Gaveta do Glossário (Al-Mu'jam al-Musiqi) -->

@@ -70,6 +70,8 @@ let isZenMode = false;
 let isSidebarCollapsed = isMobileViewport();
 /** @type {number | null} */
 let activePopoverIdx = null;
+/** @type {"theory"|"modulation"} */
+let activeDeckTab = "theory";
 /** @type {number | undefined} */
 let loupeHideTimer;
 
@@ -609,6 +611,30 @@ function toggleSidebarCollapsed(forceVal) {
   syncControlsWithState();
 }
 
+/** @param {"theory"|"modulation"} tabName */
+function setActiveDeckTab(tabName) {
+  activeDeckTab = tabName;
+  if (isSidebarCollapsed) {
+    isSidebarCollapsed = false;
+    userOverrodeSidebar = true;
+    document.body.setAttribute("data-sidebar", "expanded");
+  }
+
+  document.querySelectorAll(".deck-tab-btn").forEach(btn => {
+    const el = /** @type {HTMLElement} */ (btn);
+    const isAct = el.dataset.deckTab === tabName;
+    el.classList.toggle("active", isAct);
+    el.setAttribute("aria-selected", isAct ? "true" : "false");
+  });
+
+  document.querySelectorAll(".deck-pane").forEach(pane => {
+    const el = /** @type {HTMLElement} */ (pane);
+    el.classList.toggle("active-pane", el.dataset.deckPane === tabName);
+  });
+
+  syncControlsWithState();
+}
+
 function toggleIqaPlayback() {
   const btnToggleIqa = document.getElementById("btn-toggle-iqa");
   if (isIqaPlaying) {
@@ -782,7 +808,7 @@ function syncCommandBarSummaries() {
   if (v2) v2.textContent = `${shapeShort} • ${lblShort}`;
   if (v3) v3.textContent = `${shortIqa} • ${state.bpm} BPM${isIqaPlaying ? " ●" : ""}`;
 
-  // Traduções dos kickers da Barra Única
+  // Traduções dinâmicas da Barra Única e do Deck
   const setKicker = (sel, pt, en) => {
     const el = document.querySelector(sel);
     if (el) el.textContent = state.lang === "en" ? en : pt;
@@ -794,6 +820,21 @@ function syncCommandBarSummaries() {
   setKicker('[data-i18n="popoverNeckTitle"]', "Espelho, Posições & Visualização", "Fingerboard, Positions & View");
   setKicker('[data-i18n="lblTradition"]', "Escola de Luthieria", "Luthierie Tradition");
   setKicker('[data-i18n="lblVisualLayers"]', "Camadas & Ergonomia", "Layers & Ergonomics");
+  setKicker('[data-i18n="deckTabTheory"]', "Teoria & Sayr", "Theory & Sayr");
+  setKicker('[data-i18n="deckTabModulation"]', "Radar de Modulação", "Modulation Radar");
+
+  const deckStatus = document.getElementById("deck-mini-status");
+  if (deckStatus) {
+    deckStatus.textContent = `${entity.name.replace(/^\[.*?\]\s*/, "")} • ${effRootName}${dirArrow}`;
+  }
+
+  const btnDeckCollapse = document.getElementById("btn-deck-collapse");
+  if (btnDeckCollapse) {
+    btnDeckCollapse.setAttribute("aria-expanded", isSidebarCollapsed ? "false" : "true");
+    btnDeckCollapse.textContent = isSidebarCollapsed
+      ? (state.lang === "en" ? "▸ Expand" : "▸ Expandir")
+      : (state.lang === "en" ? "▾ Collapse" : "▾ Recolher");
+  }
 
   document.querySelectorAll(".btn-close-popover").forEach(btn => {
     btn.textContent = safeT("btnMobileDone", "✓ Concluir", "✓ Done");
@@ -1011,6 +1052,8 @@ function renderModulationRadarCard() {
   const radarHeaderEl = document.querySelector('[data-i18n="symmetryCardTitle"]');
   const radarDescEl = document.getElementById("tuning-desc");
   const radarListEl = document.getElementById("tuning-intervals-list");
+  const originSlotEl = document.getElementById("mod-origin-slot");
+  const modCountEl = document.getElementById("deck-mod-count");
   if (!radarDescEl || !radarListEl) return;
 
   const isEn = state.lang === "en";
@@ -1024,6 +1067,7 @@ function renderModulationRadarCard() {
     "Traditional routes via the Ghammaz and pivot degrees. Preview or modulate in 1 click."
   );
   radarListEl.innerHTML = "";
+  if (originSlotEl) originSlotEl.innerHTML = "";
 
   if (modulationOrigin) {
     const isSameAsOrigin = modulationOrigin.mode === state.mode &&
@@ -1042,7 +1086,7 @@ function renderModulationRadarCard() {
           ${safeT("btnReturnOrigin", "↩ Voltar à Origem", "↩ Return to Origin")}
         </button>
       `;
-      radarListEl.appendChild(originBanner);
+      (originSlotEl || radarListEl).appendChild(originBanner);
 
       originBanner.querySelector("#btn-return-mod-origin")?.addEventListener("click", () => {
         if (!modulationOrigin) return;
@@ -1063,6 +1107,8 @@ function renderModulationRadarCard() {
   }
 
   const routes = getModulationRoutesForCurrentState();
+  if (modCountEl) modCountEl.textContent = String(routes.length);
+
   routes.forEach((route) => {
     const rawTarget = route.targetMode === "MAQAM"
       ? DB.maqamat.find(m => m.id === route.targetId)
@@ -1428,13 +1474,11 @@ function syncSelectionActionButtons() {
     if (ribbonStatus) ribbonStatus.textContent = "";
   }
 
-  // No Desktop, a barra contextual só aparece quando a pauta está oculta e há nota selecionada
   if (ribbon) {
     const showRibbonDesktop = !state.showStaff && hasSelection;
     ribbon.classList.toggle("visible", showRibbonDesktop);
   }
 
-  // Barra de Caminho de 1 Oitava Ancorado
   const octBar = document.getElementById("octave-path-bar");
   if (octBar) {
     if (hasValidAnchor() && typeof state.anchorAbsQ === "number") {
@@ -1491,6 +1535,18 @@ function syncControlsWithState() {
   document.body.setAttribute("data-orientation", state.orientation);
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
+
+  // Sincroniza estado visual das abas do Deck Horizontal
+  document.querySelectorAll(".deck-tab-btn").forEach(btn => {
+    const el = /** @type {HTMLElement} */ (btn);
+    const isAct = el.dataset.deckTab === activeDeckTab;
+    el.classList.toggle("active", isAct);
+    el.setAttribute("aria-selected", isAct ? "true" : "false");
+  });
+  document.querySelectorAll(".deck-pane").forEach(pane => {
+    const el = /** @type {HTMLElement} */ (pane);
+    el.classList.toggle("active-pane", el.dataset.deckPane === activeDeckTab);
+  });
 
   const selTrad = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
   if (selTrad) selTrad.value = state.tradition;
@@ -1721,7 +1777,7 @@ function initApp() {
     wasMobile = nowMobile;
   });
 
-  // Delegação de eventos globais para Barra Única, Popovers, Zen e Mobile Dock
+  // Delegação de eventos globais para Barra Única, Popovers, Deck, Zen e Mobile Dock
   document.addEventListener("click", (e) => {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
@@ -1791,13 +1847,21 @@ function initApp() {
       toggleSidebarCollapsed();
       if (!isSidebarCollapsed) {
         requestAnimationFrame(() => {
-          document.querySelector(".info-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          document.getElementById("studio-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       }
       return;
     }
 
-    if (target.closest("#btn-toggle-sidebar")) {
+    const deckTabBtn = /** @type {HTMLElement | null} */ (target.closest(".deck-tab-btn"));
+    if (deckTabBtn) {
+      e.preventDefault();
+      const tab = deckTabBtn.dataset.deckTab === "modulation" ? "modulation" : "theory";
+      setActiveDeckTab(tab);
+      return;
+    }
+
+    if (target.closest("#btn-deck-collapse") || target.closest("#btn-toggle-sidebar")) {
       e.preventDefault();
       toggleSidebarCollapsed();
       return;

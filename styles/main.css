@@ -1,6 +1,6 @@
 /* ==========================================================================
-   App Oud Visualizer — v2.8 Design System
-   Barra Única de Comando + Contenção Cromática (Ébano/Pergaminho, Latão & Ameixa)
+   App Oud Visualizer — v2.8.1 Design System
+   Barra Única + Deck Horizontal com Abas + Contenção Cromática (Ameixa & Latão)
    Zero Ciano em todos os temas e componentes.
    ========================================================================== */
 
@@ -162,7 +162,6 @@ button:active {
   transform: translateY(1px);
 }
 
-/* Único estilo preenchido de alto destaque (ação principal) */
 button.primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: var(--accent-text);
@@ -175,7 +174,6 @@ button.primary:hover {
   border-color: transparent;
 }
 
-/* Botões neutros discretos (Ghost / Secondary) */
 button.ghost-btn {
   background: transparent;
   border-color: var(--border-subtle);
@@ -188,7 +186,6 @@ button.ghost-btn:hover {
   border-color: var(--border-warm);
 }
 
-/* Acento secundário contido: Ameixa (para controles ativos/especiais) */
 button.plum-btn {
   background: var(--plum-soft);
   color: var(--plum);
@@ -439,7 +436,6 @@ input[type="range"] {
   color: var(--accent);
 }
 
-/* Backdrop sutil para fechar o popover ao clicar fora */
 .popover-backdrop {
   display: none;
   position: fixed;
@@ -452,7 +448,6 @@ input[type="range"] {
   display: block;
 }
 
-/* Painel Flutuante (Desktop) */
 .cmd-popover {
   display: none;
   position: absolute;
@@ -602,7 +597,6 @@ input[type="range"] {
   letter-spacing: 0.4px;
 }
 
-/* Abas de Modalidade dentro do Popover 1 */
 .dome-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -752,16 +746,13 @@ input[type="range"] {
 
 body[data-zen="true"] .studio-header,
 body[data-zen="true"] .command-bar-shell,
+body[data-zen="true"] .studio-deck,
 body[data-zen="true"] .info-panel {
   display: none !important;
 }
 
 body[data-zen="true"] .zen-floating-hud {
   display: flex;
-}
-
-body[data-zen="true"] .studio-stage {
-  grid-template-columns: 1fr;
 }
 
 /* ==========================================================================
@@ -853,26 +844,19 @@ body[data-zen="true"] .studio-stage {
 }
 
 /* ==========================================================================
-   5. Palco Principal (Espelho + Pauta 24-TET + Painel Teórico)
+   5. Palco Principal (100% Largura: Espelho + Pauta 24-TET + Deck Inferior)
    ========================================================================== */
 .studio-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 14px;
-  align-items: start;
-}
-
-body[data-sidebar="collapsed"] .studio-stage {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-body[data-sidebar="collapsed"] .info-panel {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
 
 .neck-showcase {
   display: flex;
   flex-direction: column;
+  width: 100%;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 15px;
@@ -880,7 +864,6 @@ body[data-sidebar="collapsed"] .info-panel {
   box-shadow: var(--shadow-soft);
 }
 
-/* Barra Contextual Discreta (exibida no mobile ou quando há nota selecionada sem pauta) */
 .stage-selection-ribbon {
   display: none;
   align-items: center;
@@ -909,7 +892,6 @@ body[data-sidebar="collapsed"] .info-panel {
   color: var(--plum);
 }
 
-/* Pauta Interativa 24-TET */
 .staff-stage-box {
   display: flex;
   flex-direction: column;
@@ -955,7 +937,6 @@ body[data-sidebar="collapsed"] .info-panel {
   display: block;
 }
 
-/* Barra de Caminho de 1 Oitava Ancorado (Paleta Ameixa & Latão) */
 .octave-path-bar {
   display: flex;
   flex-wrap: wrap;
@@ -980,7 +961,6 @@ body[data-sidebar="collapsed"] .info-panel {
   font-weight: 700;
 }
 
-/* Palco SVG do Braço do Oud */
 .svg-stage-container {
   width: 100%;
   background: var(--bg-stage);
@@ -1007,7 +987,6 @@ body[data-orientation="VERTICAL"] #oud-neck {
   transition: opacity 0.15s ease;
 }
 
-/* Rodapé de Legenda do Espelho */
 .inlay-dock-bottom {
   display: flex;
   align-items: center;
@@ -1054,52 +1033,140 @@ body[data-orientation="VERTICAL"] #oud-neck {
 }
 
 /* ==========================================================================
-   6. Painel Lateral (Teoria & Radar de Modulação)
+   6. Deck Horizontal Único com Abas (Teoria & Sayr | Radar de Modulação)
    ========================================================================== */
-.info-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-card {
+.studio-deck {
+  width: 100%;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 15px 16px;
+  border-radius: 15px;
   box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
-.info-card h2 {
-  margin: 0 0 8px;
+.deck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--bg-dock);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+body[data-sidebar="collapsed"] .deck-header {
+  border-bottom-color: transparent;
+}
+
+body[data-sidebar="collapsed"] .deck-body {
+  display: none;
+}
+
+.deck-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.deck-tab-btn {
+  padding: 6px 13px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--text-muted);
+}
+
+.deck-tab-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.deck-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--accent);
+  border-color: var(--border-warm);
+  font-weight: 700;
+}
+
+.deck-tab-count {
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--plum-soft);
+  color: var(--plum);
+  border: 1px solid var(--plum-border);
+}
+
+.deck-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deck-mini-status {
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.deck-body {
+  padding: 16px 18px 18px;
+}
+
+.deck-pane {
+  display: none;
+}
+
+.deck-pane.active-pane {
+  display: block;
+}
+
+/* Aba 1: Teoria & Sayr em 2 colunas equilibradas */
+.deck-theory-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.deck-theory-main h2,
+.deck-mod-heading h2 {
+  margin: 0 0 6px;
   font-family: "Cormorant Garamond", Georgia, serif;
-  font-size: 1.32rem;
+  font-size: 1.38rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
-.info-card h2.info-subhead {
-  font-size: 1.15rem;
+.deck-mod-heading h2.info-subhead {
+  font-size: 1.24rem;
 }
 
 .info-description,
 .tuning-description {
   margin: 0 0 12px;
-  font-size: 0.81rem;
+  font-size: 0.83rem;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.52;
 }
 
 .info-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 7px;
 }
 
 .meta-pill {
-  font-size: 0.77rem;
-  padding: 7px 10px;
+  font-size: 0.79rem;
+  padding: 8px 11px;
   border-radius: 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
@@ -1122,7 +1189,7 @@ body[data-orientation="VERTICAL"] #oud-neck {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--accent);
-  font-size: 0.79rem;
+  font-size: 0.8rem;
 }
 
 .sayr-highlight-box {
@@ -1131,19 +1198,30 @@ body[data-orientation="VERTICAL"] #oud-neck {
   border-left: 3px solid var(--plum);
 }
 
-/* Radar de Modulação */
-.intervals-stack {
+/* Aba 2: Radar de Modulação em fileira horizontal simétrica */
+.deck-mod-top {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.deck-mod-heading .tuning-description {
+  margin: 0;
+}
+
+.mod-origin-slot:empty {
+  display: none;
 }
 
 .mod-origin-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 9px 11px;
+  gap: 12px;
+  padding: 8px 12px;
   border-radius: 9px;
   background: var(--accent-soft);
   border: 1px solid var(--border-strong);
@@ -1152,15 +1230,22 @@ body[data-orientation="VERTICAL"] #oud-neck {
 .mod-origin-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   font-size: 0.78rem;
+}
+
+.mod-routes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  gap: 10px;
+  align-items: stretch;
 }
 
 .mod-route-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 11px;
+  padding: 11px 12px;
   border-radius: 10px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
@@ -1190,27 +1275,28 @@ body[data-orientation="VERTICAL"] #oud-neck {
 }
 
 .mod-target-title {
-  font-size: 0.85rem;
+  font-size: 0.87rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .mod-route-desc {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   color: var(--text-muted);
-  line-height: 1.42;
+  line-height: 1.44;
 }
 
 .mod-route-actions {
   display: flex;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: auto;
+  padding-top: 6px;
 }
 
 .mod-route-actions button {
   flex: 1;
-  padding: 5px 8px;
-  font-size: 0.74rem;
+  padding: 6px 8px;
+  font-size: 0.75rem;
 }
 
 /* ==========================================================================
@@ -1411,9 +1497,14 @@ body[data-orientation="VERTICAL"] #oud-neck {
 /* ==========================================================================
    9. Responsividade (Tablet & Mobile <= 768px)
    ========================================================================== */
-@media (max-width: 1080px) {
-  .studio-stage {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 900px) {
+  .deck-theory-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .deck-mini-status {
+    display: none;
   }
 }
 
@@ -1444,7 +1535,6 @@ body[data-orientation="VERTICAL"] #oud-neck {
     display: none;
   }
 
-  /* Controles de áudio já ficam na barra inferior fixa */
   #btn-play-scale,
   #btn-play-taqsim,
   #btn-drone,
@@ -1464,7 +1554,6 @@ body[data-orientation="VERTICAL"] #oud-neck {
     border-color: var(--border-subtle);
   }
 
-  /* Popovers viram Bottom Sheets no Mobile */
   .popover-backdrop.open {
     background: rgba(0, 0, 0, 0.56);
   }
