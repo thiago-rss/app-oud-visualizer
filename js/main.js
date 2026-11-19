@@ -70,6 +70,8 @@ let isZenMode = false;
 let isSidebarCollapsed = isMobileViewport();
 /** @type {number | null} */
 let activePopoverIdx = null;
+/** @type {"audio"|"main"|null} */
+let activeHeaderMenu = null;
 /** @type {"theory"|"modulation"} */
 let activeDeckTab = "theory";
 /** @type {number | undefined} */
@@ -555,11 +557,45 @@ function resolvePitchClassQ(targetPitch) {
 }
 
 /**
+ * Abre ou fecha os menus flutuantes do cabeçalho ("audio" | "main" | null).
+ * @param {"audio"|"main"|null} which
+ */
+function setActiveHeaderMenu(which) {
+  activeHeaderMenu = which;
+
+  if (which !== null && activePopoverIdx !== null) {
+    setActivePopover(null);
+  }
+
+  const audioDrop = document.getElementById("audio-dropdown");
+  const audioBtn = document.getElementById("btn-audio-menu");
+  const mainDrop = document.getElementById("header-menu-popover");
+  const mainBtn = document.getElementById("btn-header-menu");
+
+  const isAudioOpen = which === "audio";
+  const isMainOpen = which === "main";
+
+  audioDrop?.classList.toggle("open", isAudioOpen);
+  audioDrop?.setAttribute("aria-hidden", isAudioOpen ? "false" : "true");
+  audioBtn?.setAttribute("aria-expanded", isAudioOpen ? "true" : "false");
+
+  mainDrop?.classList.toggle("open", isMainOpen);
+  mainDrop?.setAttribute("aria-hidden", isMainOpen ? "false" : "true");
+  mainBtn?.classList.toggle("active-menu-btn", isMainOpen);
+  mainBtn?.setAttribute("aria-expanded", isMainOpen ? "true" : "false");
+}
+
+/**
  * Abre ou fecha um dos 4 painéis da Barra Única (Popover no Desktop / Bottom Sheet no Mobile).
  * @param {number | null} idx
  */
 function setActivePopover(idx) {
   activePopoverIdx = idx;
+
+  if (idx !== null && activeHeaderMenu !== null) {
+    setActiveHeaderMenu(null);
+  }
+
   const backdrop = document.getElementById("popover-backdrop");
 
   document.querySelectorAll(".cmd-popover").forEach(el => {
@@ -598,6 +634,7 @@ function toggleAppTheme() {
 
 function toggleZenMode(forceVal) {
   setActivePopover(null);
+  setActiveHeaderMenu(null);
   isZenMode = typeof forceVal === "boolean" ? forceVal : !isZenMode;
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   syncControlsWithState();
@@ -808,11 +845,20 @@ function syncCommandBarSummaries() {
   if (v2) v2.textContent = `${shapeShort} • ${lblShort}`;
   if (v3) v3.textContent = `${shortIqa} • ${state.bpm} BPM${isIqaPlaying ? " ●" : ""}`;
 
-  // Traduções dinâmicas da Barra Única e do Deck
+  // Ponto indicador discreto no botão ⋯ quando o Drone está ativo
+  const droneDot = document.getElementById("menu-drone-dot");
+  if (droneDot) {
+    droneDot.style.display = state.droneActive ? "block" : "none";
+  }
+
+  // Traduções dinâmicas da Barra Única, Menu ⋯ e Deck
   const setKicker = (sel, pt, en) => {
     const el = document.querySelector(sel);
     if (el) el.textContent = state.lang === "en" ? en : pt;
   };
+  setKicker('[data-i18n="menuSecStudy"]', "Áudio & Estudo", "Audio & Study");
+  setKicker('[data-i18n="menuSecPrefs"]', "Preferências", "Preferences");
+  setKicker('[data-i18n="menuSecApp"]', "Aplicativo", "App");
   setKicker('[data-i18n="cmdKickerMizan"]', "Afinação & Qarar", "Tuning & Qarar");
   setKicker('[data-i18n="cmdKickerMode"]', "Modalidade", "Mode / Maqam");
   setKicker('[data-i18n="cmdKickerNeck"]', "Espelho & Guias", "Fingerboard & Guides");
@@ -957,6 +1003,7 @@ function renderGlossaryList(focusTermId) {
 
 function openGlossary(termId) {
   setActivePopover(null);
+  setActiveHeaderMenu(null);
   const drawer = document.getElementById("glossary-drawer");
   const backdrop = document.getElementById("glossary-backdrop");
   if (!drawer || !backdrop) return;
@@ -1305,6 +1352,7 @@ function updateInfoPanel() {
 }
 
 function handlePrimaryAudioAction() {
+  setActiveHeaderMenu(null);
   clearSequenceTimers();
   highlightedSequenceStep = -1;
 
@@ -1333,6 +1381,7 @@ function handlePrimaryAudioAction() {
 }
 
 function handlePlayTaqsim() {
+  setActiveHeaderMenu(null);
   if (state.mode !== "MAQAM") return;
   const activeStruct = getActiveStructure(state);
   const entity = /** @type {any} */ (activeStruct.entity);
@@ -1580,13 +1629,13 @@ function syncControlsWithState() {
   const btnTheme = document.getElementById("btn-theme");
   if (btnTheme) {
     btnTheme.textContent = state.theme === "light"
-      ? safeT("btnThemeDark", "🌙 Escuro", "🌙 Dark")
-      : safeT("btnThemeLight", "☀️ Claro", "☀️ Light");
+      ? safeT("btnThemeDark", "🌙 Tema Escuro", "🌙 Dark Theme")
+      : safeT("btnThemeLight", "☀️ Tema Claro", "☀️ Light Theme");
   }
 
   const btnZen = document.getElementById("btn-zen-mode");
   if (btnZen) {
-    btnZen.textContent = safeT("btnZenEnter", "🪷 Imersivo", "🪷 Zen Stage");
+    btnZen.textContent = state.lang === "en" ? "🪷 Zen Stage (F)" : "🪷 Modo Imersivo (F)";
     btnZen.classList.toggle("selected", isZenMode);
   }
 
@@ -1617,7 +1666,7 @@ function syncControlsWithState() {
 
   const btnLang = document.getElementById("btn-lang");
   if (btnLang) {
-    btnLang.textContent = state.lang === "en" ? "🌐 EN | PT" : "🌐 PT | EN";
+    btnLang.textContent = state.lang === "en" ? "🌐 Language: EN → PT" : "🌐 Idioma: PT → EN";
   }
 
   const btnToggleIqa = document.getElementById("btn-toggle-iqa");
@@ -1676,20 +1725,32 @@ function syncControlsWithState() {
     el.classList.toggle("selected", el.dataset.filter === state.jinsFilter);
   });
 
+  // Cápsula de Áudio (Split Button): exibe a seta apenas quando há ação secundária (Taqsim ou Arpejar)
   const btnPlay = document.getElementById("btn-play-scale");
   const btnTaqsim = document.getElementById("btn-play-taqsim");
   const btnArp = document.getElementById("btn-arp-chord");
+  const btnAudioCaret = document.getElementById("btn-audio-menu");
+  const audioCapsule = document.getElementById("audio-split-capsule");
+
   if (btnPlay && btnArp && btnTaqsim) {
-    btnTaqsim.style.display = state.mode === "MAQAM" ? "inline-flex" : "none";
+    const hasSecondaryAudio = state.mode === "MAQAM" || state.mode === "CHORD" || state.mode === "CADENCE";
+    btnTaqsim.style.display = state.mode === "MAQAM" ? "flex" : "none";
+
     if (state.mode === "CADENCE") {
       btnPlay.textContent = t(state.lang, "btnPlayQafla");
-      btnArp.style.display = "inline-flex";
+      btnArp.style.display = "flex";
     } else if (state.mode === "CHORD") {
       btnPlay.textContent = t(state.lang, "btnPlayChord");
-      btnArp.style.display = "inline-flex";
+      btnArp.style.display = "flex";
     } else {
       btnPlay.textContent = t(state.lang, "btnPlayScale");
       btnArp.style.display = "none";
+    }
+
+    if (btnAudioCaret) btnAudioCaret.style.display = hasSecondaryAudio ? "inline-flex" : "none";
+    if (audioCapsule) audioCapsule.classList.toggle("is-single-action", !hasSecondaryAudio);
+    if (!hasSecondaryAudio && activeHeaderMenu === "audio") {
+      setActiveHeaderMenu(null);
     }
   }
 
@@ -1763,12 +1824,14 @@ function initApp() {
     const nowMobile = isMobileViewport();
     if (nowMobile && !wasMobile) {
       setActivePopover(null);
+      setActiveHeaderMenu(null);
       state.orientation = "VERTICAL";
       if (!userOverrodeSidebar) isSidebarCollapsed = true;
       syncControlsWithState();
       refreshAll();
     } else if (!nowMobile && wasMobile) {
       setActivePopover(null);
+      setActiveHeaderMenu(null);
       state.orientation = desktopPreferredOrientation;
       if (!userOverrodeSidebar) isSidebarCollapsed = false;
       syncControlsWithState();
@@ -1777,11 +1840,33 @@ function initApp() {
     wasMobile = nowMobile;
   });
 
-  // Delegação de eventos globais para Barra Única, Popovers, Deck, Zen e Mobile Dock
+  // Delegação de eventos globais para Cabeçalho, Barra Única, Popovers, Deck, Zen e Mobile Dock
   document.addEventListener("click", (e) => {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
+
+    // Abertura/fechamento dos menus do cabeçalho (Cápsula de Áudio & Menu ⋯)
+    if (target.closest("#btn-audio-menu")) {
+      e.preventDefault();
+      setActiveHeaderMenu(activeHeaderMenu === "audio" ? null : "audio");
+      return;
+    }
+
+    if (target.closest("#btn-header-menu")) {
+      e.preventDefault();
+      setActiveHeaderMenu(activeHeaderMenu === "main" ? null : "main");
+      return;
+    }
+
+    // Fecha menus do cabeçalho ao clicar fora deles
+    if (
+      activeHeaderMenu !== null &&
+      !target.closest("#audio-split-capsule") &&
+      !target.closest("#header-menu-shell")
+    ) {
+      setActiveHeaderMenu(null);
+    }
 
     const triggerBtn = /** @type {HTMLElement | null} */ (target.closest(".cmd-trigger"));
     if (triggerBtn) {
@@ -1844,6 +1929,7 @@ function initApp() {
     if (target.closest("#btn-mob-theory")) {
       e.preventDefault();
       setActivePopover(null);
+      setActiveHeaderMenu(null);
       toggleSidebarCollapsed();
       if (!isSidebarCollapsed) {
         requestAnimationFrame(() => {
@@ -2212,7 +2298,10 @@ function initApp() {
 
   document.getElementById("btn-play-scale")?.addEventListener("click", handlePrimaryAudioAction);
   document.getElementById("btn-play-taqsim")?.addEventListener("click", handlePlayTaqsim);
-  document.getElementById("btn-arp-chord")?.addEventListener("click", () => arpeggiateChordVoicing(currentChordVoicingFreqs));
+  document.getElementById("btn-arp-chord")?.addEventListener("click", () => {
+    setActiveHeaderMenu(null);
+    arpeggiateChordVoicing(currentChordVoicingFreqs);
+  });
   document.getElementById("btn-strum-step")?.addEventListener("click", () => strumChordVoicing(currentChordVoicingFreqs));
   document.getElementById("btn-play-cadence-seq")?.addEventListener("click", handlePrimaryAudioAction);
 
@@ -2272,6 +2361,10 @@ function initApp() {
     const isTyping = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
 
     if (e.key === "Escape") {
+      if (activeHeaderMenu !== null) {
+        setActiveHeaderMenu(null);
+        return;
+      }
       if (activePopoverIdx !== null) {
         setActivePopover(null);
         return;
@@ -2315,20 +2408,22 @@ window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
 
-  const medallions = document.querySelector(".action-medallions");
-  if (medallions && !document.getElementById("btn-install-pwa")) {
+  const pwaSlot = document.getElementById("header-menu-pwa-slot");
+  if (pwaSlot && !document.getElementById("btn-install-pwa")) {
     const installBtn = document.createElement("button");
     installBtn.id = "btn-install-pwa";
     installBtn.type = "button";
-    installBtn.className = "plum-btn";
+    installBtn.className = "menu-item-btn";
+    installBtn.setAttribute("role", "menuitem");
     installBtn.textContent = state.lang === "en" ? "📲 Install App" : "📲 Instalar App";
     installBtn.addEventListener("click", async () => {
       if (!deferredInstallPrompt) return;
+      setActiveHeaderMenu(null);
       deferredInstallPrompt.prompt();
       await deferredInstallPrompt.userChoice;
       deferredInstallPrompt = null;
       installBtn.remove();
     });
-    medallions.appendChild(installBtn);
+    pwaSlot.appendChild(installBtn);
   }
 });

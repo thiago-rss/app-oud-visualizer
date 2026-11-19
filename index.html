@@ -20,7 +20,7 @@
 </head>
 <body data-theme="dark" data-tradition="damascus" data-orientation="HORIZONTAL" data-zen="false" data-sidebar="expanded">
 
-  <!-- Cabeçalho Enxuto: Identidade, Ação Principal e Utilitários Neutros -->
+  <!-- Cabeçalho Ultralimpo: Marca + Cápsula de Áudio + Menu (⋯) -->
   <header class="studio-header">
     <div class="brand">
       <svg class="brand-rosette" viewBox="0 0 64 64" aria-hidden="true">
@@ -43,17 +43,40 @@
     </div>
 
     <div class="header-actions">
-      <div class="action-medallions">
-        <button class="primary" id="btn-play-scale" type="button">▶ Tocar Escala / Maqam</button>
-        <button id="btn-play-taqsim" class="ghost-btn" type="button" data-i18n="btnPlayTaqsim">🎶 Ouvir Taqsim</button>
-        <button id="btn-arp-chord" class="ghost-btn" type="button" style="display:none;" data-i18n="btnArp">🎵 Arpejar</button>
-        <button id="btn-drone" class="ghost-btn" type="button">🔊 Drone: OFF</button>
-        <span class="header-divider" aria-hidden="true"></span>
-        <button id="btn-zen-mode" class="ghost-btn desktop-only-btn" type="button" title="Atalho: Tecla F">🪷 Imersivo</button>
-        <button id="btn-theme" class="ghost-btn" type="button">☀️ Claro</button>
-        <button id="btn-open-glossary" class="ghost-btn" type="button" data-i18n="btnGlossary">📖 Glossário</button>
-        <button id="btn-lang" class="ghost-btn" type="button" title="Alternar Idioma / Switch Language (PT / EN)">🌐 PT | EN</button>
-        <button id="btn-share" class="ghost-btn" type="button" data-i18n="btnShare">🔗 Compartilhar</button>
+      <!-- Cápsula de Áudio (Split Button: Tocar + Opções Secundárias) -->
+      <div class="audio-split-capsule" id="audio-split-capsule">
+        <button class="primary audio-split-main" id="btn-play-scale" type="button">▶ Tocar Escala / Maqam</button>
+        <button class="primary audio-split-caret" id="btn-audio-menu" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Mais opções de reprodução">▾</button>
+
+        <div class="header-dropdown-popover audio-dropdown-popover" id="audio-dropdown" role="menu" aria-hidden="true">
+          <button id="btn-play-taqsim" class="menu-item-btn" type="button" role="menuitem" data-i18n="btnPlayTaqsim">🎶 Ouvir Taqsim</button>
+          <button id="btn-arp-chord" class="menu-item-btn" type="button" role="menuitem" style="display:none;" data-i18n="btnArp">🎵 Arpejar</button>
+        </div>
+      </div>
+
+      <!-- Menu Unificado (⋯): Drone, Glossário, Imersivo, Tema, Idioma, Compartilhar & App -->
+      <div class="header-menu-shell" id="header-menu-shell">
+        <button id="btn-header-menu" class="header-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu do aplicativo" title="Opções, Drone, Glossário & Preferências">
+          <span class="menu-dots-icon" aria-hidden="true">⋯</span>
+          <span id="menu-drone-dot" class="menu-status-dot" style="display:none;" title="Drone ativo"></span>
+        </button>
+
+        <div class="header-dropdown-popover header-menu-popover" id="header-menu-popover" role="menu" aria-hidden="true">
+          <div class="menu-section-label" data-i18n="menuSecStudy">Áudio & Estudo</div>
+          <button id="btn-drone" class="menu-item-btn" type="button" role="menuitem">🔊 Drone: OFF</button>
+          <button id="btn-open-glossary" class="menu-item-btn" type="button" role="menuitem" data-i18n="btnGlossary">📖 Glossário</button>
+
+          <div class="menu-divider"></div>
+          <div class="menu-section-label" data-i18n="menuSecPrefs">Preferências</div>
+          <button id="btn-zen-mode" class="menu-item-btn desktop-only-btn" type="button" role="menuitem" title="Atalho: Tecla F">🪷 Imersivo (F)</button>
+          <button id="btn-theme" class="menu-item-btn" type="button" role="menuitem">☀️ Claro</button>
+          <button id="btn-lang" class="menu-item-btn" type="button" role="menuitem">🌐 PT | EN</button>
+
+          <div class="menu-divider"></div>
+          <div class="menu-section-label" data-i18n="menuSecApp">Aplicativo</div>
+          <button id="btn-share" class="menu-item-btn" type="button" role="menuitem" data-i18n="btnShare">🔗 Compartilhar</button>
+          <div id="header-menu-pwa-slot"></div>
+        </div>
       </div>
     </div>
   </header>
