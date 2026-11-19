@@ -14,13 +14,14 @@
  * @property {boolean} octavePathOnly
  * @property {"ASC"|"DESC"} octavePathDir
  * @property {"ASC"|"DESC"} direction
- * @property {"FULL_NECK"|"OPEN_FIRST_POS"|"CLOSED_BOX"} shapeMode
+ * @property {"FULL_NECK"|"OPEN_FIRST_POS"|"POS_SECOND"|"POS_THIRD_BODY"|"CLOSED_BOX"} shapeMode
  * @property {number} boxAnchorQ
  * @property {"ALL"|"LOWER"|"UPPER"} jinsFilter
  * @property {"NOTE_NAME"|"DEGREE"|"FINGER"|"ARABIC"} labelMode
  * @property {boolean} showSemiGuides
  * @property {boolean} showMicroGuides
  * @property {boolean} showGhostNotes
+ * @property {boolean} showPositionsMap
  * @property {boolean} showSayr
  * @property {number} sayrPhraseIndex
  * @property {boolean} chordVoicingOnly
@@ -55,6 +56,7 @@ export function getDefaultState() {
     showSemiGuides: true,
     showMicroGuides: true,
     showGhostNotes: true,
+    showPositionsMap: true,
     showSayr: true,
     sayrPhraseIndex: 0,
     chordVoicingOnly: true,
@@ -117,6 +119,7 @@ export function getInitialStateFromUrl() {
   if (p.has("gs")) state.showSemiGuides = p.get("gs") === "1";
   if (p.has("gm")) state.showMicroGuides = p.get("gm") === "1";
   if (p.has("gh")) state.showGhostNotes = p.get("gh") === "1";
+  if (p.has("pm")) state.showPositionsMap = p.get("pm") === "1";
   if (p.has("sy")) state.showSayr = p.get("sy") === "1";
   if (p.has("sp")) state.sayrPhraseIndex = Number(p.get("sp")) || 0;
   if (p.has("cv")) state.chordVoicingOnly = p.get("cv") === "1";
@@ -154,6 +157,7 @@ export function syncStateToUrl(state) {
   p.set("gs", state.showSemiGuides ? "1" : "0");
   p.set("gm", state.showMicroGuides ? "1" : "0");
   p.set("gh", state.showGhostNotes ? "1" : "0");
+  p.set("pm", state.showPositionsMap ? "1" : "0");
   p.set("sy", state.showSayr ? "1" : "0");
   p.set("sp", String(state.sayrPhraseIndex));
   p.set("cv", state.chordVoicingOnly ? "1" : "0");

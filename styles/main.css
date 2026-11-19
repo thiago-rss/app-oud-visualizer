@@ -657,7 +657,7 @@ body[data-zen="true"] .zen-floating-hud {
 .svg-stage-container {
   width: 100%;
   background: var(--bg-stage);
-  padding: 10px;
+  padding: 16px 12px;
   display: flex;
   justify-content: center;
   align-items: center;

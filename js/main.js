@@ -46,7 +46,7 @@ try {
     state.theme = savedTheme;
   }
 } catch {
-  // Ignora
+  // Ignora se localStorage estiver bloqueado
 }
 if (state.theme !== "light" && state.theme !== "dark") {
   state.theme = "dark";
@@ -69,6 +69,9 @@ if (typeof state.showStaff !== "boolean") {
 if (state.staffMode !== "SCALE" && state.staffMode !== "SAYR") {
   state.staffMode = "SCALE";
 }
+if (typeof state.showPositionsMap !== "boolean") {
+  state.showPositionsMap = true;
+}
 
 /** @type {{ course: number, freq: number }[]} */
 let currentChordVoicingFreqs = [];
@@ -89,6 +92,18 @@ let loupeHideTimer;
 
 /** @type {{ mode: any, entityId: string, rootQ: number, anchorAbsQ: number | null, label: string } | null} */
 let modulationOrigin = null;
+
+/**
+ * Busca chave de tradução com fallback seguro para chaves recém-adicionadas.
+ * @param {string} key
+ * @param {string} fallbackPt
+ * @param {string} fallbackEn
+ */
+function safeT(key, fallbackPt, fallbackEn) {
+  const val = t(state.lang, /** @type {any} */ (key));
+  if (val && val !== key) return val;
+  return state.lang === "en" ? fallbackEn : fallbackPt;
+}
 
 /** @type {Record<string, { targetMode: "MAQAM"|"JINS", targetId: string, offsetQ: number, isGhammaz?: boolean, pivotPt: string, pivotEn: string, reasonPt: string, reasonEn: string }[]>} */
 const MODULATION_RADAR_MAP = {
@@ -1006,7 +1021,7 @@ function ensureDynamicTonicControlsExist() {
     neckShowcase.insertBefore(mobBar, neckShowcase.firstChild);
   }
 
-  // Barra de Transporte Inferior Fixa (Thumb-Zone Bottom Dock): Tocar, Taqsim, Drone, Iqa' e Teoria (sem botão de orientação)
+  // Barra de Transporte Inferior Fixa (Thumb-Zone Bottom Dock): Tocar, Taqsim, Drone, Iqa' e Teoria
   if (!document.getElementById("mobile-thumb-dock")) {
     const dock = document.createElement("nav");
     dock.id = "mobile-thumb-dock";
@@ -1048,6 +1063,29 @@ function ensureDynamicTonicControlsExist() {
     staffPills.appendChild(hideStaffBtn);
   }
 
+  // Garante as opções de 2ª Posição e 3ª Posição no seletor de Mapeamento Mecânico (#select-shape)
+  const selShapeEl = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
+  if (selShapeEl && !selShapeEl.querySelector('option[value="POS_SECOND"]')) {
+    const optPos2 = document.createElement("option");
+    optPos2.value = "POS_SECOND";
+    optPos2.setAttribute("data-i18n", "shapePos2");
+    optPos2.textContent = safeT("shapePos2", "II • 2ª Posição Média (4q a 10q)", "II • 2nd Middle Position (4q to 10q)");
+
+    const optPos3 = document.createElement("option");
+    optPos3.value = "POS_THIRD_BODY";
+    optPos3.setAttribute("data-i18n", "shapePos3");
+    optPos3.textContent = safeT("shapePos3", "III • 3ª Posição / Tampo (8q a 16q)", "III • 3rd Body Position (8q to 16q)");
+
+    const closedOpt = selShapeEl.querySelector('option[value="CLOSED_BOX"]');
+    if (closedOpt) {
+      selShapeEl.insertBefore(optPos2, closedOpt);
+      selShapeEl.insertBefore(optPos3, closedOpt);
+    } else {
+      selShapeEl.appendChild(optPos2);
+      selShapeEl.appendChild(optPos3);
+    }
+  }
+
   const dockPills = document.querySelector(".inlay-dock-top .brass-pills");
   if (dockPills && !document.getElementById("btn-dock-set-tonic")) {
     const dockBtn = document.createElement("button");
@@ -1059,12 +1097,38 @@ function ensureDynamicTonicControlsExist() {
     dockPills.insertBefore(dockBtn, dockPills.firstChild);
   }
 
+  // Botão "📐 Regiões & Pivôs" na doca do instrumento
+  if (dockPills && !document.getElementById("btn-pos-map")) {
+    const posMapBtn = document.createElement("button");
+    posMapBtn.id = "btn-pos-map";
+    posMapBtn.type = "button";
+    posMapBtn.className = state.showPositionsMap ? "selected" : "";
+    posMapBtn.setAttribute("data-i18n", "btnPosMap");
+    posMapBtn.textContent = safeT("btnPosMap", "📐 Regiões & Pivôs", "📐 Regions & Pivots");
+    const semiGuideBtn = document.getElementById("btn-guide-semi");
+    if (semiGuideBtn) {
+      dockPills.insertBefore(posMapBtn, semiGuideBtn);
+    } else {
+      dockPills.appendChild(posMapBtn);
+    }
+  }
+
   if (dockPills && !document.getElementById("btn-toggle-sidebar")) {
     const sideBtn = document.createElement("button");
     sideBtn.id = "btn-toggle-sidebar";
     sideBtn.type = "button";
     sideBtn.className = "sadaf-btn";
     dockPills.appendChild(sideBtn);
+  }
+
+  // Legenda para Nota-Pivô / Uníssono na base do espelho
+  const legendEl = document.querySelector(".inlay-dock-bottom .legend");
+  if (legendEl && !document.getElementById("legend-pivot-item")) {
+    const pivotItem = document.createElement("span");
+    pivotItem.id = "legend-pivot-item";
+    pivotItem.className = "legend-item";
+    pivotItem.innerHTML = `<span style="color:var(--sadaf-cyan); font-weight:800;">⇄</span> <span data-i18n="legPivot">${safeT("legPivot", "Nota-Pivô / Uníssono", "Shift / Unison Pivot")}</span>`;
+    legendEl.appendChild(pivotItem);
   }
 
   const svgContainer = document.querySelector(".svg-stage-container");
@@ -1136,7 +1200,13 @@ function syncWorkspaceTelemetry() {
   if (mVal3) {
     const shapeShort = state.shapeMode === "FULL_NECK"
       ? (state.lang === "en" ? "Full" : "Completo")
-      : (state.shapeMode === "OPEN_FIRST_POS" ? "1ª Pos" : "Fechado");
+      : (state.shapeMode === "OPEN_FIRST_POS"
+        ? (state.lang === "en" ? "I • 1st Pos" : "I • 1ª Pos")
+        : (state.shapeMode === "POS_SECOND"
+          ? (state.lang === "en" ? "II • 2nd Pos" : "II • 2ª Pos")
+          : (state.shapeMode === "POS_THIRD_BODY"
+            ? (state.lang === "en" ? "III • Body" : "III • Tampo")
+            : (state.lang === "en" ? "Box" : "Móvel"))));
     const lblShort = state.labelMode === "NOTE_NAME"
       ? (state.lang === "en" ? "Notes" : "Cifra")
       : (state.labelMode === "DEGREE"
@@ -1217,6 +1287,11 @@ function syncWorkspaceTelemetry() {
   const btnZenExit = document.getElementById("btn-zen-exit");
   if (btnZenExit) {
     btnZenExit.textContent = state.lang === "en" ? "✕ Exit Zen (Esc / F)" : "✕ Sair Imersivo (Esc / F)";
+  }
+
+  const btnInstall = document.getElementById("btn-install-pwa");
+  if (btnInstall) {
+    btnInstall.textContent = state.lang === "en" ? "📲 Install App" : "📲 Instalar App";
   }
 }
 
@@ -1841,6 +1916,27 @@ function syncControlsWithState() {
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
+  const selShape = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
+  if (selShape) {
+    selShape.value = state.shapeMode;
+  }
+
+  const selLabel = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-label"));
+  if (selLabel) {
+    selLabel.value = state.labelMode;
+  }
+
+  const btnPosMap = document.getElementById("btn-pos-map");
+  if (btnPosMap) {
+    btnPosMap.textContent = safeT("btnPosMap", "📐 Regiões & Pivôs", "📐 Regions & Pivots");
+    btnPosMap.classList.toggle("selected", state.showPositionsMap);
+  }
+
+  const legendPivot = document.getElementById("legend-pivot-item");
+  if (legendPivot) {
+    legendPivot.style.display = state.showPositionsMap ? "inline-flex" : "none";
+  }
+
   const btnTheme = document.getElementById("btn-theme");
   if (btnTheme) {
     btnTheme.textContent = state.theme === "light"
@@ -1981,7 +2077,7 @@ function applySvgThemePolish() {
   const neckSvg = document.getElementById("oud-neck");
   if (neckSvg && isLight) {
     neckSvg.querySelectorAll("text").forEach(tx => {
-      if (tx.closest(".note-node")) return;
+      if (tx.closest(".note-node") || tx.closest(".region-overlay")) return;
       const fl = tx.getAttribute("fill") || "";
       if (fl === "#fef3c7") {
         tx.setAttribute("fill", "#2c1d11");
@@ -2085,6 +2181,15 @@ function initApp() {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
+
+    // Alternar camada visual de Posições Anatômicas & Pivôs
+    if (target.closest("#btn-pos-map")) {
+      e.preventDefault();
+      state.showPositionsMap = !state.showPositionsMap;
+      syncControlsWithState();
+      refreshAll();
+      return;
+    }
 
     const mobPill = /** @type {HTMLElement | null} */ (target.closest(".mobile-status-pill"));
     if (mobPill) {
@@ -2488,7 +2593,11 @@ function initApp() {
   selShape.value = state.shapeMode;
   selShape.addEventListener("change", (e) => {
     state.shapeMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
-    if (state.shapeMode === "CLOSED_BOX") {
+    if (
+      state.shapeMode === "CLOSED_BOX" ||
+      state.shapeMode === "POS_SECOND" ||
+      state.shapeMode === "POS_THIRD_BODY"
+    ) {
       state.labelMode = "FINGER";
       /** @type {HTMLSelectElement} */ (document.getElementById("select-label")).value = "FINGER";
     }

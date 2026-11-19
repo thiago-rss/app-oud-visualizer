@@ -3,8 +3,10 @@ import { DB, PITCH_CLASSES_24, TRADITION_PALETTES } from "../core/database.js";
 import {
   MAX_NECK_Q,
   getPhysicalX,
+  getPositionBounds,
   getActiveStructure,
   evaluateShapeAndFinger,
+  evaluateShiftPivot,
   selectBestChordVoicingPerCourse
 } from "../core/modalEngine.js";
 import { playPluckedNote } from "../audio/synthEngine.js";
@@ -17,6 +19,34 @@ function createOctagramStarPath(cx, cy, outerR, innerR) {
     points.push(`${(cx + r * Math.cos(angle)).toFixed(1)},${(cy + r * Math.sin(angle)).toFixed(1)}`);
   }
   return points.join(" ");
+}
+
+/**
+ * Desenha uma cápsula opaca com borda e texto centralizado para leitura nítida em qualquer fundo.
+ */
+function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, fontSize = 10, padX = 8, height = 19) {
+  const approxWidth = Math.max(36, text.length * (fontSize * 0.62) + padX * 2);
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", String(cx - approxWidth / 2));
+  rect.setAttribute("y", String(cy - height / 2));
+  rect.setAttribute("width", String(approxWidth));
+  rect.setAttribute("height", String(height));
+  rect.setAttribute("rx", String(height / 2));
+  rect.setAttribute("fill", bgColor);
+  rect.setAttribute("stroke", strokeColor);
+  rect.setAttribute("stroke-width", "1.4");
+  parent.appendChild(rect);
+
+  const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  lbl.setAttribute("x", String(cx));
+  lbl.setAttribute("y", String(cy + fontSize * 0.35));
+  lbl.setAttribute("text-anchor", "middle");
+  lbl.setAttribute("fill", textColor);
+  lbl.setAttribute("font-size", String(fontSize));
+  lbl.setAttribute("font-weight", "800");
+  lbl.textContent = text;
+  parent.appendChild(lbl);
 }
 
 function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
@@ -78,6 +108,193 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   svg.appendChild(g);
 }
 
+/**
+ * Desenha os Colchetes de Região Anatômica (I · 1ª Pos, II · 2ª Pos, III · Tampo),
+ * a linha divisória da Junta do Corpo (10q) e o indicador do Polegar (Ibham) com cápsulas legíveis.
+ */
+function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
+  if (!state.showPositionsMap) return;
+
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "region-overlay");
+  g.setAttribute("pointer-events", "none");
+
+  const isEn = state.lang === "en";
+  const posBounds = getPositionBounds(state.shapeMode, state.boxAnchorQ);
+  const pillBg = isLight ? "#fffdf8" : "#140c08";
+
+  const regions = [
+    {
+      id: "OPEN_FIRST_POS",
+      q1: 1,
+      q2: 7,
+      color: isLight ? "#0e7490" : "#67e8f9",
+      labelHoriz: isEn ? "I · 1st Pos (Nut)" : "I · 1ª Pos (Pestana)",
+      labelVert: isEn ? "I · 1st Pos" : "I · 1ª Pos"
+    },
+    {
+      id: "POS_SECOND",
+      q1: 4,
+      q2: 10,
+      color: isLight ? "#9a6515" : "#fbbf24",
+      labelHoriz: isEn ? "II · 2nd Pos (Mid)" : "II · 2ª Pos (Média)",
+      labelVert: isEn ? "II · 2nd Pos" : "II · 2ª Pos"
+    },
+    {
+      id: "POS_THIRD_BODY",
+      q1: 9,
+      q2: 16,
+      color: isLight ? "#7e22ce" : "#e879f9",
+      labelHoriz: isEn ? "III · 3rd Pos (Body)" : "III · 3ª Pos (Tampo)",
+      labelVert: isEn ? "III · Body" : "III · Tampo"
+    }
+  ];
+
+  // Linha divisória da Junta do Corpo (10q)
+  const jointCoord = getPhysicalX(10, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+  const jointLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  if (isVert) {
+    jointLine.setAttribute("x1", String(edgeStart - 16));
+    jointLine.setAttribute("y1", String(jointCoord));
+    jointLine.setAttribute("x2", String(edgeEnd + 22));
+    jointLine.setAttribute("y2", String(jointCoord));
+  } else {
+    jointLine.setAttribute("x1", String(jointCoord));
+    jointLine.setAttribute("y1", String(edgeStart - 18));
+    jointLine.setAttribute("x2", String(jointCoord));
+    jointLine.setAttribute("y2", String(edgeEnd + 16));
+  }
+  jointLine.setAttribute("stroke", isLight ? "#b45309" : "#f59e0b");
+  jointLine.setAttribute("stroke-width", "1.8");
+  jointLine.setAttribute("stroke-dasharray", "5,3");
+  jointLine.setAttribute("opacity", "0.85");
+  g.appendChild(jointLine);
+
+  // Desenha os colchetes e cápsulas em faixas dedicadas sem colisão
+  regions.forEach((reg, idx) => {
+    const isFocusedRegion = state.shapeMode === reg.id;
+    const c1 = getPhysicalX(reg.q1, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const c2 = getPhysicalX(reg.q2, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const minC = Math.min(c1, c2);
+    const maxC = Math.max(c1, c2);
+    const midC = (minC + maxC) / 2;
+
+    if (isVert) {
+      // Trilhas verticais na margem direita com cápsulas HORIZONTAIS (leitura direta sem girar o celular)
+      const railX = idx === 1 ? edgeEnd + 46 : edgeEnd + 34;
+      const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      bracket.setAttribute(
+        "d",
+        `M ${railX - 6},${minC} L ${railX},${minC} L ${railX},${maxC} L ${railX - 6},${maxC}`
+      );
+      bracket.setAttribute("fill", "none");
+      bracket.setAttribute("stroke", reg.color);
+      bracket.setAttribute("stroke-width", isFocusedRegion ? "2.6" : "1.6");
+      bracket.setAttribute("opacity", isFocusedRegion ? "1" : "0.78");
+      g.appendChild(bracket);
+
+      // Posições Y livres de cruzamento para cada cápsula
+      const pillY = idx === 0
+        ? minC + (maxC - minC) * 0.28
+        : (idx === 1 ? minC + (maxC - minC) * 0.66 : midC);
+      const pillCenterX = edgeEnd + 92;
+
+      const connector = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      connector.setAttribute("x1", String(railX));
+      connector.setAttribute("y1", String(pillY));
+      connector.setAttribute("x2", String(pillCenterX - 38));
+      connector.setAttribute("y2", String(pillY));
+      connector.setAttribute("stroke", reg.color);
+      connector.setAttribute("stroke-width", "1.4");
+      connector.setAttribute("opacity", "0.85");
+      g.appendChild(connector);
+
+      appendPillLabel(
+        g,
+        pillCenterX,
+        pillY,
+        reg.labelVert,
+        reg.color,
+        reg.color,
+        pillBg,
+        isFocusedRegion ? 10.5 : 9.8,
+        8,
+        21
+      );
+    } else {
+      // Modo Horizontal: duas faixas limpas acima do instrumento (Track 1: I & III em y=20; Track 2: II em y=48)
+      const railY = idx === 1 ? 52 : 24;
+      const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      bracket.setAttribute(
+        "d",
+        `M ${minC},${railY + 7} L ${minC},${railY} L ${maxC},${railY} L ${maxC},${railY + 7}`
+      );
+      bracket.setAttribute("fill", "none");
+      bracket.setAttribute("stroke", reg.color);
+      bracket.setAttribute("stroke-width", isFocusedRegion ? "2.5" : "1.6");
+      bracket.setAttribute("opacity", isFocusedRegion ? "1" : "0.82");
+      g.appendChild(bracket);
+
+      appendPillLabel(
+        g,
+        midC,
+        railY,
+        reg.labelHoriz,
+        reg.color,
+        reg.color,
+        pillBg,
+        isFocusedRegion ? 10.5 : 9.8,
+        9,
+        20
+      );
+    }
+  });
+
+  // Indicador de Apoio do Polegar Esquerdo (Ibham) quando uma posição específica está selecionada
+  if (state.shapeMode !== "FULL_NECK") {
+    const thumbCoord = getPhysicalX(posBounds.thumbQ, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const thumbColor = isLight ? "#0e7490" : "#67e8f9";
+    const thumbText = isEn ? `▲ Thumb (${posBounds.thumbQ}q)` : `▲ Polegar (${posBounds.thumbQ}q)`;
+
+    if (isVert) {
+      // Ponteiro triangular na borda esquerda do braço + cápsula de legenda limpa acima das regiões
+      const tx = edgeStart - 22;
+      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      poly.setAttribute("points", `${tx - 5},${thumbCoord - 5.5} ${tx + 5},${thumbCoord} ${tx - 5},${thumbCoord + 5.5}`);
+      poly.setAttribute("fill", thumbColor);
+      g.appendChild(poly);
+
+      appendPillLabel(
+        g,
+        edgeEnd + 92,
+        166,
+        isEn ? `▶ Thumb ${posBounds.thumbQ}q` : `▶ Polegar ${posBounds.thumbQ}q`,
+        thumbColor,
+        thumbColor,
+        pillBg,
+        9.6,
+        7,
+        20
+      );
+    } else {
+      appendPillLabel(
+        g,
+        thumbCoord,
+        edgeEnd + 54,
+        thumbText,
+        thumbColor,
+        thumbColor,
+        pillBg,
+        10,
+        9,
+        20
+      );
+    }
+  }
+
+  svg.appendChild(g);
+}
+
 function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#fde047") {
   if (orderedPoints.length < 2) return;
 
@@ -113,13 +330,13 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
 
   orderedPoints.forEach((pt, idx) => {
     const isHighlighted = highlightedStepIdx === pt.stepIdx;
-    const badgeX = pt.x + 11;
-    const badgeY = pt.y - 11;
+    const badgeX = pt.x + 12;
+    const badgeY = pt.y - 12;
 
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", String(badgeX));
     circle.setAttribute("cy", String(badgeY));
-    circle.setAttribute("r", isHighlighted ? "9.5" : "7.2");
+    circle.setAttribute("r", isHighlighted ? "9.5" : "7.5");
     circle.setAttribute("fill", isHighlighted ? "#06b6d4" : "#140c08");
     circle.setAttribute("stroke", isHighlighted ? "#ffffff" : baseColor);
     circle.setAttribute("stroke-width", "1.4");
@@ -130,7 +347,7 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
     num.setAttribute("y", String(badgeY + 2.8));
     num.setAttribute("text-anchor", "middle");
     num.setAttribute("fill", isHighlighted ? "#ffffff" : baseColor);
-    num.setAttribute("font-size", "8");
+    num.setAttribute("font-size", "8.2");
     num.setAttribute("font-weight", "800");
     num.textContent = String(idx + 1);
     trailGroup.appendChild(num);
@@ -184,6 +401,9 @@ function appendNoteJewel(
   isMicroNote,
   isSelectedActiveNote,
   isPlaybackStepHit,
+  pivotInfo,
+  showPositionsMap,
+  isLight,
   displayText,
   labelMode,
   noteFreq,
@@ -247,6 +467,20 @@ function appendNoteJewel(
       });
     }
   });
+
+  // Halo da Nota-Pivô / Uníssono de Ordem (atrás da joia)
+  if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
+    const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
+    const pivotRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    pivotRing.setAttribute("cx", String(nx));
+    pivotRing.setAttribute("cy", String(ny));
+    pivotRing.setAttribute("r", "16.2");
+    pivotRing.setAttribute("fill", isUnisonBridge ? "rgba(103, 232, 249, 0.14)" : "rgba(251, 191, 36, 0.14)");
+    pivotRing.setAttribute("stroke", isUnisonBridge ? "#67e8f9" : "#fbbf24");
+    pivotRing.setAttribute("stroke-width", "1.6");
+    pivotRing.setAttribute("stroke-dasharray", isUnisonBridge ? "4,2" : "2,2");
+    group.appendChild(pivotRing);
+  }
 
   if (isExactStaffMatch || isOctaveStaffMatch) {
     const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -316,6 +550,45 @@ function appendNoteJewel(
   textEl.textContent = displayText;
   group.appendChild(textEl);
 
+  // Microcápsula legível do Pivô/Uníssono no canto superior esquerdo (oposto ao número do Sayr)
+  if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
+    const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
+    const bx = nx - 14;
+    const by = ny - 13;
+    const bw = Math.max(22, pivotInfo.badge.length * 6.2 + 6);
+    const bh = 13;
+
+    const pillBg = isLight
+      ? (isUnisonBridge ? "#ecfeff" : "#fffbeb")
+      : (isUnisonBridge ? "#082f49" : "#271806");
+    const pillStroke = isLight
+      ? (isUnisonBridge ? "#0e7490" : "#b45309")
+      : (isUnisonBridge ? "#67e8f9" : "#fbbf24");
+
+    const pRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    pRect.setAttribute("x", String(bx - bw / 2));
+    pRect.setAttribute("y", String(by - bh / 2));
+    pRect.setAttribute("width", String(bw));
+    pRect.setAttribute("height", String(bh));
+    pRect.setAttribute("rx", "4");
+    pRect.setAttribute("fill", pillBg);
+    pRect.setAttribute("stroke", pillStroke);
+    pRect.setAttribute("stroke-width", "1.1");
+    pRect.setAttribute("pointer-events", "none");
+    group.appendChild(pRect);
+
+    const pTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    pTag.setAttribute("x", String(bx));
+    pTag.setAttribute("y", String(by + 3));
+    pTag.setAttribute("text-anchor", "middle");
+    pTag.setAttribute("fill", pillStroke);
+    pTag.setAttribute("font-size", "8.2");
+    pTag.setAttribute("font-weight", "800");
+    pTag.setAttribute("pointer-events", "none");
+    pTag.textContent = pivotInfo.badge;
+    group.appendChild(pTag);
+  }
+
   svg.appendChild(group);
 }
 
@@ -340,7 +613,6 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const isEn = state.lang === "en";
   const isLight = state.theme === "light";
 
-  // Cores externas adaptativas para legibilidade máxima sobre o fundo pergaminho (Nahar) ou ébano (Layl)
   const extColors = {
     courseLabel: isLight ? "#2c1d11" : "#fef3c7",
     semiLabel: isLight ? "#78350f" : "#fde68a",
@@ -350,7 +622,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     inlayMicro: isLight ? "#7e22ce" : "#d8b4fe"
   };
 
-  svg.setAttribute("viewBox", isVert ? "0 0 410 1065" : "0 0 1120 370");
+  // ViewBoxes ampliados e simétricos para abrigar as faixas de Posições sem desalinhar o instrumento
+  svg.setAttribute("viewBox", isVert ? "0 0 460 1085" : "0 0 1120 430");
 
   const palette = TRADITION_PALETTES[/** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition)] || TRADITION_PALETTES.damascus;
   const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
@@ -424,30 +697,33 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     : null;
 
   const keySemitones = [2, 4, 5, 7, 9, 10, 12, 14];
+  const posBounds = getPositionBounds(state.shapeMode, state.boxAnchorQ);
 
-  // MODO VERTICAL
+  // =========================================================================
+  // MODO VERTICAL (460 x 1085) — Com margem direita limpa para cápsulas horizontais
+  // =========================================================================
   if (isVert) {
     const nutY = 148;
     const neckEndY = 905;
     const neckLengthPx = neckEndY - nutY;
     const leftX = 82;
-    const rightX = 328;
+    const rightX = 302;
     const centerX = (leftX + rightX) / 2;
 
     const bodyJointY = getPhysicalX(10, nutY, neckLengthPx, false);
-    const soundboardFarY = 1052;
+    const soundboardFarY = 1070;
 
     const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     sbPath.setAttribute(
       "d",
-      `M ${leftX - 20},${bodyJointY} Q 10,${bodyJointY + 50} 10,${bodyJointY + 145} L 10,${soundboardFarY} L 400,${soundboardFarY} L 400,${bodyJointY + 145} Q 400,${bodyJointY + 50} ${rightX + 20},${bodyJointY} Z`
+      `M ${leftX - 20},${bodyJointY} Q 12,${bodyJointY + 50} 12,${bodyJointY + 145} L 12,${soundboardFarY} L 446,${soundboardFarY} L 446,${bodyJointY + 145} Q 446,${bodyJointY + 50} ${rightX + 20},${bodyJointY} Z`
     );
     sbPath.setAttribute("fill", "url(#soundboardGrad)");
     sbPath.setAttribute("stroke", palette.rosetteRing);
     sbPath.setAttribute("stroke-width", "3");
     svg.appendChild(sbPath);
 
-    const rosetteCenterY = 985;
+    const rosetteCenterY = 998;
     const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
     raqma.setAttribute(
       "d",
@@ -460,8 +736,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(raqma);
 
     renderShamsiyyaRosette(svg, centerX, rosetteCenterY, 38, palette, onRosetteClick);
-    renderShamsiyyaRosette(svg, leftX - 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
-    renderShamsiyyaRosette(svg, rightX + 28, rosetteCenterY - 62, 14, palette, onRosetteClick);
+    renderShamsiyyaRosette(svg, leftX - 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
+    renderShamsiyyaRosette(svg, rightX + 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
 
     const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
@@ -483,7 +759,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(openZoneRect);
 
     const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    openLbl.setAttribute("x", String(leftX - 32));
+    openLbl.setAttribute("x", String(leftX - 44));
     openLbl.setAttribute("y", String(openRailY + 3.5));
     openLbl.setAttribute("text-anchor", "middle");
     openLbl.setAttribute("fill", extColors.courseLabel);
@@ -493,15 +769,15 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(openLbl);
 
     const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    neckPolygon.setAttribute("points", `${leftX - 14},${nutY} ${rightX + 14},${nutY} ${rightX + 22},${neckEndY} ${leftX - 22},${neckEndY}`);
+    neckPolygon.setAttribute("points", `${leftX - 14},${nutY} ${rightX + 14},${nutY} ${rightX + 20},${neckEndY} ${leftX - 20},${neckEndY}`);
     neckPolygon.setAttribute("fill", "url(#ebonyGrad)");
     neckPolygon.setAttribute("stroke", palette.rosetteRing);
     neckPolygon.setAttribute("stroke-width", "2");
     svg.appendChild(neckPolygon);
 
     [
-      { x1: leftX - 11, x2: leftX - 19 },
-      { x1: rightX + 11, x2: rightX + 19 }
+      { x1: leftX - 11, x2: leftX - 17 },
+      { x1: rightX + 11, x2: rightX + 17 }
     ].forEach(strip => {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", String(strip.x1));
@@ -516,20 +792,18 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     });
 
     if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
-      const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
-      const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
-      const y1 = getPhysicalX(startQ, nutY, neckLengthPx, false);
-      const y2 = getPhysicalX(endQ, nutY, neckLengthPx, false);
+      const y1 = getPhysicalX(posBounds.startQ, nutY, neckLengthPx, false);
+      const y2 = getPhysicalX(posBounds.endQ, nutY, neckLengthPx, false);
 
       const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      boxRect.setAttribute("x", String(leftX - 16));
+      boxRect.setAttribute("x", String(leftX - 15));
       boxRect.setAttribute("y", String(y1 - 16));
-      boxRect.setAttribute("width", String((rightX - leftX) + 32));
+      boxRect.setAttribute("width", String((rightX - leftX) + 30));
       boxRect.setAttribute("height", String((y2 - y1) + 32));
       boxRect.setAttribute("rx", "8");
-      boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.08)");
+      boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.11)");
       boxRect.setAttribute("stroke", palette.rosetteRing);
-      boxRect.setAttribute("stroke-width", "1.6");
+      boxRect.setAttribute("stroke-width", "1.8");
       boxRect.setAttribute("stroke-dasharray", "6,4");
       svg.appendChild(boxRect);
     }
@@ -553,11 +827,11 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(nutBorder);
 
     const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    nutTag.setAttribute("x", String(leftX - 32));
+    nutTag.setAttribute("x", String(leftX - 44));
     nutTag.setAttribute("y", String(nutY + 3.5));
     nutTag.setAttribute("text-anchor", "middle");
     nutTag.setAttribute("fill", extColors.nutTag);
-    nutTag.setAttribute("font-size", "8.5");
+    nutTag.setAttribute("font-size", "9");
     nutTag.setAttribute("font-weight", "800");
     nutTag.textContent = "ANF";
     svg.appendChild(nutTag);
@@ -580,7 +854,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
       if (keySemitones.includes(q)) {
         const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        const ix = rightX + 28;
+        const ix = rightX + 23;
         inlayDiamond.setAttribute("points", `${ix},${gy - 4} ${ix + 4},${gy} ${ix},${gy + 4} ${ix - 4},${gy}`);
         inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
         svg.appendChild(inlayDiamond);
@@ -588,7 +862,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
       if (!isMicro || state.showMicroGuides) {
         const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        lbl.setAttribute("x", String(leftX - 32));
+        lbl.setAttribute("x", String(leftX - 44));
         lbl.setAttribute("y", String(gy + 3.5));
         lbl.setAttribute("text-anchor", "middle");
         lbl.setAttribute("fill", isMicro ? extColors.microLabel : extColors.semiLabel);
@@ -598,6 +872,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         svg.appendChild(lbl);
       }
     }
+
+    renderPositionRegionsOverlay(svg, state, nutY, neckLengthPx, leftX, rightX, true, isLight);
 
     const courseSpacingX = (rightX - leftX) / 5;
     /** @type {Map<string, { x: number, y: number }>} */
@@ -661,6 +937,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         const noteInfo = activeOffsetMap.get(offsetFromRoot);
         const pcData = PITCH_CLASSES_24[pitchClassQ];
         const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
+        const pivotInfo = evaluateShiftPivot(qFromNut, cIdx, tuning);
 
         const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
         let isSelectedActiveNote = shapeEval.inBox;
@@ -706,6 +983,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
           pcData.micro,
           isSelectedActiveNote,
           Boolean(isPlaybackStepHit),
+          pivotInfo,
+          state.showPositionsMap,
+          isLight,
           displayText,
           state.labelMode,
           noteFreq,
@@ -734,23 +1014,28 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     return currentChordVoicingFreqs;
   }
 
-  // MODO HORIZONTAL
+  // =========================================================================
+  // MODO HORIZONTAL (1120 x 430) — Centralizado com faixas dedicadas no topo e base
+  // =========================================================================
   const nutX = state.leftHanded ? 945 : 175;
   const neckEndX = state.leftHanded ? 155 : 965;
   const neckLengthPx = Math.abs(neckEndX - nutX);
-  const topY = 54;
-  const bottomY = 294;
-  const centerY = (topY + bottomY) / 2;
+  const topY = 106;
+  const bottomY = 334;
+  const centerY = (topY + bottomY) / 2; // 220 (centro exato dentro de 430)
 
   const bodyJointX = getPhysicalX(10, nutX, neckLengthPx, state.leftHanded);
   const soundboardFarX = state.leftHanded ? 15 : 1105;
 
   const dir = state.leftHanded ? -1 : 1;
   const curveCtrlX = bodyJointX + dir * 55;
+  const sbTopY = 70;
+  const sbBotY = 370;
+
   const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   sbPath.setAttribute(
     "d",
-    `M ${bodyJointX},${topY - 22} Q ${curveCtrlX},6 ${bodyJointX + dir * 160},6 L ${soundboardFarX},6 L ${soundboardFarX},340 L ${bodyJointX + dir * 160},340 Q ${curveCtrlX},340 ${bodyJointX},${bottomY + 22} Z`
+    `M ${bodyJointX},${topY - 22} Q ${curveCtrlX},${sbTopY} ${bodyJointX + dir * 160},${sbTopY} L ${soundboardFarX},${sbTopY} L ${soundboardFarX},${sbBotY} L ${bodyJointX + dir * 160},${sbBotY} Q ${curveCtrlX},${sbBotY} ${bodyJointX},${bottomY + 22} Z`
   );
   sbPath.setAttribute("fill", "url(#soundboardGrad)");
   sbPath.setAttribute("stroke", palette.rosetteRing);
@@ -760,7 +1045,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const sbInlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
   sbInlay.setAttribute(
     "d",
-    `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},12 ${bodyJointX + dir * 160},12 L ${soundboardFarX - dir * 6},12 L ${soundboardFarX - dir * 6},334 L ${bodyJointX + dir * 160},334 Q ${curveCtrlX + dir * 4},334 ${bodyJointX + dir * 5},${bottomY + 18}`
+    `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},${sbTopY + 6} ${bodyJointX + dir * 160},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbBotY - 6} L ${bodyJointX + dir * 160},${sbBotY - 6} Q ${curveCtrlX + dir * 4},${sbBotY - 6} ${bodyJointX + dir * 5},${bottomY + 18}`
   );
   sbInlay.setAttribute("fill", "none");
   sbInlay.setAttribute("stroke", palette.sadaf);
@@ -776,7 +1061,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
   raqma.setAttribute(
     "d",
-    `M ${raqmaStartX},${topY - 8} Q ${(raqmaStartX + raqmaEndX) / 2},${topY - 30} ${raqmaEndX},${centerY - 50} L ${raqmaEndX},${centerY + 50} Q ${(raqmaStartX + raqmaEndX) / 2},${bottomY + 30} ${raqmaStartX},${bottomY + 8} Z`
+    `M ${raqmaStartX},${topY - 8} Q ${(raqmaStartX + raqmaEndX) / 2},${topY - 26} ${raqmaEndX},${centerY - 48} L ${raqmaEndX},${centerY + 48} Q ${(raqmaStartX + raqmaEndX) / 2},${bottomY + 26} ${raqmaStartX},${bottomY + 8} Z`
   );
   raqma.setAttribute("fill", palette.raqma);
   raqma.setAttribute("stroke", palette.rosetteRing);
@@ -785,13 +1070,13 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   svg.appendChild(raqma);
 
   renderShamsiyyaRosette(svg, rosetteCenterX, centerY, 44, palette, onRosetteClick);
-  renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, topY - 12, 16, palette, onRosetteClick);
-  renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, bottomY + 12, 16, palette, onRosetteClick);
+  renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, topY - 10, 15, palette, onRosetteClick);
+  renderShamsiyyaRosette(svg, rosetteCenterX - dir * 70, bottomY + 10, 15, palette, onRosetteClick);
 
   const nutTopY = topY - 14;
   const nutBotY = bottomY + 14;
-  const bodyTopY = topY - 24;
-  const bodyBotY = bottomY + 24;
+  const bodyTopY = topY - 22;
+  const bodyBotY = bottomY + 22;
 
   const pegboxEndX = state.leftHanded ? 1105 : 15;
   const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
@@ -815,7 +1100,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
   const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
   openLbl.setAttribute("x", String(openRailX));
-  openLbl.setAttribute("y", String(bodyBotY + 21));
+  openLbl.setAttribute("y", String(bodyBotY + 28));
   openLbl.setAttribute("text-anchor", "middle");
   openLbl.setAttribute("fill", extColors.courseLabel);
   openLbl.setAttribute("font-size", "9.5");
@@ -847,10 +1132,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   });
 
   if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
-    const startQ = state.shapeMode === "CLOSED_BOX" ? state.boxAnchorQ : 0;
-    const endQ = state.shapeMode === "CLOSED_BOX" ? Math.min(MAX_NECK_Q, state.boxAnchorQ + 7) : 8;
-    const x1 = getPhysicalX(startQ, nutX, neckLengthPx, state.leftHanded);
-    const x2 = getPhysicalX(endQ, nutX, neckLengthPx, state.leftHanded);
+    const x1 = getPhysicalX(posBounds.startQ, nutX, neckLengthPx, state.leftHanded);
+    const x2 = getPhysicalX(posBounds.endQ, nutX, neckLengthPx, state.leftHanded);
     const rectX = Math.min(x1, x2) - 16;
     const rectW = Math.abs(x2 - x1) + 32;
 
@@ -860,9 +1143,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     boxRect.setAttribute("width", String(rectW));
     boxRect.setAttribute("height", String(bodyBotY - bodyTopY - 10));
     boxRect.setAttribute("rx", "8");
-    boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.08)");
+    boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.11)");
     boxRect.setAttribute("stroke", palette.rosetteRing);
-    boxRect.setAttribute("stroke-width", "1.6");
+    boxRect.setAttribute("stroke-width", "1.8");
     boxRect.setAttribute("stroke-dasharray", "6,4");
     svg.appendChild(boxRect);
   }
@@ -887,10 +1170,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
   const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
   nutTag.setAttribute("x", String(nutX));
-  nutTag.setAttribute("y", String(nutTopY - 8));
+  nutTag.setAttribute("y", String(nutTopY - 11));
   nutTag.setAttribute("text-anchor", "middle");
   nutTag.setAttribute("fill", extColors.nutTag);
-  nutTag.setAttribute("font-size", "9");
+  nutTag.setAttribute("font-size", "9.2");
   nutTag.setAttribute("font-weight", "800");
   nutTag.textContent = isEn ? "NUT (ANF)" : "PESTANA (ANF)";
   svg.appendChild(nutTag);
@@ -913,7 +1196,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
     if (keySemitones.includes(q)) {
       const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      const iy = bodyTopY - 6;
+      const iy = bodyTopY - 5;
       inlayDiamond.setAttribute("points", `${gx},${iy - 4} ${gx + 4},${iy} ${gx},${iy + 4} ${gx - 4},${iy}`);
       inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
       svg.appendChild(inlayDiamond);
@@ -922,7 +1205,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     if (!isMicro || state.showMicroGuides) {
       const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
       lbl.setAttribute("x", String(gx));
-      lbl.setAttribute("y", String(bodyBotY + 21));
+      lbl.setAttribute("y", String(bodyBotY + 28));
       lbl.setAttribute("text-anchor", "middle");
       lbl.setAttribute("fill", isMicro ? extColors.microLabel : extColors.semiLabel);
       lbl.setAttribute("font-size", isMicro ? "9.5" : "10.5");
@@ -931,6 +1214,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       svg.appendChild(lbl);
     }
   }
+
+  renderPositionRegionsOverlay(svg, state, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight);
 
   const courseSpacing = (bottomY - topY) / 5;
   /** @type {Map<string, { x: number, y: number }>} */
@@ -994,6 +1279,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const noteInfo = activeOffsetMap.get(offsetFromRoot);
       const pcData = PITCH_CLASSES_24[pitchClassQ];
       const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
+      const pivotInfo = evaluateShiftPivot(qFromNut, cIdx, tuning);
 
       const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
       let isSelectedActiveNote = shapeEval.inBox;
@@ -1039,6 +1325,9 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         pcData.micro,
         isSelectedActiveNote,
         Boolean(isPlaybackStepHit),
+        pivotInfo,
+        state.showPositionsMap,
+        isLight,
         displayText,
         state.labelMode,
         noteFreq,
