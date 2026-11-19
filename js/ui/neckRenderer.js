@@ -1218,6 +1218,7 @@ export function renderOudNeckSVG(
 
   const extColors = {
     courseLabel: isLight ? "#2b1e14" : "#efe6d8",
+    pegboxCourseLabel: "#f3e7d3",
     semiLabel: isLight ? "#7a5320" : "#d4a84f",
     microLabel: isLight ? "#6b3f8c" : "#c49be0",
     nutTag: isLight ? "#8f5e1c" : "#c99a49",
@@ -1872,9 +1873,12 @@ export function renderOudNeckSVG(
     cText.setAttribute("x", String(courseLabelX));
     cText.setAttribute("y", String(cy + 4));
     cText.setAttribute("text-anchor", "middle");
-    cText.setAttribute("fill", extColors.courseLabel);
+    cText.setAttribute("fill", extColors.pegboxCourseLabel);
+    cText.setAttribute("stroke", "#120c08");
+    cText.setAttribute("stroke-width", "2.2");
+    cText.setAttribute("paint-order", "stroke");
     cText.setAttribute("font-size", "11.5");
-    cText.setAttribute("font-weight", "700");
+    cText.setAttribute("font-weight", "800");
     cText.textContent = cObj.label;
     svg.appendChild(cText);
 
