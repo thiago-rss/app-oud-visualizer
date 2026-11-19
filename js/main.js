@@ -23,6 +23,7 @@ import {
   localizeStudyLesson
 } from "./core/studyGuide.js";
 import {
+  unlockAudioEngine,
   clearSequenceTimers,
   playPluckedNote,
   strumChordVoicing,
@@ -35,7 +36,21 @@ import {
   startIqaEngine,
   stopIqaEngine
 } from "./audio/synthEngine.js";
-import { renderOudNeckSVG } from "./ui/neckRenderer.js";
+import {
+  startPitchListening,
+  stopPitchListening,
+  isPitchListening,
+  setPitchDetectionMode,
+  getPitchDetectionMode,
+  setLockedTunerCourse,
+  getLockedTunerCourse,
+  suspendPitchDetection
+} from "./audio/pitchEngine.js";
+import {
+  renderOudNeckSVG,
+  updateLivePitchOverlayOnNeck,
+  clearLivePitchOverlayOnNeck
+} from "./ui/neckRenderer.js";
 import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 
 const state = getInitialStateFromUrl();
@@ -104,6 +119,17 @@ let shiftOverlayTimer;
 
 /** @type {{ mode: any, entityId: string, rootQ: number, anchorAbsQ: number | null, label: string } | null} */
 let modulationOrigin = null;
+
+// ==========================================================================
+// Estado do Detector de Intonação 24-TET & Afinador 6 Ordens (v3.1)
+// ==========================================================================
+let isTunerBarOpen = false;
+/** @type {import("./audio/pitchEngine.js").PitchDetectionResult | null} */
+let latestPitchDetection = null;
+/** @type {string | null} */
+let tunerErrorCode = null;
+/** @type {number | null} */
+let lastDetectedTunerCourse = null;
 
 // ==========================================================================
 // Estado e Persistência do Guia de Estudos (v3.0)
@@ -214,6 +240,396 @@ function clearAllActivePlayback() {
   highlightedSequenceStep = -1;
 }
 
+// ==========================================================================
+// Controlador do Detector de Intonação 24-TET & Afinador 6 Ordens (v3.1)
+// ==========================================================================
+
+/**
+ * Traduz códigos de erro de microfone para mensagens claras ao músico.
+ * @param {string} code
+ */
+function getTunerErrorText(code) {
+  const isEn = state.lang === "en";
+  if (code === "PERMISSION_DENIED") {
+    return isEn
+      ? "Microphone permission denied. Allow mic access in browser settings and try again."
+      : "Permissão de microfone negada. Libere o acesso nas configurações do navegador e tente novamente.";
+  }
+  if (code === "NO_MICROPHONE") {
+    return isEn
+      ? "No microphone or audio interface detected on this device."
+      : "Nenhum microfone ou interface de áudio foi encontrado neste dispositivo.";
+  }
+  if (code === "INSECURE_CONTEXT") {
+    return isEn
+      ? "Microphone capture requires HTTPS (GitHub Pages) or localhost."
+      : "A captura pelo microfone exige conexão segura HTTPS (GitHub Pages) ou localhost.";
+  }
+  if (code === "UNSUPPORTED") {
+    return isEn
+      ? "This browser does not support Web Audio microphone capture."
+      : "Este navegador não oferece suporte à captura de microfone pela Web Audio API.";
+  }
+  return isEn
+    ? "Could not start the microphone. Check if another app is using it."
+    : "Não foi possível iniciar o microfone. Verifique se outro aplicativo está usando a entrada.";
+}
+
+/**
+ * Renderiza a fileira clicável das 6 ordens da afinação atual (6ª grave → 1ª aguda) no modo Afinador.
+ */
+function renderTunerCoursesList() {
+  const container = document.getElementById("tuner-courses-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const isEn = state.lang === "en";
+  const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
+  const lockedCourse = getLockedTunerCourse();
+
+  // Botão Auto (detecção automática entre as 6 ordens)
+  const autoBtn = document.createElement("button");
+  autoBtn.type = "button";
+  autoBtn.className = `tuner-course-btn ${lockedCourse === null ? "is-locked" : ""}`;
+  autoBtn.dataset.courseLock = "AUTO";
+  autoBtn.textContent = isEn ? "Auto" : "Auto";
+  autoBtn.title = isEn ? "Automatically detect the nearest open course" : "Detectar automaticamente a ordem mais próxima";
+  container.appendChild(autoBtn);
+
+  // Lista do bordão grave (6ª) para a aguda (1ª)
+  const orderedCourses = [...tuning.courses].sort((a, b) => b.course - a.course);
+  orderedCourses.forEach(cObj => {
+    const isLocked = lockedCourse === cObj.course;
+    const isDetected = latestPitchDetection?.mode === "TUNER" && latestPitchDetection.courseNumber === cObj.course;
+    const isInTune = isDetected && latestPitchDetection?.status === "IN_TUNE";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = [
+      "tuner-course-btn",
+      isLocked ? "is-locked" : "",
+      isDetected ? "is-detected" : "",
+      isInTune ? "is-in-tune" : ""
+    ].filter(Boolean).join(" ");
+    btn.dataset.courseLock = String(cObj.course);
+    btn.textContent = cObj.label;
+    btn.title = isEn
+      ? `Lock ${cObj.label} (${cObj.freq_hz.toFixed(1)} Hz) and hear reference`
+      : `Travar ${cObj.label} (${cObj.freq_hz.toFixed(1)} Hz) e ouvir referência`;
+    container.appendChild(btn);
+  });
+}
+
+/**
+ * Atualiza a leitura em tempo real da faixa de escuta (nota, cents, Hz, direção e agulha).
+ * Chamado a ~22 fps sem reconstruir o restante da interface.
+ *
+ * @param {import("./audio/pitchEngine.js").PitchDetectionResult | null} det
+ */
+function renderLiveTunerReadout(det) {
+  const bar = document.getElementById("live-tuner-bar");
+  const noteMain = document.getElementById("tuner-note-main");
+  const noteSub = document.getElementById("tuner-note-sub");
+  const dirHint = document.getElementById("tuner-direction-hint");
+  const centsEl = document.getElementById("tuner-cents-readout");
+  const hzEl = document.getElementById("tuner-hz-readout");
+  const needle = document.getElementById("tuner-meter-needle");
+  if (!bar || !noteMain || !noteSub || !dirHint || !centsEl || !hzEl || !needle) return;
+
+  const isEn = state.lang === "en";
+  const listeningNow = isPitchListening();
+  const mode = getPitchDetectionMode();
+
+  if (!det || !det.active) {
+    bar.removeAttribute("data-tuner-status");
+    noteMain.textContent = "—";
+    centsEl.textContent = "0¢";
+    hzEl.textContent = "— Hz";
+    needle.style.left = "50%";
+    needle.classList.remove("is-active", "is-holding");
+
+    if (!listeningNow) {
+      noteSub.textContent = isEn ? "Microphone paused" : "Microfone pausado";
+      dirHint.textContent = isEn ? "Click 'Start Mic' to listen" : "Clique em 'Ligar Microfone' para escutar";
+    } else if (mode === "TUNER") {
+      const locked = getLockedTunerCourse();
+      const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
+      const lockedObj = locked !== null ? tuning.courses.find(c => c.course === locked) : null;
+      noteSub.textContent = lockedObj
+        ? (isEn ? `Target: ${lockedObj.label} (${lockedObj.freq_hz.toFixed(1)} Hz)` : `Alvo: ${lockedObj.label} (${lockedObj.freq_hz.toFixed(1)} Hz)`)
+        : (isEn ? "Pluck any open course" : "Toque qualquer corda solta");
+      dirHint.textContent = isEn ? "Listening..." : "Aguardando sinal...";
+    } else {
+      noteSub.textContent = isEn ? "Play a note on your Oud" : "Toque uma nota no Oud";
+      dirHint.textContent = isEn ? "Listening in 24-TET..." : "Escutando em 24-TET...";
+    }
+
+    if (mode === "TUNER") {
+      document.querySelectorAll(".tuner-course-btn").forEach(el => {
+        el.classList.remove("is-detected", "is-in-tune");
+      });
+    }
+    return;
+  }
+
+  // Mapeia status para atributo de cor da barra
+  let statusAttr = "off";
+  if (det.status === "IN_TUNE") statusAttr = "in-tune";
+  else if (det.status === "CLOSE") statusAttr = "close";
+  else if (det.status === "OUT_OF_SCALE") statusAttr = "out-of-scale";
+  bar.setAttribute("data-tuner-status", statusAttr);
+
+  const roundedCents = Math.round(det.centsOff);
+  const signedCents = `${roundedCents > 0 ? "+" : ""}${roundedCents}¢`;
+  const needlePct = 50 + Math.max(-50, Math.min(50, det.meterCents));
+
+  noteMain.textContent = `${det.noteName}`;
+  centsEl.textContent = signedCents;
+  hzEl.textContent = `${det.freqHz.toFixed(1)} Hz`;
+  needle.style.left = `${needlePct.toFixed(1)}%`;
+  needle.classList.add("is-active");
+  needle.classList.toggle("is-holding", det.isHolding);
+
+  // Subtexto informativo (Ordem / Nome Árabe / Grau / Desvio tradicional cents_dev)
+  if (det.mode === "TUNER") {
+    noteSub.textContent = `${det.courseLabel} • ${det.arabicName} (${det.targetFreqHz.toFixed(1)} Hz)`;
+  } else {
+    const degPart = det.degree ? ` • ${isEn ? "Deg" : "Grau"} ${det.degree}` : "";
+    const tradPart = det.traditionalCentsDev !== 0
+      ? ` (${det.traditionalCentsDev > 0 ? "+" : ""}${det.traditionalCentsDev}¢ ${isEn ? "trad." : "trad."})`
+      : "";
+    noteSub.textContent = `${det.noteName}${det.octave} • ${det.arabicName}${degPart}${tradPart}`;
+  }
+
+  // Orientação física de correção
+  const isVert = state.orientation === "VERTICAL";
+  if (det.mode === "TUNER") {
+    if (det.direction === "OK") {
+      dirHint.textContent = isEn ? "✓ Course in tune" : "✓ Ordem afinada";
+    } else if (det.direction === "FLAT") {
+      dirHint.textContent = isEn ? "↑ Tune up (tighten peg)" : "↑ Subir afinação (apertar cravelha)";
+    } else {
+      dirHint.textContent = isEn ? "↓ Tune down (loosen peg)" : "↓ Descer afinação (afrouxar cravelha)";
+    }
+  } else if (!det.inScale) {
+    const nearestPrefix = isEn ? `Outside active mode • Nearest ${det.noteName}` : `Fora do modo ativo • Mais próxima: ${det.noteName}`;
+    dirHint.textContent = nearestPrefix;
+  } else if (det.direction === "OK") {
+    dirHint.textContent = isEn ? "✓ In tune" : "✓ Afinado";
+  } else if (det.direction === "FLAT") {
+    if (isVert) {
+      dirHint.textContent = isEn ? "↓ Move finger down (sharper)" : "↓ Descer dedo (mais agudo)";
+    } else {
+      dirHint.textContent = state.leftHanded
+        ? (isEn ? "← Move finger toward body (sharper)" : "← Avançar dedo ao tampo (mais agudo)")
+        : (isEn ? "Avançar dedo → (mais agudo)" : "Avançar dedo → (mais agudo)");
+      if (isEn && !state.leftHanded) dirHint.textContent = "Move finger forward → (sharper)";
+    }
+  } else {
+    if (isVert) {
+      dirHint.textContent = isEn ? "↑ Move finger up (flatter)" : "↑ Subir dedo à pestana (mais grave)";
+    } else {
+      dirHint.textContent = state.leftHanded
+        ? (isEn ? "Move finger to nut → (flatter)" : "Recuar dedo à pestana → (mais grave)")
+        : (isEn ? "← Move finger back (flatter)" : "← Recuar dedo (mais grave)");
+    }
+  }
+
+  // Destaca ordem ativa no strip sem recriar os botões a cada frame
+  if (det.mode === "TUNER") {
+    document.querySelectorAll(".tuner-course-btn").forEach(el => {
+      const btn = /** @type {HTMLElement} */ (el);
+      const isMatch = btn.dataset.courseLock === String(det.courseNumber);
+      btn.classList.toggle("is-detected", isMatch);
+      btn.classList.toggle("is-in-tune", isMatch && det.status === "IN_TUNE");
+    });
+  }
+}
+
+/**
+ * Sincroniza estado completo dos controles da faixa de escuta e dos gatilhos no menu ⋯ / Popover 0.
+ */
+function syncLiveTunerUI() {
+  const isEn = state.lang === "en";
+  const listeningNow = isPitchListening();
+  const mode = getPitchDetectionMode();
+
+  const bar = document.getElementById("live-tuner-bar");
+  if (bar) {
+    bar.style.display = isTunerBarOpen ? "flex" : "none";
+  }
+
+  const micDot = document.getElementById("menu-mic-dot");
+  if (micDot) {
+    micDot.style.display = listeningNow ? "block" : "none";
+  }
+
+  const btnMenuTuner = document.getElementById("btn-open-live-tuner");
+  if (btnMenuTuner) {
+    btnMenuTuner.classList.toggle("active-toggle", listeningNow || isTunerBarOpen);
+    btnMenuTuner.textContent = listeningNow
+      ? (isEn ? "🎙 Live Tuner: ON" : "🎙 Escuta 24-TET: ATIVA")
+      : (isEn ? "🎙 24-TET Listener & Tuner" : "🎙 Escuta 24-TET & Afinador");
+  }
+
+  const btnPopoverTuner = document.getElementById("btn-popover-open-tuner");
+  if (btnPopoverTuner) {
+    btnPopoverTuner.textContent = listeningNow && mode === "TUNER"
+      ? (isEn ? "🎙 Tuner Active" : "🎙 Afinador Ativo")
+      : (isEn ? "🎙 Tune 6 Courses" : "🎙 Afinar 6 Ordens");
+  }
+
+  const lblPopoverTuner = document.querySelector('[data-i18n="lblPopoverTuner"]');
+  if (lblPopoverTuner) {
+    lblPopoverTuner.textContent = isEn ? "Tuner & Live Pitch" : "Afinador & Escuta";
+  }
+
+  const statusPill = document.getElementById("tuner-status-pill");
+  if (statusPill) {
+    statusPill.classList.toggle("is-listening", listeningNow);
+    statusPill.classList.toggle("is-error", Boolean(tunerErrorCode));
+    if (tunerErrorCode) {
+      statusPill.textContent = isEn ? "● Mic unavailable" : "● Microfone indisponível";
+    } else if (listeningNow) {
+      statusPill.textContent = isEn ? "● Listening (Mic ON)" : "● Escutando (Mic ON)";
+    } else {
+      statusPill.textContent = isEn ? "● Mic paused" : "● Microfone pausado";
+    }
+  }
+
+  const btnMicToggle = document.getElementById("btn-tuner-mic-toggle");
+  if (btnMicToggle) {
+    btnMicToggle.className = listeningNow ? "danger-ghost compact-btn" : "primary compact-btn";
+    btnMicToggle.textContent = listeningNow
+      ? (isEn ? "⏹ Stop Mic" : "⏹ Pausar Microfone")
+      : (isEn ? "🎙 Start Mic" : "🎙 Ligar Microfone");
+  }
+
+  document.querySelectorAll(".tuner-mode-btn").forEach(el => {
+    const btn = /** @type {HTMLElement} */ (el);
+    const btnMode = btn.dataset.tunerMode;
+    btn.classList.toggle("selected", btnMode === mode);
+    if (btnMode === "MAQAM_24TET") {
+      btn.textContent = isEn ? "🎯 Active Maqam" : "🎯 Maqam 24-TET";
+    } else if (btnMode === "CHROMATIC_24TET") {
+      btn.textContent = isEn ? "📏 Pure 24-TET" : "📏 24-TET Puro";
+    } else if (btnMode === "TUNER") {
+      btn.textContent = isEn ? "🪕 6-Course Tuner" : "🪕 Afinador 6 Ordens";
+    }
+  });
+
+  const coursesStrip = document.getElementById("tuner-courses-strip");
+  if (coursesStrip) {
+    coursesStrip.style.display = mode === "TUNER" ? "flex" : "none";
+  }
+  if (mode === "TUNER") {
+    renderTunerCoursesList();
+  }
+
+  const btnRefTone = document.getElementById("btn-tuner-ref-tone");
+  if (btnRefTone) {
+    btnRefTone.textContent = isEn ? "🔊 Reference Tone" : "🔊 Ouvir Referência";
+  }
+
+  const feedbackEl = document.getElementById("tuner-feedback-msg");
+  if (feedbackEl) {
+    feedbackEl.classList.toggle("is-error", Boolean(tunerErrorCode));
+    if (tunerErrorCode) {
+      feedbackEl.textContent = `⚠ ${getTunerErrorText(tunerErrorCode)}`;
+    } else if (listeningNow && (state.droneActive || isIqaPlaying)) {
+      feedbackEl.textContent = isEn
+        ? "🎧 Tip: use headphones when combining Drone or Iqa' with microphone listening."
+        : "🎧 Dica: use fones de ouvido ao combinar Drone ou Iqa' com a escuta pelo microfone.";
+    } else if (listeningNow && mode === "MAQAM_24TET") {
+      feedbackEl.textContent = isEn
+        ? "Target follows the active Maqam/Jins intervals including traditional microtonal deviations (cents_dev)."
+        : "Alvo calibrado pelo Maqam/Jins ativo, incluindo desvios microtonais tradicionais (cents_dev).";
+    } else {
+      feedbackEl.textContent = "";
+    }
+  }
+
+  renderLiveTunerReadout(latestPitchDetection);
+}
+
+/**
+ * Callback disparado em tempo real pelo motor YIN (~22 fps).
+ * @param {import("./audio/pitchEngine.js").PitchDetectionResult | null} detection
+ */
+function handleLivePitchDetection(detection) {
+  latestPitchDetection = detection;
+  if (detection && detection.courseNumber !== null) {
+    lastDetectedTunerCourse = detection.courseNumber;
+  }
+  updateLivePitchOverlayOnNeck(detection);
+  renderLiveTunerReadout(detection);
+}
+
+async function startLiveMicCapture() {
+  unlockAudioEngine();
+  tunerErrorCode = null;
+  syncLiveTunerUI();
+
+  await startPitchListening({
+    getState: () => state,
+    onDetection: handleLivePitchDetection,
+    onError: (code) => {
+      tunerErrorCode = code;
+      latestPitchDetection = null;
+      clearLivePitchOverlayOnNeck();
+      syncLiveTunerUI();
+    },
+    onStateChange: (active) => {
+      if (!active) {
+        latestPitchDetection = null;
+        clearLivePitchOverlayOnNeck();
+      }
+      syncLiveTunerUI();
+    }
+  });
+}
+
+/**
+ * Abre a faixa de Escuta/Afinador no modo desejado e opcionalmente liga o microfone.
+ * @param {import("./audio/pitchEngine.js").PitchDetectionMode} [preferredMode]
+ * @param {boolean} [autoStartMic=true]
+ */
+function openLiveTunerBar(preferredMode, autoStartMic = true) {
+  setActiveHeaderMenu(null);
+  setActivePopover(null);
+  isTunerBarOpen = true;
+  tunerErrorCode = null;
+
+  if (preferredMode) {
+    setPitchDetectionMode(preferredMode);
+  }
+
+  syncLiveTunerUI();
+
+  if (autoStartMic && !isPitchListening()) {
+    startLiveMicCapture();
+  }
+}
+
+function closeLiveTunerBar() {
+  stopPitchListening();
+  isTunerBarOpen = false;
+  latestPitchDetection = null;
+  tunerErrorCode = null;
+  clearLivePitchOverlayOnNeck();
+  syncLiveTunerUI();
+}
+
+function playActiveTunerCourseReference() {
+  const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
+  const targetNum = getLockedTunerCourse() ?? lastDetectedTunerCourse ?? 6;
+  const courseObj = tuning.courses.find(c => c.course === targetNum) || tuning.courses[tuning.courses.length - 1];
+  if (!courseObj) return;
+
+  suspendPitchDetection(1250);
+  playPluckedNote(courseObj.freq_hz, 1.55, 0.36);
+}
+
 /**
  * Nível 1: Clique direto nas cápsulas I, II, III — isola a posição ou volta ao Espelho Completo.
  * @param {string} regionId
@@ -250,6 +666,7 @@ function handlePlayPositionRegion(regionId) {
 
   playingRegionId = regionId;
   const stepMs = 310;
+  suspendPitchDetection(notes.length * stepMs + 500);
 
   notes.forEach((n, idx) => {
     const tId = window.setTimeout(() => {
@@ -290,6 +707,7 @@ function handlePivotAction(payload) {
   const isEn = state.lang === "en";
 
   if (payload.type === "UNISON_BRIDGE" && payload.targetCourse !== null) {
+    suspendPitchDetection(950);
     playPluckedNote(payload.freq, 1.1);
     const tId = window.setTimeout(() => {
       playPluckedNote(payload.freq, 1.4);
@@ -342,6 +760,7 @@ function handlePivotAction(payload) {
     };
 
     state.shapeMode = /** @type {any} */ (nextMode);
+    suspendPitchDetection(700);
     playPluckedNote(payload.freq, 1.35);
 
     activeShiftOverlay = {
@@ -421,6 +840,7 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   refreshAll();
 
   if (opts.playConfirmTone !== false) {
+    suspendPitchDetection(650);
     const confirmFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
     playPluckedNote(confirmFreq, 1.15, 0.28);
   }
@@ -472,9 +892,6 @@ function toggleStudyLessonComplete(lessonId) {
   renderStudyGuidePane();
 }
 
-/**
- * Garante que a 3ª aba ("Guia de Estudos") exista no DOM mesmo em variações de markup.
- */
 function getStudyPaneElement() {
   return (
     document.getElementById("deck-pane-study") ||
@@ -497,7 +914,6 @@ function renderStudyGuidePane() {
   const doneCount = completedStudyLessons.size;
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
-  // Atualiza contador na aba do Deck (se existir)
   const studyCountBadge =
     document.getElementById("deck-study-count") ||
     document.getElementById("deck-guide-count");
@@ -537,7 +953,7 @@ function renderStudyGuidePane() {
     const isApplied = appliedStudyLessonId === rawLes.id;
 
     return `
-      <article class="mod-route-card study-lesson-card ${isSelected ? "is-selected-lesson" : ""} ${isDone ? "is-done-lesson" : ""}" data-study-select="${rawLes.id}" style="${isSelected ? "border-color: var(--accent); background: var(--accent-soft);" : ""}">
+      <article class="mod-route-card study-lesson-card ${isSelected ? "is-selected-lesson" : ""} ${isDone ? "is-done-lesson" : ""}" data-study-select="${rawLes.id}">
         <div class="mod-route-top" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
           <span class="mod-pivot-badge ${isDone ? "is-ghammaz-pivot" : ""}">
             ${isDone ? "✓" : `#${les.number}`} · ${les.duration}
@@ -599,6 +1015,11 @@ function renderStudyGuidePane() {
       </div>
 
       <div class="segmented-pills" style="width:100%; padding-top:4px; border-top:1px solid var(--border-subtle);">
+        <button type="button" class="ghost-btn compact-btn btn-study-live-pitch ${isPitchListening() ? "active-toggle" : ""}">
+          ${isPitchListening()
+            ? (isEn ? "🎙 Live Pitch: ON" : "🎙 Escuta 24-TET: ATIVA")
+            : (isEn ? "🎙 Check Intonation (Mic)" : "🎙 Checar Afinação (Mic)")}
+        </button>
         ${currentLesson.suggestDrone ? `
           <button type="button" class="ghost-btn compact-btn btn-study-drone ${state.droneActive ? "active-toggle" : ""}">
             ${state.droneActive
@@ -660,7 +1081,6 @@ function renderStudyGuidePane() {
     ${activeDetailHtml}
   `;
 
-  // Eventos internos do Guia de Estudos
   pane.querySelectorAll(".study-mod-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const modId = /** @type {HTMLElement} */ (btn).dataset.studyModule;
@@ -719,12 +1139,21 @@ function renderStudyGuidePane() {
     }
   });
 
+  pane.querySelector(".btn-study-live-pitch")?.addEventListener("click", () => {
+    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+      applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
+    }
+    openLiveTunerBar("MAQAM_24TET", true);
+    renderStudyGuidePane();
+  });
+
   pane.querySelector(".btn-study-drone")?.addEventListener("click", () => {
     const droneBtn = document.getElementById("btn-drone");
     if (droneBtn) {
       state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
     }
     syncCommandBarSummaries();
+    syncLiveTunerUI();
     renderStudyGuidePane();
   });
 
@@ -733,6 +1162,7 @@ function renderStudyGuidePane() {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
     }
     toggleIqaPlayback();
+    syncLiveTunerUI();
     renderStudyGuidePane();
   });
 
@@ -1363,6 +1793,7 @@ function toggleIqaPlayback() {
     restartIqaIfPlaying();
   }
   syncCommandBarSummaries();
+  syncLiveTunerUI();
 }
 
 function showTouchLoupeFeedback(noteInfo) {
@@ -1436,6 +1867,7 @@ function applySelectedPitchAsRoot(targetPitch) {
     }
   }
 
+  suspendPitchDetection(700);
   const feedbackFreq = (targetPitch && typeof targetPitch.freq === "number")
     ? targetPitch.freq
     : 130.81 * Math.pow(2, state.rootQ / 24);
@@ -1465,6 +1897,7 @@ function handlePlayAnchoredOctavePath() {
     accent: n.degree === "1" || n.degree === "8" || n.degree === "5"
   }));
 
+  suspendPitchDetection(steps.length * 360 + 500);
   playTaqsimPhrase(state.rootQ, steps, {}, (stepIdx) => {
     highlightedSequenceStep = stepIdx;
     refreshAll();
@@ -1765,6 +2198,7 @@ function renderCadenceBar() {
       selectedStaffOrNeckPitch = null;
       state.cadenceStepIndex = idx;
       refreshAll();
+      suspendPitchDetection(950);
       strumChordVoicing(currentChordVoicingFreqs);
     });
 
@@ -1823,6 +2257,7 @@ function renderModulationRadarCard() {
         state.anchorAbsQ = modulationOrigin.anchorAbsQ;
         state.octavePathOnly = Boolean(modulationOrigin.anchorAbsQ !== null);
         modulationOrigin = null;
+        suspendPitchDetection(700);
         playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
         syncControlsWithState();
         refreshAll();
@@ -1881,6 +2316,7 @@ function renderModulationRadarCard() {
           centsMap[intQ] = /** @type {any} */ (rawTarget).cents_dev[idx] || 0;
         });
       }
+      suspendPitchDetection(targetIntervals.length * 320 + 600);
       playScaleSequence(route.absTargetRootQ, targetIntervals, centsMap);
     });
 
@@ -1909,6 +2345,7 @@ function renderModulationRadarCard() {
       state.anchorAbsQ = null;
       state.octavePathOnly = false;
 
+      suspendPitchDetection(700);
       playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
       syncControlsWithState();
       refreshAll();
@@ -2041,6 +2478,7 @@ function handlePrimaryAudioAction() {
 
   if (state.mode === "CADENCE") {
     const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
+    suspendPitchDetection(cad.steps.length * 1150 + 500);
     scheduleCadenceSequence(cad.steps.length, (stepIdx) => {
       state.cadenceStepIndex = stepIdx;
       refreshAll();
@@ -2050,11 +2488,13 @@ function handlePrimaryAudioAction() {
   }
 
   if (state.mode === "CHORD" && currentChordVoicingFreqs.length > 0) {
+    suspendPitchDetection(1000);
     strumChordVoicing(currentChordVoicingFreqs);
     return;
   }
 
   const activeStruct = getActiveStructure(state);
+  suspendPitchDetection(activeStruct.intervals.length * 320 + 600);
   playScaleSequence(activeStruct.effectiveRootQ, activeStruct.intervals, activeStruct.centsMap);
 }
 
@@ -2071,6 +2511,9 @@ function handlePlayTaqsim() {
   state.showSayr = true;
   state.staffMode = "SAYR";
   syncControlsWithState();
+
+  const totalDur = phrase.steps.reduce((/** @type {number} */ acc, /** @type {any} */ st) => acc + (st.dur_ms || 360), 0);
+  suspendPitchDetection(totalDur + 550);
 
   playTaqsimPhrase(activeStruct.effectiveRootQ, phrase.steps, activeStruct.centsMap, (stepIdx) => {
     highlightedSequenceStep = stepIdx;
@@ -2264,7 +2707,6 @@ function syncControlsWithState() {
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
-  // Sincroniza abas e painéis do Deck Horizontal (Teoria | Modulação | Guia de Estudos)
   document.querySelectorAll(".deck-tab-btn").forEach(btn => {
     const el = /** @type {HTMLElement} */ (btn);
     const isAct = normalizeDeckTab(el.dataset.deckTab) === activeDeckTab;
@@ -2433,6 +2875,7 @@ function syncControlsWithState() {
   }
 
   syncCommandBarSummaries();
+  syncLiveTunerUI();
   renderGlossaryList();
 }
 
@@ -2454,6 +2897,7 @@ function refreshAll() {
       selectedStaffOrNeckPitch,
       highlightedSequenceStep,
       (staffSelection) => {
+        suspendPitchDetection(650);
         selectedStaffOrNeckPitch = staffSelection;
         clearShiftOverlay(false);
         refreshAll();
@@ -2468,6 +2912,7 @@ function refreshAll() {
     highlightedSequenceStep,
     selectedStaffOrNeckPitch,
     (neckNoteInfo) => {
+      suspendPitchDetection(650);
       clearShiftOverlay(false);
       selectedStaffOrNeckPitch = neckNoteInfo;
       if (isMobileViewport()) {
@@ -2492,14 +2937,12 @@ function refreshAll() {
 
   updateInfoPanel();
   syncCommandBarSummaries();
+  syncLiveTunerUI();
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
   syncStateToUrl(state);
 }
 
-/**
- * Garante a presença da 3ª aba "Guia de Estudos" no Deck caso ainda não tenha sido inserida no HTML.
- */
 function ensureStudyGuideScaffold() {
   const deckTabs = document.querySelector(".deck-tabs");
   const deckBody = document.getElementById("deck-body") || document.querySelector(".deck-body");
@@ -2589,6 +3032,81 @@ function initApp() {
       setActiveHeaderMenu(null);
     }
 
+    // Gatilho no Menu ⋯: abre/fecha Escuta 24-TET & Afinador
+    if (target.closest("#btn-open-live-tuner")) {
+      e.preventDefault();
+      if (isTunerBarOpen) {
+        closeLiveTunerBar();
+      } else {
+        openLiveTunerBar("MAQAM_24TET", true);
+      }
+      setActiveHeaderMenu(null);
+      return;
+    }
+
+    // Gatilho no Popover 0 (Afinação & Qarar): abre direto no Afinador das 6 Ordens
+    if (target.closest("#btn-popover-open-tuner")) {
+      e.preventDefault();
+      openLiveTunerBar("TUNER", true);
+      return;
+    }
+
+    if (target.closest("#btn-tuner-mic-toggle")) {
+      e.preventDefault();
+      if (isPitchListening()) {
+        stopPitchListening();
+      } else {
+        startLiveMicCapture();
+      }
+      return;
+    }
+
+    if (target.closest("#btn-close-tuner-bar")) {
+      e.preventDefault();
+      closeLiveTunerBar();
+      return;
+    }
+
+    const tunerModeBtn = /** @type {HTMLElement | null} */ (target.closest(".tuner-mode-btn"));
+    if (tunerModeBtn) {
+      e.preventDefault();
+      const nextMode = /** @type {import("./audio/pitchEngine.js").PitchDetectionMode} */ (tunerModeBtn.dataset.tunerMode || "MAQAM_24TET");
+      setPitchDetectionMode(nextMode);
+      latestPitchDetection = null;
+      clearLivePitchOverlayOnNeck();
+      syncLiveTunerUI();
+      return;
+    }
+
+    const courseBtn = /** @type {HTMLElement | null} */ (target.closest(".tuner-course-btn"));
+    if (courseBtn) {
+      e.preventDefault();
+      const rawVal = courseBtn.dataset.courseLock;
+      if (rawVal === "AUTO") {
+        setLockedTunerCourse(null);
+      } else {
+        const cNum = Number(rawVal);
+        if (Number.isFinite(cNum)) {
+          const nextLock = getLockedTunerCourse() === cNum ? null : cNum;
+          setLockedTunerCourse(nextLock);
+          const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
+          const cObj = tuning.courses.find(c => c.course === cNum);
+          if (cObj) {
+            suspendPitchDetection(1000);
+            playPluckedNote(cObj.freq_hz, 1.45, 0.34);
+          }
+        }
+      }
+      syncLiveTunerUI();
+      return;
+    }
+
+    if (target.closest("#btn-tuner-ref-tone")) {
+      e.preventDefault();
+      playActiveTunerCourseReference();
+      return;
+    }
+
     const triggerBtn = /** @type {HTMLElement | null} */ (target.closest(".cmd-trigger"));
     if (triggerBtn) {
       e.preventDefault();
@@ -2638,6 +3156,7 @@ function initApp() {
       const droneBtn = document.getElementById("btn-drone");
       if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
       syncCommandBarSummaries();
+      syncLiveTunerUI();
       renderStudyGuidePane();
       return;
     }
@@ -2809,6 +3328,7 @@ function initApp() {
     clearShiftOverlay(false);
     state.tuningId = /** @type {HTMLSelectElement} */ (e.target).value;
     selectedStaffOrNeckPitch = null;
+    setLockedTunerCourse(null);
     refreshAll();
   });
 
@@ -3024,15 +3544,20 @@ function initApp() {
   document.getElementById("btn-play-taqsim")?.addEventListener("click", handlePlayTaqsim);
   document.getElementById("btn-arp-chord")?.addEventListener("click", () => {
     setActiveHeaderMenu(null);
+    suspendPitchDetection(currentChordVoicingFreqs.length * 210 + 500);
     arpeggiateChordVoicing(currentChordVoicingFreqs);
   });
-  document.getElementById("btn-strum-step")?.addEventListener("click", () => strumChordVoicing(currentChordVoicingFreqs));
+  document.getElementById("btn-strum-step")?.addEventListener("click", () => {
+    suspendPitchDetection(950);
+    strumChordVoicing(currentChordVoicingFreqs);
+  });
   document.getElementById("btn-play-cadence-seq")?.addEventListener("click", handlePrimaryAudioAction);
 
   const btnDrone = document.getElementById("btn-drone");
   btnDrone?.addEventListener("click", () => {
     state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, btnDrone);
     syncCommandBarSummaries();
+    syncLiveTunerUI();
     renderStudyGuidePane();
   });
 

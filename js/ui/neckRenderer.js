@@ -13,6 +13,28 @@ import { playPluckedNote } from "../audio/synthEngine.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/**
+ * Cache leve da geometria do último render do braço para atualizar o
+ * #live-pitch-layer a ~22 fps sem reconstruir o SVG do Oud.
+ * @type {{
+ *   isVert: boolean,
+ *   isLeftHanded: boolean,
+ *   isLight: boolean,
+ *   isEn: boolean,
+ *   shapeMode: string,
+ *   boxAnchorQ: number,
+ *   tuning: any,
+ *   nutCoord: number,
+ *   neckLengthPx: number,
+ *   coursePositions: Map<number, number>,
+ *   activeJewelsByAbsQ: Map<number, { x: number, y: number, course: number, qFromNut: number, inBox: boolean, absQ: number }[]>
+ * } | null}
+ */
+let lastNeckRenderContext = null;
+
+/** @type {import("../audio/pitchEngine.js").PitchDetectionResult | null} */
+let lastLiveDetection = null;
+
 function createOctagramStarPath(cx, cy, outerR, innerR) {
   const points = [];
   for (let i = 0; i < 16; i++) {
@@ -51,6 +73,241 @@ function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, 
   parent.appendChild(lbl);
 
   return { width: approxWidth, height };
+}
+
+/**
+ * Limpa imediatamente a camada de detecção de afinação ao vivo no espelho.
+ */
+export function clearLivePitchOverlayOnNeck() {
+  lastLiveDetection = null;
+  const layer = document.getElementById("live-pitch-layer");
+  if (layer) layer.innerHTML = "";
+}
+
+/**
+ * Atualiza a camada leve `#live-pitch-layer` no espelho SVG sem recriar o instrumento.
+ * Chamado em tempo real pelo motor YIN (`pitchEngine.js`).
+ *
+ * @param {import("../audio/pitchEngine.js").PitchDetectionResult | null} detection
+ */
+export function updateLivePitchOverlayOnNeck(detection) {
+  lastLiveDetection = detection && detection.active ? detection : null;
+
+  const layer = document.getElementById("live-pitch-layer");
+  if (!layer) return;
+  layer.innerHTML = "";
+
+  if (!lastLiveDetection || !lastNeckRenderContext) return;
+
+  const ctx = lastNeckRenderContext;
+  const det = lastLiveDetection;
+  const { isVert, isLeftHanded, isLight, shapeMode, boxAnchorQ, tuning, nutCoord, neckLengthPx, coursePositions } = ctx;
+
+  // Paleta contida (Latão = afinado, Ameixa = próximo, Rubi = fora)
+  let strokeColor = isLight ? "#b92b2b" : "#e06c6c";
+  let softFill = "rgba(224, 108, 108, 0.22)";
+  let badgeBg = isLight ? "#fcfaf6" : "#211212";
+
+  if (det.status === "IN_TUNE") {
+    strokeColor = isLight ? "#8f5e1c" : "#e2b963";
+    softFill = "rgba(201, 154, 73, 0.28)";
+    badgeBg = isLight ? "#fcfaf6" : "#1f180e";
+  } else if (det.status === "CLOSE") {
+    strokeColor = isLight ? "#6b3f8c" : "#c49be0";
+    softFill = "rgba(196, 155, 224, 0.24)";
+    badgeBg = isLight ? "#fcfaf6" : "#1e1426";
+  }
+
+  const rootG = document.createElementNS(SVG_NS, "g");
+  rootG.setAttribute("opacity", det.isHolding ? "0.52" : "1");
+
+  const roundedCents = Math.round(det.centsOff);
+  const signedCents = `${roundedCents > 0 ? "+" : ""}${roundedCents}¢`;
+
+  // Seta física de correção coerente com orientação e destro/canhoto
+  let dirArrow = "";
+  if (det.direction === "FLAT") {
+    dirArrow = isVert ? "↓" : (isLeftHanded ? "←" : "→");
+  } else if (det.direction === "SHARP") {
+    dirArrow = isVert ? "↑" : (isLeftHanded ? "→" : "←");
+  }
+
+  const clampPillX = (/** @type {number} */ x) => {
+    const maxW = isVert ? 460 : 1120;
+    return Math.max(46, Math.min(maxW - 46, x));
+  };
+  const clampPillY = (/** @type {number} */ y) => {
+    const maxH = isVert ? 1085 : 430;
+    return Math.max(16, Math.min(maxH - 16, y));
+  };
+
+  // =========================================================================
+  // MODO AFINADOR DAS 6 ORDENS: destaca a corda solta alvo
+  // =========================================================================
+  if (det.mode === "TUNER" && det.courseNumber !== null) {
+    const perp = coursePositions.get(det.courseNumber);
+    if (perp === undefined) return;
+
+    const openAxis = getPhysicalX(0, nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+    const tx = isVert ? perp : openAxis;
+    const ty = isVert ? openAxis : perp;
+
+    const outerHalo = document.createElementNS(SVG_NS, "circle");
+    outerHalo.setAttribute("cx", String(tx));
+    outerHalo.setAttribute("cy", String(ty));
+    outerHalo.setAttribute("r", "23");
+    outerHalo.setAttribute("fill", softFill);
+    outerHalo.setAttribute("stroke", strokeColor);
+    outerHalo.setAttribute("stroke-width", "2.6");
+    rootG.appendChild(outerHalo);
+
+    const innerRing = document.createElementNS(SVG_NS, "circle");
+    innerRing.setAttribute("cx", String(tx));
+    innerRing.setAttribute("cy", String(ty));
+    innerRing.setAttribute("r", "16.5");
+    innerRing.setAttribute("fill", "none");
+    innerRing.setAttribute("stroke", "#ffffff");
+    innerRing.setAttribute("stroke-width", "1.4");
+    innerRing.setAttribute("stroke-dasharray", det.status === "IN_TUNE" ? "none" : "3,2");
+    rootG.appendChild(innerRing);
+
+    const tunerBadgeText = det.status === "IN_TUNE"
+      ? `✓ ${det.noteName} (${signedCents})`
+      : `${det.noteName} ${signedCents} ${det.direction === "FLAT" ? "↑" : "↓"}`;
+
+    const px = clampPillX(isVert ? tx : tx + (isLeftHanded ? -44 : 44));
+    const py = clampPillY(isVert ? ty - 30 : ty - 24);
+    appendPillLabel(rootG, px, py, tunerBadgeText, strokeColor, strokeColor, badgeBg, 9.8, 8, 20);
+
+    layer.appendChild(rootG);
+    return;
+  }
+
+  // =========================================================================
+  // MODO INTONAÇÃO 24-TET (MAQAM / CROMÁTICO): halo no alvo + ponto vivo do dedo
+  // =========================================================================
+  const bounds = getPositionBounds(shapeMode, boxAnchorQ);
+  const centerQ = (bounds.startQ + bounds.endQ) / 2;
+
+  /** @type {{ x: number, y: number, course: number, qFromNut: number, inBox: boolean, courseAbsQ: number }[]} */
+  let candidates = [];
+
+  const renderedMatches = ctx.activeJewelsByAbsQ.get(det.targetAbsQ);
+  if (renderedMatches && renderedMatches.length) {
+    candidates = renderedMatches.map(m => {
+      const cObj = tuning.courses.find((/** @type {any} */ c) => c.course === m.course);
+      return {
+        x: m.x,
+        y: m.y,
+        course: m.course,
+        qFromNut: m.qFromNut,
+        inBox: m.inBox,
+        courseAbsQ: cObj ? cObj.abs_q : det.targetAbsQ - m.qFromNut
+      };
+    });
+  } else if (tuning && Array.isArray(tuning.courses)) {
+    // Fallback físico para notas cromáticas ou fora da escala atual
+    tuning.courses.forEach((/** @type {any} */ cObj) => {
+      const qFromNut = det.targetAbsQ - cObj.abs_q;
+      if (qFromNut < 0 || qFromNut > MAX_NECK_Q) return;
+      const perp = coursePositions.get(cObj.course);
+      if (perp === undefined) return;
+      const axis = getPhysicalX(qFromNut, nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+      const shapeEval = evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ);
+      candidates.push({
+        x: isVert ? perp : axis,
+        y: isVert ? axis : perp,
+        course: cObj.course,
+        qFromNut,
+        inBox: shapeEval.inBox,
+        courseAbsQ: cObj.abs_q
+      });
+    });
+  }
+
+  if (!candidates.length) return;
+
+  // Ordena priorizando notas dentro da posição ativa e mais próximas do centro da mão
+  candidates.sort((a, b) => {
+    if (a.inBox !== b.inBox) return a.inBox ? -1 : 1;
+    const distA = Math.abs(a.qFromNut - centerQ) + (a.qFromNut > 10 ? 4 : 0);
+    const distB = Math.abs(b.qFromNut - centerQ) + (b.qFromNut > 10 ? 4 : 0);
+    return distA - distB;
+  });
+
+  const primary = candidates[0];
+
+  // Halos secundários sutis em uníssonos equivalentes na mesma oitava
+  for (let i = 1; i < candidates.length; i++) {
+    const sec = candidates[i];
+    const secRing = document.createElementNS(SVG_NS, "circle");
+    secRing.setAttribute("cx", String(sec.x));
+    secRing.setAttribute("cy", String(sec.y));
+    secRing.setAttribute("r", "17.5");
+    secRing.setAttribute("fill", "none");
+    secRing.setAttribute("stroke", strokeColor);
+    secRing.setAttribute("stroke-width", "1.6");
+    secRing.setAttribute("stroke-dasharray", "3,3");
+    secRing.setAttribute("opacity", "0.55");
+    rootG.appendChild(secRing);
+  }
+
+  // Halo principal sobre a joia-alvo
+  const targetHalo = document.createElementNS(SVG_NS, "circle");
+  targetHalo.setAttribute("cx", String(primary.x));
+  targetHalo.setAttribute("cy", String(primary.y));
+  targetHalo.setAttribute("r", det.status === "IN_TUNE" ? "21.5" : "19.5");
+  targetHalo.setAttribute("fill", softFill);
+  targetHalo.setAttribute("stroke", strokeColor);
+  targetHalo.setAttribute("stroke-width", det.status === "IN_TUNE" ? "3" : "2.2");
+  if (!det.inScale) {
+    targetHalo.setAttribute("stroke-dasharray", "4,3");
+  }
+  rootG.appendChild(targetHalo);
+
+  // Ponto vivo contínuo no espelho sem trastes (mostra exatamente onde o dedo está soando)
+  const actualQ = det.continuousAbsQ - primary.courseAbsQ;
+  if (primary.qFromNut > 0 && actualQ >= 0.15 && actualQ <= MAX_NECK_Q + 0.35) {
+    const clampedQ = Math.max(0.15, Math.min(MAX_NECK_Q, actualQ));
+    const liveAxis = getPhysicalX(clampedQ, nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+    const lx = isVert ? primary.x : liveAxis;
+    const ly = isVert ? liveAxis : primary.y;
+    const pxDist = Math.hypot(lx - primary.x, ly - primary.y);
+
+    if (pxDist > 2.2) {
+      const guideConnector = document.createElementNS(SVG_NS, "line");
+      guideConnector.setAttribute("x1", String(lx));
+      guideConnector.setAttribute("y1", String(ly));
+      guideConnector.setAttribute("x2", String(primary.x));
+      guideConnector.setAttribute("y2", String(primary.y));
+      guideConnector.setAttribute("stroke", strokeColor);
+      guideConnector.setAttribute("stroke-width", "2");
+      guideConnector.setAttribute("stroke-dasharray", "3,2");
+      rootG.appendChild(guideConnector);
+    }
+
+    const fingerDot = document.createElementNS(SVG_NS, "circle");
+    fingerDot.setAttribute("cx", String(lx));
+    fingerDot.setAttribute("cy", String(ly));
+    fingerDot.setAttribute("r", det.status === "IN_TUNE" ? "4.8" : "5.8");
+    fingerDot.setAttribute("fill", strokeColor);
+    fingerDot.setAttribute("stroke", "#ffffff");
+    fingerDot.setAttribute("stroke-width", "1.6");
+    rootG.appendChild(fingerDot);
+  }
+
+  // Cápsula compacta de leitura de cents + direção acima da joia principal
+  const labelText = det.status === "IN_TUNE"
+    ? `✓ ${det.noteName} ${signedCents}`
+    : (!det.inScale
+      ? `${dirArrow} ${det.noteName} (${signedCents})`
+      : `${dirArrow} ${signedCents}`);
+
+  const pillX = clampPillX(primary.x);
+  const pillY = clampPillY(primary.y - 28);
+  appendPillLabel(rootG, pillX, pillY, labelText, strokeColor, strokeColor, badgeBg, 9.5, 7, 19);
+
+  layer.appendChild(rootG);
 }
 
 function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
@@ -333,7 +590,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       playBtnY = railY;
     }
 
-    // Interações Nível 1: Hover + Clique Toggle
     regGroup.addEventListener("mouseenter", () => toggleHoverZone(reg.id, true));
     regGroup.addEventListener("mouseleave", () => toggleHoverZone(reg.id, false));
     regGroup.addEventListener("click", (ev) => {
@@ -343,7 +599,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
 
     g.appendChild(regGroup);
 
-    // Nível 2: Microbotão ▶ / ■ acoplado à cápsula ativa para ouvir a região
     if (isFocusedRegion) {
       const playG = document.createElementNS(SVG_NS, "g");
       playG.setAttribute("class", "region-play-btn");
@@ -391,7 +646,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
     }
   });
 
-  // Indicador de Apoio do Polegar Esquerdo (Ibham) em Ameixa
   if (state.shapeMode !== "FULL_NECK") {
     const thumbCoord = getPhysicalX(posBounds.thumbQ, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
     const thumbColor = isLight ? "#6b3f8c" : "#c49be0";
@@ -441,7 +695,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
 }
 
 /**
- * Nível 3: Renderiza a visualização vetorial da transição de mão (SHIFT) ou ponte de uníssono (UNISON).
+ * Renderiza a visualização vetorial da transição de mão (SHIFT) ou ponte de uníssono (UNISON).
  */
 function renderHandShiftOverlay(svg, state, shiftOverlay, coordLookup, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
   if (!shiftOverlay) return;
@@ -480,7 +734,6 @@ function renderHandShiftOverlay(svg, state, shiftOverlay, coordLookup, nutCoord,
     arc.setAttribute("marker-end", "url(#sayrArrowActive)");
     overlayG.appendChild(arc);
 
-    // Halos duplos conectando a nota presa à corda solta equivalente
     [pFrom, pTo].forEach(pt => {
       const ring = document.createElementNS(SVG_NS, "circle");
       ring.setAttribute("cx", String(pt.x));
@@ -753,7 +1006,6 @@ function appendNoteJewel(
     }
   });
 
-  // Halo da Nota-Pivô / Uníssono de Ordem
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const pivotRing = document.createElementNS(SVG_NS, "circle");
@@ -835,7 +1087,6 @@ function appendNoteJewel(
   textEl.textContent = displayText;
   group.appendChild(textEl);
 
-  // Nível 3: Microcápsula clicável do Pivô/Uníssono no canto superior esquerdo
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const bx = nx - 14;
@@ -906,6 +1157,23 @@ function appendNoteJewel(
 }
 
 /**
+ * Anexa a camada dedicada `#live-pitch-layer` no topo do SVG e reaplica o último frame
+ * caso a escuta pelo microfone esteja ativa durante um redesenho do espelho.
+ */
+function finalizeLivePitchLayer(svg, contextSnapshot) {
+  lastNeckRenderContext = contextSnapshot;
+
+  const liveLayer = document.createElementNS(SVG_NS, "g");
+  liveLayer.setAttribute("id", "live-pitch-layer");
+  liveLayer.setAttribute("pointer-events", "none");
+  svg.appendChild(liveLayer);
+
+  if (lastLiveDetection && lastLiveDetection.active) {
+    updateLivePitchOverlayOnNeck(lastLiveDetection);
+  }
+}
+
+/**
  * @param {import("../core/urlState.js").OudAppState} state
  * @param {() => void} onRosetteClick
  * @param {number} [highlightedStep=-1]
@@ -930,6 +1198,19 @@ export function renderOudNeckSVG(
   const currentChordVoicingFreqs = [];
   /** @type {{ x: number, y: number, absQ: number, modOffsetQ: number }[]} */
   const visibleActiveNodes = [];
+  /** @type {Map<number, number>} */
+  const coursePositions = new Map();
+  /** @type {Map<number, { x: number, y: number, course: number, qFromNut: number, inBox: boolean, absQ: number }[]>} */
+  const activeJewelsByAbsQ = new Map();
+
+  const registerLiveJewel = (
+    /** @type {number} */ absQ,
+    /** @type {{ x: number, y: number, course: number, qFromNut: number, inBox: boolean, absQ: number }} */ entry
+  ) => {
+    const list = activeJewelsByAbsQ.get(absQ);
+    if (list) list.push(entry);
+    else activeJewelsByAbsQ.set(absQ, [entry]);
+  };
 
   const isVert = state.orientation === "VERTICAL";
   const isEn = state.lang === "en";
@@ -1208,6 +1489,7 @@ export function renderOudNeckSVG(
     tuning.courses.forEach((cObj, cIdx) => {
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
+      coursePositions.set(cObj.course, cx);
 
       const cText = document.createElementNS(SVG_NS, "text");
       cText.setAttribute("x", String(cx));
@@ -1286,6 +1568,14 @@ export function renderOudNeckSVG(
 
         const ny = getPhysicalX(qFromNut, nutY, neckLengthPx, false);
         coordLookup.set(nodeKey, { x: cx, y: ny });
+        registerLiveJewel(absQ, {
+          x: cx,
+          y: ny,
+          course: cObj.course,
+          qFromNut,
+          inBox: isSelectedActiveNote,
+          absQ
+        });
 
         if (isSelectedActiveNote) {
           visibleActiveNodes.push({ x: cx, y: ny, absQ, modOffsetQ: offsetFromRoot });
@@ -1345,6 +1635,20 @@ export function renderOudNeckSVG(
     }
 
     renderHandShiftOverlay(svg, state, activeShift, coordLookup, nutY, neckLengthPx, leftX, rightX, true, isLight);
+
+    finalizeLivePitchLayer(svg, {
+      isVert: true,
+      isLeftHanded: state.leftHanded,
+      isLight,
+      isEn,
+      shapeMode: state.shapeMode,
+      boxAnchorQ: state.boxAnchorQ,
+      tuning,
+      nutCoord: nutY,
+      neckLengthPx,
+      coursePositions,
+      activeJewelsByAbsQ
+    });
 
     currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
     return currentChordVoicingFreqs;
@@ -1561,6 +1865,7 @@ export function renderOudNeckSVG(
 
   tuning.courses.forEach((cObj, cIdx) => {
     const cy = topY + cIdx * courseSpacing;
+    coursePositions.set(cObj.course, cy);
     const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
 
     const cText = document.createElementNS(SVG_NS, "text");
@@ -1640,6 +1945,14 @@ export function renderOudNeckSVG(
 
       const nx = getPhysicalX(qFromNut, nutX, neckLengthPx, state.leftHanded);
       coordLookup.set(nodeKey, { x: nx, y: cy });
+      registerLiveJewel(absQ, {
+        x: nx,
+        y: cy,
+        course: cObj.course,
+        qFromNut,
+        inBox: isSelectedActiveNote,
+        absQ
+      });
 
       if (isSelectedActiveNote) {
         visibleActiveNodes.push({ x: nx, y: cy, absQ, modOffsetQ: offsetFromRoot });
@@ -1699,6 +2012,20 @@ export function renderOudNeckSVG(
   }
 
   renderHandShiftOverlay(svg, state, activeShift, coordLookup, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight);
+
+  finalizeLivePitchLayer(svg, {
+    isVert: false,
+    isLeftHanded: state.leftHanded,
+    isLight,
+    isEn,
+    shapeMode: state.shapeMode,
+    boxAnchorQ: state.boxAnchorQ,
+    tuning,
+    nutCoord: nutX,
+    neckLengthPx,
+    coursePositions,
+    activeJewelsByAbsQ
+  });
 
   currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
   return currentChordVoicingFreqs;

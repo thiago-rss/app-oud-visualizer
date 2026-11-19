@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>App Oud Visualizer — v3.0 Studio & PWA</title>
-  <meta name="description" content="Método interativo 24-TET para Oud: Guia de Estudos Progressivo, Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria." />
+  <title>App Oud Visualizer — v3.1 Studio & PWA</title>
+  <meta name="description" content="Método interativo 24-TET para Oud: Guia de Estudos, Detector de Intonação Microtonal, Afinador 6 Ordens, Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at e Luthieria." />
   <meta name="theme-color" content="#100d0b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -36,8 +36,8 @@
       <div class="brand-titles">
         <h1>App Oud Visualizer</h1>
         <div class="brand-subtitle">
-          <span data-i18n="appSubtitle">Método Interativo 24-TET, Partitura, Sayr, Iqa'at & Luthieria</span>
-          <span class="badge">v3.0 Studio & PWA</span>
+          <span data-i18n="appSubtitle">Método Interativo 24-TET, Guia de Estudos, Afinador, Partitura & Luthieria</span>
+          <span class="badge">v3.1 Studio & PWA</span>
         </div>
       </div>
     </div>
@@ -54,15 +54,17 @@
         </div>
       </div>
 
-      <!-- Menu Unificado (⋯): Drone, Glossário, Imersivo, Tema, Idioma, Compartilhar & App -->
+      <!-- Menu Unificado (⋯): Escuta/Afinador, Drone, Glossário, Imersivo, Tema, Idioma, Compartilhar & App -->
       <div class="header-menu-shell" id="header-menu-shell">
-        <button id="btn-header-menu" class="header-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu do aplicativo" title="Opções, Drone, Glossário & Preferências">
+        <button id="btn-header-menu" class="header-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu do aplicativo" title="Opções, Escuta, Afinador, Drone & Preferências">
           <span class="menu-dots-icon" aria-hidden="true">⋯</span>
           <span id="menu-drone-dot" class="menu-status-dot" style="display:none;" title="Drone ativo"></span>
+          <span id="menu-mic-dot" class="menu-status-dot menu-mic-dot" style="display:none;" title="Microfone ativo"></span>
         </button>
 
         <div class="header-dropdown-popover header-menu-popover" id="header-menu-popover" role="menu" aria-hidden="true">
           <div class="menu-section-label" data-i18n="menuSecStudy">Áudio & Estudo</div>
+          <button id="btn-open-live-tuner" class="menu-item-btn" type="button" role="menuitem" data-i18n="btnMenuLiveTuner">🎙 Escuta 24-TET & Afinador</button>
           <button id="btn-drone" class="menu-item-btn" type="button" role="menuitem">🔊 Drone: OFF</button>
           <button id="btn-open-glossary" class="menu-item-btn" type="button" role="menuitem" data-i18n="btnGlossary">📖 Glossário</button>
 
@@ -119,7 +121,7 @@
 
     <div id="popover-backdrop" class="popover-backdrop"></div>
 
-    <!-- Popover 0: Mizan (Afinação & Qarar) -->
+    <!-- Popover 0: Mizan (Afinação, Qarar & Atalho Afinador 6 Ordens) -->
     <div class="cmd-popover popover-align-0" id="panel-0" data-panel-id="0" role="dialog" aria-hidden="true">
       <div class="popover-header">
         <div class="popover-title-wrap">
@@ -141,6 +143,10 @@
             <a href="#" id="btn-trad-root" class="subtle-link" data-i18n="btnTradRoot">↺ Tradicional</a>
           </label>
           <select id="select-root"></select>
+        </div>
+        <div class="popover-ribbon">
+          <span class="ribbon-label" data-i18n="lblPopoverTuner">Afinador & Escuta</span>
+          <button type="button" id="btn-popover-open-tuner" class="plum-btn compact-btn" data-i18n="btnPopoverOpenTuner">🎙 Afinar 6 Ordens</button>
         </div>
       </div>
       <div class="popover-mobile-footer">
@@ -277,7 +283,7 @@
           <button type="button" id="btn-ghost-notes" class="selected" data-i18n="btnGhost">Ghost Notes</button>
           <button type="button" id="btn-orientation" class="desktop-only-btn">⇅ Modo: Horizontal</button>
           <button type="button" id="btn-hand">⇄ Destro</button>
-          <button type="button" id="btn-toggle-sidebar">◧ Ocultar Painel</button>
+          <button type="button" id="btn-toggle-sidebar">◧ Ocultar Teoria</button>
         </div>
       </div>
       <div class="popover-mobile-footer">
@@ -355,7 +361,7 @@
     <div class="cadence-steps" id="cadence-steps-container"></div>
   </section>
 
-  <!-- Palco Principal (100% Largura): Espelho + Pauta 24-TET + Deck Horizontal Único -->
+  <!-- Palco Principal (100% Largura): Pauta + Escuta 24-TET + Espelho + Deck Horizontal -->
   <main class="studio-stage">
     <section class="neck-showcase">
       <!-- Barra Contextual Rápida (Mobile pauta + Definir Tônica quando uma nota é selecionada) -->
@@ -409,6 +415,62 @@
         </div>
       </div>
 
+      <!-- Faixa Retrátil de Escuta 24-TET & Afinador das 6 Ordens (v3.1) -->
+      <div id="live-tuner-bar" class="live-tuner-bar" style="display:none;" aria-live="polite">
+        <div class="tuner-top-row">
+          <div class="tuner-title-cluster">
+            <span id="tuner-status-pill" class="tuner-status-pill">● Microfone pausado</span>
+            <div class="segmented-pills" role="group" aria-label="Modo do detector de afinação">
+              <button type="button" class="tuner-mode-btn selected" data-tuner-mode="MAQAM_24TET" data-i18n="tunerModeMaqam">🎯 Maqam 24-TET</button>
+              <button type="button" class="tuner-mode-btn" data-tuner-mode="CHROMATIC_24TET" data-i18n="tunerModeChromatic">📏 24-TET Puro</button>
+              <button type="button" class="tuner-mode-btn" data-tuner-mode="TUNER" data-i18n="tunerModeCourses">🪕 Afinador 6 Ordens</button>
+            </div>
+          </div>
+          <div class="segmented-pills">
+            <button type="button" id="btn-tuner-mic-toggle" class="primary compact-btn">🎙 Ligar Microfone</button>
+            <button type="button" id="btn-close-tuner-bar" class="ghost-btn compact-btn" aria-label="Fechar afinador">✕</button>
+          </div>
+        </div>
+
+        <div class="tuner-meter-row">
+          <div class="tuner-pitch-readout">
+            <span id="tuner-note-main" class="tuner-note-main">—</span>
+            <div class="tuner-note-meta">
+              <span id="tuner-note-sub" class="tuner-note-sub">Toque uma nota no Oud</span>
+              <span id="tuner-direction-hint" class="tuner-direction-hint">Aguardando sinal...</span>
+            </div>
+          </div>
+
+          <div class="tuner-meter-shell" aria-label="Medidor de desvio em cents">
+            <div class="tuner-meter-scale">
+              <span>-50¢</span>
+              <span>-25¢</span>
+              <span class="tuner-zero-mark">0¢</span>
+              <span>+25¢</span>
+              <span>+50¢</span>
+            </div>
+            <div class="tuner-meter-track" id="tuner-meter-track">
+              <div class="tuner-sweet-spot"></div>
+              <div class="tuner-center-tick"></div>
+              <div class="tuner-meter-needle" id="tuner-meter-needle"></div>
+            </div>
+          </div>
+
+          <div class="tuner-cents-box">
+            <strong id="tuner-cents-readout" class="tuner-cents-readout">0¢</strong>
+            <span id="tuner-hz-readout" class="tuner-hz-readout">— Hz</span>
+          </div>
+        </div>
+
+        <!-- Seletor das 6 Ordens (exibido apenas no modo Afinador 6 Ordens) -->
+        <div id="tuner-courses-strip" class="tuner-courses-strip" style="display:none;">
+          <div id="tuner-courses-list" class="tuner-courses-list"></div>
+          <button type="button" id="btn-tuner-ref-tone" class="plum-btn compact-btn" data-i18n="btnTunerRefTone">🔊 Ouvir Referência</button>
+        </div>
+
+        <div id="tuner-feedback-msg" class="tuner-feedback-msg"></div>
+      </div>
+
       <!-- Espelho do Oud (SVG) -->
       <div class="svg-stage-container">
         <svg id="oud-neck" viewBox="0 0 1120 430"></svg>
@@ -436,15 +498,10 @@
       </div>
     </section>
 
-    <!-- Deck Horizontal Único (Guia de Estudos | Teoria & Sayr | Radar de Modulação) -->
-    <section class="studio-deck info-panel" id="studio-deck" aria-label="Guia de Estudos, Teoria Modal e Modulação">
+    <!-- Deck Horizontal Único (Teoria & Sayr | Radar de Modulação | Guia de Estudos) -->
+    <section class="studio-deck info-panel" id="studio-deck" aria-label="Teoria Modal, Modulação e Guia de Estudos">
       <div class="deck-header">
         <div class="deck-tabs" role="tablist">
-          <button type="button" class="deck-tab-btn" id="tab-deck-guide" data-deck-tab="guide" role="tab" aria-selected="false">
-            <span>🎓</span>
-            <span data-i18n="deckTabGuide">Guia de Estudos</span>
-            <span class="deck-tab-count" id="deck-guide-count">0/12</span>
-          </button>
           <button type="button" class="deck-tab-btn active" id="tab-deck-theory" data-deck-tab="theory" role="tab" aria-selected="true">
             <span>📖</span>
             <span data-i18n="deckTabTheory">Teoria & Sayr</span>
@@ -453,6 +510,11 @@
             <span>🧭</span>
             <span data-i18n="deckTabModulation">Radar de Modulação</span>
             <span class="deck-tab-count" id="deck-mod-count">4</span>
+          </button>
+          <button type="button" class="deck-tab-btn" id="tab-deck-study" data-deck-tab="study" role="tab" aria-selected="false">
+            <span>🎓</span>
+            <span data-i18n="deckTabStudy">Guia de Estudos</span>
+            <span class="deck-tab-count" id="deck-study-count">0/12</span>
           </button>
         </div>
 
@@ -463,30 +525,7 @@
       </div>
 
       <div class="deck-body" id="deck-body">
-        <!-- Aba 1: Guia de Estudos Progressivo (v3.0) -->
-        <div class="deck-pane" id="deck-pane-guide" data-deck-pane="guide" role="tabpanel">
-          <div class="guide-topbar">
-            <div class="guide-heading-group">
-              <h2 class="info-subhead" data-i18n="guideTitle">🎓 Trilha Progressiva de Estudos — Do Zero ao Taqsim</h2>
-              <p class="tuning-description" id="guide-module-subtitle" style="margin:0;"></p>
-            </div>
-            <div class="guide-progress-box">
-              <div class="guide-progress-meta">
-                <span id="guide-progress-label">Progresso: 0/12 lições</span>
-                <button type="button" id="btn-guide-reset" class="ghost-btn compact-btn" style="display:none;">↺ Reiniciar</button>
-              </div>
-              <div class="guide-progress-track" aria-hidden="true">
-                <div class="guide-progress-fill" id="guide-progress-fill" style="width:0%;"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="guide-modules-bar" id="guide-modules-bar" role="tablist" aria-label="Módulos de Estudo"></div>
-          <div class="study-lessons-grid" id="study-lessons-grid"></div>
-          <div class="study-active-spotlight" id="study-active-spotlight"></div>
-        </div>
-
-        <!-- Aba 2: Teoria & Sayr -->
+        <!-- Aba 1: Teoria & Sayr -->
         <div class="deck-pane active-pane" id="deck-pane-theory" data-deck-pane="theory" role="tabpanel">
           <div class="deck-theory-grid">
             <div class="deck-theory-main">
@@ -501,7 +540,7 @@
           </div>
         </div>
 
-        <!-- Aba 3: Radar de Modulação & Ajnas -->
+        <!-- Aba 2: Radar de Modulação & Ajnas -->
         <div class="deck-pane" id="deck-pane-modulation" data-deck-pane="modulation" role="tabpanel">
           <div class="deck-mod-top">
             <div class="deck-mod-heading">
@@ -512,6 +551,9 @@
           </div>
           <div id="tuning-intervals-list" class="mod-routes-grid"></div>
         </div>
+
+        <!-- Aba 3: Guia de Estudos Progressivo (v3.0) -->
+        <div class="deck-pane" id="deck-pane-study" data-deck-pane="study" role="tabpanel"></div>
       </div>
     </section>
   </main>
@@ -548,7 +590,7 @@
     <button type="button" id="btn-mob-taqsim" class="ghost-btn">🎶 Taqsim</button>
     <button type="button" id="btn-mob-drone" class="ghost-btn">🔊 Drone</button>
     <button type="button" id="btn-mob-iqa" class="ghost-btn">🥁 Iqa'</button>
-    <button type="button" id="btn-mob-theory" class="ghost-btn">🎓 Guia</button>
+    <button type="button" id="btn-mob-theory" class="ghost-btn">📖 Estudo</button>
   </nav>
 
   <!-- Lupa Flutuante de Precisão Microtonal (Mobile) -->
