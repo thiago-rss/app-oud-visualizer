@@ -86,6 +86,14 @@ try {
   // Ignora se localStorage estiver bloqueado
 }
 
+/** @type {any} */ (state).showPegbox = true;
+try {
+  const savedPegbox = localStorage.getItem("oud_show_pegbox_pref");
+  if (savedPegbox === "0") /** @type {any} */ (state).showPegbox = false;
+} catch {
+  // Ignora se localStorage estiver bloqueado
+}
+
 if (state.theme !== "light" && state.theme !== "dark") state.theme = "dark";
 if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) state.rootQ = 0;
 if (typeof state.anchorAbsQ !== "number" || Number.isNaN(state.anchorAbsQ)) state.anchorAbsQ = null;
@@ -2746,6 +2754,14 @@ function syncControlsWithState() {
   document.getElementById("btn-guide-semi")?.classList.toggle("selected", state.showSemiGuides);
   document.getElementById("btn-guide-micro")?.classList.toggle("selected", state.showMicroGuides);
   document.getElementById("btn-ghost-notes")?.classList.toggle("selected", state.showGhostNotes);
+
+  const btnPegbox = document.getElementById("btn-toggle-pegbox");
+  if (btnPegbox) {
+    const isPegboxOn = /** @type {any} */ (state).showPegbox !== false;
+    btnPegbox.textContent = state.lang === "en" ? "🪕 Pegbox (Banjak)" : "🪕 Cabeçote (Banjak)";
+    btnPegbox.classList.toggle("selected", isPegboxOn);
+  }
+
   document.getElementById("btn-toggle-sayr")?.classList.toggle("selected", state.showSayr);
   document.getElementById("btn-dir-asc")?.classList.toggle("selected", state.direction === "ASC");
   document.getElementById("btn-dir-desc")?.classList.toggle("selected", state.direction === "DESC");
@@ -2942,6 +2958,9 @@ function refreshAll() {
       onToggleRegion: handleTogglePositionRegion,
       onPlayRegion: handlePlayPositionRegion,
       onPivotAction: handlePivotAction,
+      onPegPluck: () => {
+        suspendPitchDetection(1100);
+      },
       playingRegionId,
       highlightedRegionNodeKey,
       activeShiftOverlay
@@ -3565,6 +3584,18 @@ function initApp() {
 
   document.getElementById("btn-ghost-notes")?.addEventListener("click", () => {
     state.showGhostNotes = !state.showGhostNotes;
+    syncControlsWithState();
+    refreshAll();
+  });
+
+  document.getElementById("btn-toggle-pegbox")?.addEventListener("click", () => {
+    const nextVal = /** @type {any} */ (state).showPegbox === false;
+    /** @type {any} */ (state).showPegbox = nextVal;
+    try {
+      localStorage.setItem("oud_show_pegbox_pref", nextVal ? "1" : "0");
+    } catch {
+      // Ignora
+    }
     syncControlsWithState();
     refreshAll();
   });

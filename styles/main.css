@@ -1487,6 +1487,18 @@ body[data-orientation="VERTICAL"] #oud-neck {
   filter: brightness(1.16);
 }
 
+.peg-node,
+.course-cartouche-btn {
+  cursor: pointer;
+  transition: filter 0.14s ease;
+}
+
+.peg-node:hover,
+.course-cartouche-btn:hover {
+  filter: brightness(1.18);
+}
+
+
 .region-hover-zone {
   transition: fill-opacity 0.16s ease, stroke-opacity 0.16s ease;
 }

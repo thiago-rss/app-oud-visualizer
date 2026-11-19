@@ -14,6 +14,58 @@ import { playPluckedNote } from "../audio/synthEngine.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /**
+ * Paletas artesanais dedicadas do cabeçote (Banjak) e cravelhas (Mafatih)
+ * alinhadas às 3 escolas de luthieria do aplicativo.
+ */
+const PEGBOX_STYLES = {
+  damascus: {
+    woodLight: "#4c311f",
+    woodMid: "#2c1b10",
+    woodDark: "#150c07",
+    chamberTop: "#090604",
+    chamberBot: "#17100b",
+    purfling: "#e8decb",
+    purflingOpacity: "0.78",
+    trim: "#d4a84f",
+    pegLight: "#362b25",
+    pegDark: "#100b09",
+    collar: "#dfb55e",
+    eye: "#f4ecdc",
+    crownShape: "octagram"
+  },
+  cairo: {
+    woodLight: "#66391d",
+    woodMid: "#3c1f0e",
+    woodDark: "#1b0d06",
+    chamberTop: "#0c0603",
+    chamberBot: "#1e1109",
+    purfling: "#ebd2a0",
+    purflingOpacity: "0.72",
+    trim: "#dda142",
+    pegLight: "#64351b",
+    pegDark: "#241006",
+    collar: "#ebbd5b",
+    eye: "#faf0dc",
+    crownShape: "octagram"
+  },
+  istanbul: {
+    woodLight: "#342e32",
+    woodMid: "#1e1a1d",
+    woodDark: "#0d0b0d",
+    chamberTop: "#060507",
+    chamberBot: "#141115",
+    purfling: "#dcd5ca",
+    purflingOpacity: "0.62",
+    trim: "#c9a568",
+    pegLight: "#2e292d",
+    pegDark: "#0b090b",
+    collar: "#ddd5c8",
+    eye: "#efe8dc",
+    crownShape: "lozenge"
+  }
+};
+
+/**
  * Cache leve da geometria do último render do braço para atualizar o
  * #live-pitch-layer a ~22 fps sem reconstruir o SVG do Oud.
  * @type {{
@@ -21,12 +73,14 @@ const SVG_NS = "http://www.w3.org/2000/svg";
  *   isLeftHanded: boolean,
  *   isLight: boolean,
  *   isEn: boolean,
+ *   showPegbox: boolean,
  *   shapeMode: string,
  *   boxAnchorQ: number,
  *   tuning: any,
  *   nutCoord: number,
  *   neckLengthPx: number,
  *   coursePositions: Map<number, number>,
+ *   pegPositions: Map<number, { headX: number, headY: number, side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT" }>,
  *   activeJewelsByAbsQ: Map<number, { x: number, y: number, course: number, qFromNut: number, inBox: boolean, absQ: number }[]>
  * } | null}
  */
@@ -43,6 +97,18 @@ function createOctagramStarPath(cx, cy, outerR, innerR) {
     points.push(`${(cx + r * Math.cos(angle)).toFixed(1)},${(cy + r * Math.sin(angle)).toFixed(1)}`);
   }
   return points.join(" ");
+}
+
+/**
+ * Separa o rótulo da ordem (ex.: "6ª C") em ordinal + cifra para tipografia nas cabeças das cravelhas.
+ * @param {string} label
+ */
+function parseCourseLabel(label) {
+  const parts = String(label || "").trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return { ord: parts[0], note: parts.slice(1).join("") };
+  }
+  return { ord: "", note: parts[0] || "" };
 }
 
 /**
@@ -76,6 +142,377 @@ function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, 
 }
 
 /**
+ * Desenha uma cravelha (Miftah) torneada com colar metálico, cabeça esculpida em medalhão,
+ * broche de madrepérola (Sadaf) e o botão/rótulo da corda solta integrado sempre na horizontal legível.
+ *
+ * @param {SVGElement} parent
+ * @param {{
+ *   baseX: number,
+ *   baseY: number,
+ *   side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT",
+ *   pegStyle: typeof PEGBOX_STYLES.damascus,
+ *   courseObj: any,
+ *   isEn: boolean,
+ *   onPegClick: () => void
+ * }} opts
+ * @returns {{ headX: number, headY: number }}
+ */
+function appendSculptedPeg(parent, opts) {
+  const { baseX, baseY, side, pegStyle, courseObj, isEn, onPegClick } = opts;
+
+  const isHorizontalPeg = side === "LEFT" || side === "RIGHT";
+  const angleDeg = side === "TOP" ? 0 : (side === "BOTTOM" ? 180 : (side === "LEFT" ? -90 : 90));
+  const headDist = isHorizontalPeg ? 29.5 : 34;
+
+  let headX = baseX;
+  let headY = baseY;
+  if (side === "TOP") headY -= headDist;
+  else if (side === "BOTTOM") headY += headDist;
+  else if (side === "LEFT") headX -= headDist;
+  else if (side === "RIGHT") headX += headDist;
+
+  const rootG = document.createElementNS(SVG_NS, "g");
+  rootG.setAttribute("class", "peg-node");
+
+  const title = document.createElementNS(SVG_NS, "title");
+  title.textContent = isEn
+    ? `Click to hear open course ${courseObj.label} (${courseObj.freq_hz.toFixed(1)} Hz)`
+    : `Clique para ouvir a ordem solta ${courseObj.label} (${courseObj.freq_hz.toFixed(1)} Hz)`;
+  rootG.appendChild(title);
+
+  // Grupo rotacionado: haste, colares, silhueta torneada da cabeça, moldura e broche de madrepérola
+  const geomG = document.createElementNS(SVG_NS, "g");
+  geomG.setAttribute("transform", `translate(${baseX.toFixed(1)}, ${baseY.toFixed(1)}) rotate(${angleDeg})`);
+
+  if (isHorizontalPeg) {
+    // Modo Vertical (cravelhas saindo para ESQUERDA ou DIREITA)
+    const hitArea = document.createElementNS(SVG_NS, "rect");
+    hitArea.setAttribute("x", "-12");
+    hitArea.setAttribute("y", "-48");
+    hitArea.setAttribute("width", "24");
+    hitArea.setAttribute("height", "49");
+    hitArea.setAttribute("fill", "transparent");
+    geomG.appendChild(hitArea);
+
+    const neck = document.createElementNS(SVG_NS, "polygon");
+    neck.setAttribute("points", "-2.9,0 -2.0,-13 2.0,-13 2.9,0");
+    neck.setAttribute("fill", "url(#pegHeadGrad)");
+    neck.setAttribute("stroke", "#080605");
+    neck.setAttribute("stroke-width", "0.75");
+    geomG.appendChild(neck);
+
+    const baseCollar = document.createElementNS(SVG_NS, "rect");
+    baseCollar.setAttribute("x", "-4.2");
+    baseCollar.setAttribute("y", "-3.0");
+    baseCollar.setAttribute("width", "8.4");
+    baseCollar.setAttribute("height", "3.2");
+    baseCollar.setAttribute("rx", "1.2");
+    baseCollar.setAttribute("fill", pegStyle.collar);
+    baseCollar.setAttribute("stroke", "#140d07");
+    baseCollar.setAttribute("stroke-width", "0.55");
+    geomG.appendChild(baseCollar);
+
+    const waistCollar = document.createElementNS(SVG_NS, "rect");
+    waistCollar.setAttribute("x", "-3.4");
+    waistCollar.setAttribute("y", "-13.7");
+    waistCollar.setAttribute("width", "6.8");
+    waistCollar.setAttribute("height", "2.3");
+    waistCollar.setAttribute("rx", "1.0");
+    waistCollar.setAttribute("fill", pegStyle.collar);
+    geomG.appendChild(waistCollar);
+
+    const head = document.createElementNS(SVG_NS, "path");
+    head.setAttribute(
+      "d",
+      "M -2.8,-12.6 C -8.6,-14.8 -10.6,-20.6 -10.6,-29.5 C -10.6,-38.0 -7.6,-43.8 0,-46.5 C 7.6,-43.8 10.6,-38.0 10.6,-29.5 C 10.6,-20.6 8.6,-14.8 2.8,-12.6 Z"
+    );
+    head.setAttribute("fill", "url(#pegHeadGrad)");
+    head.setAttribute("stroke", pegStyle.trim);
+    head.setAttribute("stroke-width", "1.15");
+    geomG.appendChild(head);
+
+    const innerFrame = document.createElementNS(SVG_NS, "path");
+    innerFrame.setAttribute(
+      "d",
+      "M -2.0,-15.4 C -6.4,-17.2 -8.2,-22.0 -8.2,-29.5 C -8.2,-36.4 -5.8,-41.0 0,-43.1 C 5.8,-41.0 8.2,-36.4 8.2,-29.5 C 8.2,-22.0 6.4,-17.2 2.0,-15.4 Z"
+    );
+    innerFrame.setAttribute("fill", "rgba(8, 5, 4, 0.36)");
+    innerFrame.setAttribute("stroke", pegStyle.trim);
+    innerFrame.setAttribute("stroke-width", "0.65");
+    innerFrame.setAttribute("stroke-opacity", "0.55");
+    geomG.appendChild(innerFrame);
+
+    // Broche de madrepérola (Sadaf) no ápice externo da cabeça
+    const pearlRing = document.createElementNS(SVG_NS, "circle");
+    pearlRing.setAttribute("cx", "0");
+    pearlRing.setAttribute("cy", "-42.6");
+    pearlRing.setAttribute("r", "2.1");
+    pearlRing.setAttribute("fill", pegStyle.collar);
+    geomG.appendChild(pearlRing);
+
+    const pearlDot = document.createElementNS(SVG_NS, "circle");
+    pearlDot.setAttribute("cx", "0");
+    pearlDot.setAttribute("cy", "-42.6");
+    pearlDot.setAttribute("r", "1.35");
+    pearlDot.setAttribute("fill", pegStyle.eye);
+    geomG.appendChild(pearlDot);
+  } else {
+    // Modo Horizontal (cravelhas saindo para CIMA ou BAIXO)
+    const hitArea = document.createElementNS(SVG_NS, "rect");
+    hitArea.setAttribute("x", "-15");
+    hitArea.setAttribute("y", "-53");
+    hitArea.setAttribute("width", "30");
+    hitArea.setAttribute("height", "54");
+    hitArea.setAttribute("fill", "transparent");
+    geomG.appendChild(hitArea);
+
+    const neck = document.createElementNS(SVG_NS, "polygon");
+    neck.setAttribute("points", "-3.3,0 -2.2,-16.5 2.2,-16.5 3.3,0");
+    neck.setAttribute("fill", "url(#pegHeadGrad)");
+    neck.setAttribute("stroke", "#080605");
+    neck.setAttribute("stroke-width", "0.8");
+    geomG.appendChild(neck);
+
+    const baseCollar = document.createElementNS(SVG_NS, "rect");
+    baseCollar.setAttribute("x", "-4.8");
+    baseCollar.setAttribute("y", "-3.5");
+    baseCollar.setAttribute("width", "9.6");
+    baseCollar.setAttribute("height", "3.7");
+    baseCollar.setAttribute("rx", "1.4");
+    baseCollar.setAttribute("fill", pegStyle.collar);
+    baseCollar.setAttribute("stroke", "#140d07");
+    baseCollar.setAttribute("stroke-width", "0.6");
+    geomG.appendChild(baseCollar);
+
+    const waistCollar = document.createElementNS(SVG_NS, "rect");
+    waistCollar.setAttribute("x", "-3.8");
+    waistCollar.setAttribute("y", "-17.6");
+    waistCollar.setAttribute("width", "7.6");
+    waistCollar.setAttribute("height", "2.5");
+    waistCollar.setAttribute("rx", "1.1");
+    waistCollar.setAttribute("fill", pegStyle.collar);
+    geomG.appendChild(waistCollar);
+
+    // Cabeça esculpida em medalhão ogival/oliva (27px larg x 35px alt)
+    const head = document.createElementNS(SVG_NS, "path");
+    head.setAttribute(
+      "d",
+      "M -3.2,-16.6 C -10.4,-19.0 -13.5,-25.6 -13.5,-34.0 C -13.5,-42.4 -9.4,-48.6 0,-51.5 C 9.4,-48.6 13.5,-42.4 13.5,-34.0 C 13.5,-25.6 10.4,-19.0 3.2,-16.6 Z"
+    );
+    head.setAttribute("fill", "url(#pegHeadGrad)");
+    head.setAttribute("stroke", pegStyle.trim);
+    head.setAttribute("stroke-width", "1.25");
+    geomG.appendChild(head);
+
+    // Brilho lateral discreto na madeira torneada
+    const sheen = document.createElementNS(SVG_NS, "path");
+    sheen.setAttribute("d", "M -9.2,-24.2 C -11.4,-29.2 -11.0,-37.4 -7.2,-42.8");
+    sheen.setAttribute("fill", "none");
+    sheen.setAttribute("stroke", "rgba(255, 248, 232, 0.22)");
+    sheen.setAttribute("stroke-width", "1.1");
+    sheen.setAttribute("stroke-linecap", "round");
+    geomG.appendChild(sheen);
+
+    // Moldura interna incrustada (alojamento do botão de ordem)
+    const innerFrame = document.createElementNS(SVG_NS, "path");
+    innerFrame.setAttribute(
+      "d",
+      "M -2.2,-19.8 C -7.8,-21.8 -10.5,-27.2 -10.5,-34.0 C -10.5,-40.6 -7.2,-45.4 0,-47.7 C 7.2,-45.4 10.5,-40.6 10.5,-34.0 C 10.5,-27.2 7.8,-21.8 2.2,-19.8 Z"
+    );
+    innerFrame.setAttribute("fill", "rgba(8, 5, 4, 0.40)");
+    innerFrame.setAttribute("stroke", pegStyle.trim);
+    innerFrame.setAttribute("stroke-width", "0.75");
+    innerFrame.setAttribute("stroke-opacity", "0.58");
+    geomG.appendChild(innerFrame);
+
+    // Broche de madrepérola (Sadaf) cravado no ápice externo
+    const pearlRing = document.createElementNS(SVG_NS, "circle");
+    pearlRing.setAttribute("cx", "0");
+    pearlRing.setAttribute("cy", "-47.2");
+    pearlRing.setAttribute("r", "2.35");
+    pearlRing.setAttribute("fill", pegStyle.collar);
+    geomG.appendChild(pearlRing);
+
+    const pearlDot = document.createElementNS(SVG_NS, "circle");
+    pearlDot.setAttribute("cx", "0");
+    pearlDot.setAttribute("cy", "-47.2");
+    pearlDot.setAttribute("r", "1.55");
+    pearlDot.setAttribute("fill", pegStyle.eye);
+    geomG.appendChild(pearlDot);
+  }
+
+  rootG.appendChild(geomG);
+
+  // Tipografia sempre reta e legível (fora da rotação da geometria)
+  const { ord, note } = parseCourseLabel(courseObj.label);
+  const labelG = document.createElementNS(SVG_NS, "g");
+  labelG.setAttribute("pointer-events", "none");
+
+  if (isHorizontalPeg) {
+    // Texto em linha única deslocado levemente para dentro (afastado do broche de madrepérola)
+    const tx = headX + (side === "LEFT" ? 2.6 : -2.6);
+    const ty = headY + 3.4;
+
+    const textEl = document.createElementNS(SVG_NS, "text");
+    textEl.setAttribute("x", String(tx));
+    textEl.setAttribute("y", String(ty));
+    textEl.setAttribute("text-anchor", "middle");
+    textEl.setAttribute("font-weight", "800");
+
+    if (ord) {
+      const tOrd = document.createElementNS(SVG_NS, "tspan");
+      tOrd.setAttribute("fill", pegStyle.collar);
+      tOrd.setAttribute("font-size", "7.4");
+      tOrd.textContent = `${ord} `;
+      textEl.appendChild(tOrd);
+    }
+
+    const tNote = document.createElementNS(SVG_NS, "tspan");
+    tNote.setAttribute("fill", "#f8f1e4");
+    tNote.setAttribute("font-size", "10.2");
+    tNote.textContent = note;
+    textEl.appendChild(tNote);
+
+    labelG.appendChild(textEl);
+  } else {
+    // Texto empilhado (ordinal em latão + cifra principal em marfim) afastado do broche
+    const yShift = side === "TOP" ? 2.4 : -2.2;
+
+    if (ord) {
+      const ordText = document.createElementNS(SVG_NS, "text");
+      ordText.setAttribute("x", String(headX));
+      ordText.setAttribute("y", String(headY - 3.6 + yShift));
+      ordText.setAttribute("text-anchor", "middle");
+      ordText.setAttribute("fill", pegStyle.collar);
+      ordText.setAttribute("font-size", "7.6");
+      ordText.setAttribute("font-weight", "800");
+      ordText.textContent = ord;
+      labelG.appendChild(ordText);
+    }
+
+    const noteText = document.createElementNS(SVG_NS, "text");
+    noteText.setAttribute("x", String(headX));
+    noteText.setAttribute("y", String(headY + 7.6 + yShift));
+    noteText.setAttribute("text-anchor", "middle");
+    noteText.setAttribute("fill", "#f8f1e4");
+    noteText.setAttribute("font-size", "11.4");
+    noteText.setAttribute("font-weight", "800");
+    noteText.textContent = note;
+    labelG.appendChild(noteText);
+  }
+
+  rootG.appendChild(labelG);
+
+  rootG.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    onPegClick();
+  });
+
+  parent.appendChild(rootG);
+  return { headX, headY };
+}
+
+/**
+ * Desenha o cartucho clicável da ordem (usado quando o cabeçote Banjak está oculto).
+ */
+function appendCourseCartouche(parent, cx, cy, label, opts) {
+  const { width, height, fontSize, isLight, courseObj, isEn, onClick } = opts;
+
+  const g = document.createElementNS(SVG_NS, "g");
+  g.setAttribute("class", "course-cartouche-btn");
+
+  const title = document.createElementNS(SVG_NS, "title");
+  title.textContent = isEn
+    ? `Click to hear ${courseObj.label} (${courseObj.freq_hz.toFixed(1)} Hz)`
+    : `Clique para ouvir ${courseObj.label} (${courseObj.freq_hz.toFixed(1)} Hz)`;
+  g.appendChild(title);
+
+  const bgFill = isLight ? "#fcfaf6" : "#181310";
+  const strokeCol = isLight ? "#8f5e1c" : "#c99a49";
+  const textFill = isLight ? "#2b1e14" : "#efe6d8";
+
+  const rect = document.createElementNS(SVG_NS, "rect");
+  rect.setAttribute("x", String(cx - width / 2));
+  rect.setAttribute("y", String(cy - height / 2));
+  rect.setAttribute("width", String(width));
+  rect.setAttribute("height", String(height));
+  rect.setAttribute("rx", "5.5");
+  rect.setAttribute("fill", bgFill);
+  rect.setAttribute("fill-opacity", "0.96");
+  rect.setAttribute("stroke", strokeCol);
+  rect.setAttribute("stroke-width", "1.2");
+  g.appendChild(rect);
+
+  const text = document.createElementNS(SVG_NS, "text");
+  text.setAttribute("x", String(cx));
+  text.setAttribute("y", String(cy + fontSize * 0.35));
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("fill", textFill);
+  text.setAttribute("font-size", String(fontSize));
+  text.setAttribute("font-weight", "800");
+  text.setAttribute("pointer-events", "none");
+  text.textContent = label;
+  g.appendChild(text);
+
+  g.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    onClick();
+  });
+
+  parent.appendChild(g);
+}
+
+/**
+ * Desenha o enrolamento helicoidal metálico da corda ao redor do pino dentro da câmara do Banjak.
+ */
+function appendPegStringCoil(parent, cx, cy, isVert, isWoundBass) {
+  const coilColor = isWoundBass ? "#d69842" : "#dbe4f0";
+  const coilShadow = isWoundBass ? "#5c340b" : "#475569";
+
+  const g = document.createElementNS(SVG_NS, "g");
+  g.setAttribute("pointer-events", "none");
+
+  const sleeve = document.createElementNS(SVG_NS, "rect");
+  if (isVert) {
+    sleeve.setAttribute("x", String(cx - 5.2));
+    sleeve.setAttribute("y", String(cy - 2.6));
+    sleeve.setAttribute("width", "10.4");
+    sleeve.setAttribute("height", "5.2");
+  } else {
+    sleeve.setAttribute("x", String(cx - 2.6));
+    sleeve.setAttribute("y", String(cy - 5.2));
+    sleeve.setAttribute("width", "5.2");
+    sleeve.setAttribute("height", "10.4");
+  }
+  sleeve.setAttribute("rx", "1.5");
+  sleeve.setAttribute("fill", coilShadow);
+  sleeve.setAttribute("stroke", coilColor);
+  sleeve.setAttribute("stroke-width", "0.85");
+  g.appendChild(sleeve);
+
+  [-2.6, 0, 2.6].forEach((offset) => {
+    const ridge = document.createElementNS(SVG_NS, "line");
+    if (isVert) {
+      ridge.setAttribute("x1", String(cx + offset));
+      ridge.setAttribute("y1", String(cy - 2.4));
+      ridge.setAttribute("x2", String(cx + offset));
+      ridge.setAttribute("y2", String(cy + 2.4));
+    } else {
+      ridge.setAttribute("x1", String(cx - 2.4));
+      ridge.setAttribute("y1", String(cy + offset));
+      ridge.setAttribute("x2", String(cx + 2.4));
+      ridge.setAttribute("y2", String(cy + offset));
+    }
+    ridge.setAttribute("stroke", coilColor);
+    ridge.setAttribute("stroke-width", "1.1");
+    ridge.setAttribute("stroke-linecap", "round");
+    g.appendChild(ridge);
+  });
+
+  parent.appendChild(g);
+}
+
+/**
  * Limpa imediatamente a camada de detecção de afinação ao vivo no espelho.
  */
 export function clearLivePitchOverlayOnNeck() {
@@ -101,7 +538,19 @@ export function updateLivePitchOverlayOnNeck(detection) {
 
   const ctx = lastNeckRenderContext;
   const det = lastLiveDetection;
-  const { isVert, isLeftHanded, isLight, shapeMode, boxAnchorQ, tuning, nutCoord, neckLengthPx, coursePositions } = ctx;
+  const {
+    isVert,
+    isLeftHanded,
+    isLight,
+    showPegbox,
+    shapeMode,
+    boxAnchorQ,
+    tuning,
+    nutCoord,
+    neckLengthPx,
+    coursePositions,
+    pegPositions
+  } = ctx;
 
   // Paleta contida (Latão = afinado, Ameixa = próximo, Rubi = fora)
   let strokeColor = isLight ? "#b92b2b" : "#e06c6c";
@@ -124,7 +573,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
   const roundedCents = Math.round(det.centsOff);
   const signedCents = `${roundedCents > 0 ? "+" : ""}${roundedCents}¢`;
 
-  // Seta física de correção coerente com orientação e destro/canhoto
   let dirArrow = "";
   if (det.direction === "FLAT") {
     dirArrow = isVert ? "↓" : (isLeftHanded ? "←" : "→");
@@ -142,7 +590,7 @@ export function updateLivePitchOverlayOnNeck(detection) {
   };
 
   // =========================================================================
-  // MODO AFINADOR DAS 6 ORDENS: destaca a corda solta alvo
+  // MODO AFINADOR DAS 6 ORDENS: destaca a corda solta alvo + cravelha ativa
   // =========================================================================
   if (det.mode === "TUNER" && det.courseNumber !== null) {
     const perp = coursePositions.get(det.courseNumber);
@@ -170,6 +618,50 @@ export function updateLivePitchOverlayOnNeck(detection) {
     innerRing.setAttribute("stroke-width", "1.4");
     innerRing.setAttribute("stroke-dasharray", det.status === "IN_TUNE" ? "none" : "3,2");
     rootG.appendChild(innerRing);
+
+    // Contorno elíptico limpo ao redor da cabeça da cravelha (sem tampar o rótulo da ordem)
+    const pegPos = showPegbox ? pegPositions.get(det.courseNumber) : null;
+    if (pegPos) {
+      const isHorizPeg = pegPos.side === "LEFT" || pegPos.side === "RIGHT";
+      const pegHalo = document.createElementNS(SVG_NS, "ellipse");
+      pegHalo.setAttribute("cx", String(pegPos.headX));
+      pegHalo.setAttribute("cy", String(pegPos.headY));
+      pegHalo.setAttribute("rx", isHorizPeg ? "20" : "16.5");
+      pegHalo.setAttribute("ry", isHorizPeg ? "13.5" : "20.5");
+      pegHalo.setAttribute("fill", "none");
+      pegHalo.setAttribute("stroke", strokeColor);
+      pegHalo.setAttribute("stroke-width", "2.8");
+      rootG.appendChild(pegHalo);
+
+      const pegTurnSymbol = det.status === "IN_TUNE"
+        ? "✓"
+        : (det.direction === "FLAT" ? "↑" : "↓");
+      let indX = pegPos.headX;
+      let indY = pegPos.headY;
+      if (pegPos.side === "TOP") indY = Math.max(12, pegPos.headY - 28);
+      else if (pegPos.side === "BOTTOM") indY = Math.min(418, pegPos.headY + 28);
+      else if (pegPos.side === "LEFT") indX = Math.max(12, pegPos.headX - 28);
+      else if (pegPos.side === "RIGHT") indX = Math.min(448, pegPos.headX + 28);
+
+      const indBadge = document.createElementNS(SVG_NS, "circle");
+      indBadge.setAttribute("cx", String(indX));
+      indBadge.setAttribute("cy", String(indY));
+      indBadge.setAttribute("r", "9.5");
+      indBadge.setAttribute("fill", badgeBg);
+      indBadge.setAttribute("stroke", strokeColor);
+      indBadge.setAttribute("stroke-width", "1.6");
+      rootG.appendChild(indBadge);
+
+      const indText = document.createElementNS(SVG_NS, "text");
+      indText.setAttribute("x", String(indX));
+      indText.setAttribute("y", String(indY + 3.6));
+      indText.setAttribute("text-anchor", "middle");
+      indText.setAttribute("fill", strokeColor);
+      indText.setAttribute("font-size", "11");
+      indText.setAttribute("font-weight", "800");
+      indText.textContent = pegTurnSymbol;
+      rootG.appendChild(indText);
+    }
 
     const tunerBadgeText = det.status === "IN_TUNE"
       ? `✓ ${det.noteName} (${signedCents})`
@@ -206,7 +698,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
       };
     });
   } else if (tuning && Array.isArray(tuning.courses)) {
-    // Fallback físico para notas cromáticas ou fora da escala atual
     tuning.courses.forEach((/** @type {any} */ cObj) => {
       const qFromNut = det.targetAbsQ - cObj.abs_q;
       if (qFromNut < 0 || qFromNut > MAX_NECK_Q) return;
@@ -227,7 +718,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
 
   if (!candidates.length) return;
 
-  // Ordena priorizando notas dentro da posição ativa e mais próximas do centro da mão
   candidates.sort((a, b) => {
     if (a.inBox !== b.inBox) return a.inBox ? -1 : 1;
     const distA = Math.abs(a.qFromNut - centerQ) + (a.qFromNut > 10 ? 4 : 0);
@@ -237,7 +727,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
 
   const primary = candidates[0];
 
-  // Halos secundários sutis em uníssonos equivalentes na mesma oitava
   for (let i = 1; i < candidates.length; i++) {
     const sec = candidates[i];
     const secRing = document.createElementNS(SVG_NS, "circle");
@@ -252,7 +741,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
     rootG.appendChild(secRing);
   }
 
-  // Halo principal sobre a joia-alvo
   const targetHalo = document.createElementNS(SVG_NS, "circle");
   targetHalo.setAttribute("cx", String(primary.x));
   targetHalo.setAttribute("cy", String(primary.y));
@@ -265,7 +753,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
   }
   rootG.appendChild(targetHalo);
 
-  // Ponto vivo contínuo no espelho sem trastes (mostra exatamente onde o dedo está soando)
   const actualQ = det.continuousAbsQ - primary.courseAbsQ;
   if (primary.qFromNut > 0 && actualQ >= 0.15 && actualQ <= MAX_NECK_Q + 0.35) {
     const clampedQ = Math.max(0.15, Math.min(MAX_NECK_Q, actualQ));
@@ -296,7 +783,6 @@ export function updateLivePitchOverlayOnNeck(detection) {
     rootG.appendChild(fingerDot);
   }
 
-  // Cápsula compacta de leitura de cents + direção acima da joia principal
   const labelText = det.status === "IN_TUNE"
     ? `✓ ${det.noteName} ${signedCents}`
     : (!det.inScale
@@ -1180,7 +1666,7 @@ function finalizeLivePitchLayer(svg, contextSnapshot) {
  * @param {{ absQ: number | null, pitchClassQ: number | null } | null} [selectedPitch=null]
  * @param {(noteInfo: { absQ: number, pitchClassQ: number, qFromNut: number, course: number, finger: string | number, freq: number, makeRoot?: boolean }) => void} [onNeckJewelSelect]
  * @param {ReturnType<import("../core/modalEngine.js").computeAnchoredOctavePath>} [octavePathNodes=[]]
- * @param {{ onToggleRegion?: (regionId: string) => void, onPlayRegion?: (regionId: string) => void, onPivotAction?: (payload: any) => void, playingRegionId?: string | null, highlightedRegionNodeKey?: string | null, activeShiftOverlay?: any }} [regionInteractions]
+ * @param {{ onToggleRegion?: (regionId: string) => void, onPlayRegion?: (regionId: string) => void, onPivotAction?: (payload: any) => void, onPegPluck?: (courseObj: any) => void, playingRegionId?: string | null, highlightedRegionNodeKey?: string | null, activeShiftOverlay?: any }} [regionInteractions]
  * @returns {{ course: number, freq: number }[]}
  */
 export function renderOudNeckSVG(
@@ -1200,6 +1686,8 @@ export function renderOudNeckSVG(
   const visibleActiveNodes = [];
   /** @type {Map<number, number>} */
   const coursePositions = new Map();
+  /** @type {Map<number, { headX: number, headY: number, side: "TOP"|"BOTTOM"|"LEFT"|"RIGHT" }>} */
+  const pegPositions = new Map();
   /** @type {Map<number, { x: number, y: number, course: number, qFromNut: number, inBox: boolean, absQ: number }[]>} */
   const activeJewelsByAbsQ = new Map();
 
@@ -1212,13 +1700,22 @@ export function renderOudNeckSVG(
     else activeJewelsByAbsQ.set(absQ, [entry]);
   };
 
+  const triggerOpenCourseSound = (/** @type {any} */ cObj) => {
+    regionInteractions?.onPegPluck?.(cObj);
+    playPluckedNote(cObj.freq_hz, 1.55, 0.36);
+  };
+
   const isVert = state.orientation === "VERTICAL";
   const isEn = state.lang === "en";
   const isLight = state.theme === "light";
+  const showPegbox = /** @type {any} */ (state).showPegbox !== false;
+
+  const traditionKey = /** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition);
+  const palette = TRADITION_PALETTES[traditionKey] || TRADITION_PALETTES.damascus;
+  const pegStyle = PEGBOX_STYLES[traditionKey] || PEGBOX_STYLES.damascus;
 
   const extColors = {
     courseLabel: isLight ? "#2b1e14" : "#efe6d8",
-    pegboxCourseLabel: "#f3e7d3",
     semiLabel: isLight ? "#7a5320" : "#d4a84f",
     microLabel: isLight ? "#6b3f8c" : "#c49be0",
     nutTag: isLight ? "#8f5e1c" : "#c99a49",
@@ -1228,7 +1725,6 @@ export function renderOudNeckSVG(
 
   svg.setAttribute("viewBox", isVert ? "0 0 460 1085" : "0 0 1120 430");
 
-  const palette = TRADITION_PALETTES[/** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition)] || TRADITION_PALETTES.damascus;
   const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
   const activeStruct = getActiveStructure(state);
   const effectiveRootQ = activeStruct.effectiveRootQ;
@@ -1254,6 +1750,20 @@ export function renderOudNeckSVG(
       <stop offset="0%" stop-color="#24201d" />
       <stop offset="50%" stop-color="${palette.ebony}" />
       <stop offset="100%" stop-color="#0b0908" />
+    </linearGradient>
+    <linearGradient id="pegboxWoodGrad" x1="0%" y1="0%" x2="${isVert ? "100%" : "0%"}" y2="${isVert ? "0%" : "100%"}">
+      <stop offset="0%" stop-color="${pegStyle.woodLight}" />
+      <stop offset="50%" stop-color="${pegStyle.woodMid}" />
+      <stop offset="100%" stop-color="${pegStyle.woodDark}" />
+    </linearGradient>
+    <linearGradient id="pegChamberGrad" x1="${isVert ? "0%" : "100%"}" y1="${isVert ? "100%" : "0%"}" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="${pegStyle.chamberTop}" />
+      <stop offset="55%" stop-color="${pegStyle.chamberBot}" />
+      <stop offset="100%" stop-color="#080504" />
+    </linearGradient>
+    <linearGradient id="pegHeadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${pegStyle.pegLight}" />
+      <stop offset="100%" stop-color="${pegStyle.pegDark}" />
     </linearGradient>
     <radialGradient id="rootGem" cx="35%" cy="35%" r="65%">
       <stop offset="0%" stop-color="#ef6b6b" />
@@ -1345,22 +1855,111 @@ export function renderOudNeckSVG(
     renderShamsiyyaRosette(svg, leftX - 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
     renderShamsiyyaRosette(svg, rightX + 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
 
-    const pegbox = document.createElementNS(SVG_NS, "polygon");
-    pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
-    pegbox.setAttribute("fill", "#1a1310");
-    pegbox.setAttribute("stroke", palette.rosetteRing);
-    pegbox.setAttribute("stroke-width", "1.5");
-    svg.appendChild(pegbox);
-
     const openRailY = getPhysicalX(0, nutY, neckLengthPx, false);
+
+    // Geometria do Banjak Vertical (coroa Mihrab livre no topo + pinos alternados)
+    const nutLeftX = leftX - 14;
+    const nutRightX = rightX + 14;
+    const shoulderY = 36;
+    const shoulderLeftX = leftX + 6;
+    const shoulderRightX = rightX - 6;
+    const crownTipY = 12;
+
+    const getVertCheekX = (/** @type {number} */ py, /** @type {"LEFT"|"RIGHT"} */ side) => {
+      const t = Math.max(0, Math.min(1, (nutY - py) / (nutY - shoulderY)));
+      return side === "LEFT"
+        ? nutLeftX + t * (shoulderLeftX - nutLeftX)
+        : nutRightX + t * (shoulderRightX - nutRightX);
+    };
+
+    const leftNearY = Math.min(openRailY - 25, nutY - 49);
+    const leftFarY = shoulderY + 12;
+    const pegRowsLeft = [leftNearY, (leftNearY + leftFarY) / 2, leftFarY];
+    const pegRowsRight = pegRowsLeft.map(y => y - 5);
+
+    if (showPegbox) {
+      const pegboxG = document.createElementNS(SVG_NS, "g");
+      pegboxG.setAttribute("class", "oud-pegbox-group");
+
+      const bodyPath = document.createElementNS(SVG_NS, "path");
+      bodyPath.setAttribute(
+        "d",
+        `M ${nutLeftX},${nutY} L ${shoulderLeftX},${shoulderY} C ${shoulderLeftX + 12},${shoulderY - 14} ${centerX - 38},${crownTipY + 3} ${centerX},${crownTipY} C ${centerX + 38},${crownTipY + 3} ${shoulderRightX - 12},${shoulderY - 14} ${shoulderRightX},${shoulderY} L ${nutRightX},${nutY} Z`
+      );
+      bodyPath.setAttribute("fill", "url(#pegboxWoodGrad)");
+      bodyPath.setAttribute("stroke", pegStyle.trim);
+      bodyPath.setAttribute("stroke-width", "1.8");
+      pegboxG.appendChild(bodyPath);
+
+      [
+        { x1: nutLeftX + 4.5, x2: shoulderLeftX + 4.5 },
+        { x1: nutRightX - 4.5, x2: shoulderRightX - 4.5 }
+      ].forEach(strip => {
+        const line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", String(strip.x1));
+        line.setAttribute("y1", String(nutY - 2));
+        line.setAttribute("x2", String(strip.x2));
+        line.setAttribute("y2", String(shoulderY + 2));
+        line.setAttribute("stroke", pegStyle.purfling);
+        line.setAttribute("stroke-width", "1.4");
+        line.setAttribute("stroke-dasharray", "6,3,1.8,3");
+        line.setAttribute("opacity", pegStyle.purflingOpacity);
+        pegboxG.appendChild(line);
+      });
+
+      const chamberPath = document.createElementNS(SVG_NS, "path");
+      chamberPath.setAttribute(
+        "d",
+        `M ${nutLeftX + 11},${nutY - 2} L ${shoulderLeftX + 10},${shoulderY + 3} Q ${centerX},${shoulderY - 7} ${shoulderRightX - 10},${shoulderY + 3} L ${nutRightX - 11},${nutY - 2} Z`
+      );
+      chamberPath.setAttribute("fill", "url(#pegChamberGrad)");
+      chamberPath.setAttribute("stroke", "rgba(212, 168, 79, 0.34)");
+      chamberPath.setAttribute("stroke-width", "1");
+      pegboxG.appendChild(chamberPath);
+
+      const depthShade = document.createElementNS(SVG_NS, "rect");
+      depthShade.setAttribute("x", String(nutLeftX + 11));
+      depthShade.setAttribute("y", String(nutY - 14));
+      depthShade.setAttribute("width", String((nutRightX - nutLeftX) - 22));
+      depthShade.setAttribute("height", "12");
+      depthShade.setAttribute("fill", "rgba(0, 0, 0, 0.42)");
+      pegboxG.appendChild(depthShade);
+
+      const medY = crownTipY + 13;
+      if (pegStyle.crownShape === "octagram") {
+        const star = document.createElementNS(SVG_NS, "polygon");
+        star.setAttribute("points", createOctagramStarPath(centerX, medY, 8.2, 4.5));
+        star.setAttribute("fill", "rgba(212, 168, 79, 0.24)");
+        star.setAttribute("stroke", pegStyle.trim);
+        star.setAttribute("stroke-width", "1");
+        pegboxG.appendChild(star);
+
+        const dot = document.createElementNS(SVG_NS, "circle");
+        dot.setAttribute("cx", String(centerX));
+        dot.setAttribute("cy", String(medY));
+        dot.setAttribute("r", "2.0");
+        dot.setAttribute("fill", pegStyle.eye);
+        pegboxG.appendChild(dot);
+      } else {
+        const lozenge = document.createElementNS(SVG_NS, "polygon");
+        lozenge.setAttribute("points", `${centerX - 11},${medY} ${centerX},${medY - 4.8} ${centerX + 11},${medY} ${centerX},${medY + 4.8}`);
+        lozenge.setAttribute("fill", "rgba(220, 213, 202, 0.22)");
+        lozenge.setAttribute("stroke", pegStyle.purfling);
+        lozenge.setAttribute("stroke-width", "1");
+        pegboxG.appendChild(lozenge);
+      }
+
+      svg.appendChild(pegboxG);
+    }
+
     const openZoneRect = document.createElementNS(SVG_NS, "rect");
     openZoneRect.setAttribute("x", String(leftX - 12));
     openZoneRect.setAttribute("y", String(openRailY - 17));
     openZoneRect.setAttribute("width", String((rightX - leftX) + 24));
     openZoneRect.setAttribute("height", "34");
     openZoneRect.setAttribute("rx", "6");
-    openZoneRect.setAttribute("fill", "rgba(226, 217, 200, 0.06)");
-    openZoneRect.setAttribute("stroke", "rgba(226, 217, 200, 0.24)");
+    openZoneRect.setAttribute("fill", showPegbox ? "rgba(226, 217, 200, 0.05)" : (isLight ? "rgba(143, 94, 28, 0.08)" : "rgba(226, 217, 200, 0.06)"));
+    openZoneRect.setAttribute("stroke", showPegbox ? "rgba(226, 217, 200, 0.24)" : (isLight ? "rgba(143, 94, 28, 0.34)" : "rgba(226, 217, 200, 0.24)"));
     openZoneRect.setAttribute("stroke-dasharray", "3,3");
     svg.appendChild(openZoneRect);
 
@@ -1487,20 +2086,97 @@ export function renderOudNeckSVG(
     /** @type {Map<string, { x: number, y: number }>} */
     const coordLookup = new Map();
 
+    // Camadas ordenadas dentro do cabeçote: pinos de madeira -> cordas convergentes & bobinas -> cravelhas externas
+    const pegShaftLayer = document.createElementNS(SVG_NS, "g");
+    const pegStringLayer = document.createElementNS(SVG_NS, "g");
+    const pegHeadLayer = document.createElementNS(SVG_NS, "g");
+    const hiddenCartoucheLayer = document.createElementNS(SVG_NS, "g");
+
+    if (showPegbox) {
+      svg.appendChild(pegShaftLayer);
+      svg.appendChild(pegStringLayer);
+    }
+
     tuning.courses.forEach((cObj, cIdx) => {
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
       coursePositions.set(cObj.course, cx);
 
-      const cText = document.createElementNS(SVG_NS, "text");
-      cText.setAttribute("x", String(cx));
-      cText.setAttribute("y", "22");
-      cText.setAttribute("text-anchor", "middle");
-      cText.setAttribute("fill", extColors.courseLabel);
-      cText.setAttribute("font-size", "11");
-      cText.setAttribute("font-weight", "800");
-      cText.textContent = cObj.label.replace(" ", "");
-      svg.appendChild(cText);
+      const pegSide = posIndex < 3 ? "LEFT" : "RIGHT";
+      const pegTier = posIndex < 3 ? posIndex : (5 - posIndex);
+      const pegY = pegSide === "LEFT" ? pegRowsLeft[pegTier] : pegRowsRight[pegTier];
+      const leftCheekX = getVertCheekX(pegY, "LEFT");
+      const rightCheekX = getVertCheekX(pegY, "RIGHT");
+      const pegCheekX = pegSide === "LEFT" ? leftCheekX : rightCheekX;
+      const coilX = cx + (centerX - cx) * (0.09 + pegTier * 0.05);
+
+      const isWoundBass = cIdx >= 3;
+
+      if (showPegbox) {
+        // 1. Pino de madeira atravessando de ponta a ponta a câmara do Banjak
+        const shaftShadow = document.createElementNS(SVG_NS, "line");
+        shaftShadow.setAttribute("x1", String(leftCheekX + 9));
+        shaftShadow.setAttribute("y1", String(pegY + 0.8));
+        shaftShadow.setAttribute("x2", String(rightCheekX - 9));
+        shaftShadow.setAttribute("y2", String(pegY + 0.8));
+        shaftShadow.setAttribute("stroke", "#080504");
+        shaftShadow.setAttribute("stroke-width", "4.6");
+        pegShaftLayer.appendChild(shaftShadow);
+
+        const shaftWood = document.createElementNS(SVG_NS, "line");
+        shaftWood.setAttribute("x1", String(leftCheekX + 9));
+        shaftWood.setAttribute("y1", String(pegY));
+        shaftWood.setAttribute("x2", String(rightCheekX - 9));
+        shaftWood.setAttribute("y2", String(pegY));
+        shaftWood.setAttribute("stroke", pegStyle.woodLight);
+        shaftWood.setAttribute("stroke-width", "3.2");
+        pegShaftLayer.appendChild(shaftWood);
+
+        const shaftHighlight = document.createElementNS(SVG_NS, "line");
+        shaftHighlight.setAttribute("x1", String(leftCheekX + 10));
+        shaftHighlight.setAttribute("y1", String(pegY - 0.8));
+        shaftHighlight.setAttribute("x2", String(rightCheekX - 10));
+        shaftHighlight.setAttribute("y2", String(pegY - 0.8));
+        shaftHighlight.setAttribute("stroke", "rgba(255, 240, 215, 0.24)");
+        shaftHighlight.setAttribute("stroke-width", "0.85");
+        pegShaftLayer.appendChild(shaftHighlight);
+
+        // Ponteira do pino encaixada na lateral oposta
+        const oppositeTipX = pegSide === "LEFT" ? (rightCheekX - 4.5) : (leftCheekX + 4.5);
+        const oppTip = document.createElementNS(SVG_NS, "circle");
+        oppTip.setAttribute("cx", String(oppositeTipX));
+        oppTip.setAttribute("cy", String(pegY));
+        oppTip.setAttribute("r", "1.7");
+        oppTip.setAttribute("fill", pegStyle.collar);
+        oppTip.setAttribute("opacity", "0.82");
+        pegShaftLayer.appendChild(oppTip);
+
+        // 2. Enrolamento helicoidal metálico da corda no pino
+        appendPegStringCoil(pegStringLayer, coilX, pegY, true, isWoundBass);
+
+        // 3. Cravelha torneada com botão/rótulo da ordem embutido na cabeça
+        const pos = appendSculptedPeg(pegHeadLayer, {
+          baseX: pegCheekX,
+          baseY: pegY,
+          side: pegSide,
+          pegStyle,
+          courseObj: cObj,
+          isEn,
+          onPegClick: () => triggerOpenCourseSound(cObj)
+        });
+        pegPositions.set(cObj.course, { headX: pos.headX, headY: pos.headY, side: pegSide });
+      } else {
+        // Quando o Banjak estiver oculto, os cartuchos clicáveis retornam acima da zona SOLTA
+        appendCourseCartouche(hiddenCartoucheLayer, cx, openRailY - 30, cObj.label.replace(" ", ""), {
+          width: 38,
+          height: 18,
+          fontSize: 9.8,
+          isLight,
+          courseObj: cObj,
+          isEn,
+          onClick: () => triggerOpenCourseSound(cObj)
+        });
+      }
 
       if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
         const mText = document.createElementNS(SVG_NS, "text");
@@ -1514,17 +2190,30 @@ export function renderOudNeckSVG(
         svg.appendChild(mText);
       }
 
-      const isWoundBass = cIdx >= 3;
       [-1.5, 1.5].forEach((offsetX) => {
-        const pegString = document.createElementNS(SVG_NS, "line");
-        pegString.setAttribute("x1", String(cx + offsetX));
-        pegString.setAttribute("y1", "34");
-        pegString.setAttribute("x2", String(cx + offsetX));
-        pegString.setAttribute("y2", String(nutY));
-        pegString.setAttribute("stroke", isWoundBass ? "#92400e" : "#94a3b8");
-        pegString.setAttribute("stroke-width", "1.1");
-        pegString.setAttribute("opacity", "0.55");
-        svg.appendChild(pegString);
+        if (showPegbox) {
+          // Corda reta da pestana ao eixo SOLTA (0), depois convergindo até a bobina no pino
+          const pegStr = document.createElementNS(SVG_NS, "path");
+          pegStr.setAttribute(
+            "d",
+            `M ${(cx + offsetX).toFixed(1)},${nutY} L ${(cx + offsetX).toFixed(1)},${openRailY.toFixed(1)} L ${(coilX + offsetX * 0.65).toFixed(1)},${pegY.toFixed(1)}`
+          );
+          pegStr.setAttribute("fill", "none");
+          pegStr.setAttribute("stroke", isWoundBass ? "#c98b3c" : "#dbe4f0");
+          pegStr.setAttribute("stroke-width", isWoundBass ? "1.35" : "1.0");
+          pegStr.setAttribute("opacity", isWoundBass ? "0.84" : "0.74");
+          pegStringLayer.appendChild(pegStr);
+        } else {
+          const stubLine = document.createElementNS(SVG_NS, "line");
+          stubLine.setAttribute("x1", String(cx + offsetX));
+          stubLine.setAttribute("y1", String(openRailY - 16));
+          stubLine.setAttribute("x2", String(cx + offsetX));
+          stubLine.setAttribute("y2", String(nutY));
+          stubLine.setAttribute("stroke", isWoundBass ? "#b8792c" : "#94a3b8");
+          stubLine.setAttribute("stroke-width", "1.1");
+          stubLine.setAttribute("opacity", "0.52");
+          svg.appendChild(stubLine);
+        }
 
         const sLine = document.createElementNS(SVG_NS, "line");
         sLine.setAttribute("x1", String(cx + offsetX));
@@ -1621,6 +2310,12 @@ export function renderOudNeckSVG(
       }
     });
 
+    if (showPegbox) {
+      svg.appendChild(pegHeadLayer);
+    } else {
+      svg.appendChild(hiddenCartoucheLayer);
+    }
+
     if (isOctaveFilterActive) {
       const octPoints = octavePathNodes
         .map(n => {
@@ -1642,12 +2337,14 @@ export function renderOudNeckSVG(
       isLeftHanded: state.leftHanded,
       isLight,
       isEn,
+      showPegbox,
       shapeMode: state.shapeMode,
       boxAnchorQ: state.boxAnchorQ,
       tuning,
       nutCoord: nutY,
       neckLengthPx,
       coursePositions,
+      pegPositions,
       activeJewelsByAbsQ
     });
 
@@ -1669,6 +2366,7 @@ export function renderOudNeckSVG(
   const soundboardFarX = state.leftHanded ? 15 : 1105;
 
   const dir = state.leftHanded ? -1 : 1;
+  const awayDir = -dir; // Aponta da pestana em direção à coroa do cabeçote
   const curveCtrlX = bodyJointX + dir * 55;
   const sbTopY = 70;
   const sbBotY = 370;
@@ -1718,24 +2416,117 @@ export function renderOudNeckSVG(
   const nutBotY = bottomY + 14;
   const bodyTopY = topY - 22;
   const bodyBotY = bottomY + 22;
-
-  const pegboxEndX = state.leftHanded ? 1105 : 15;
-  const pegbox = document.createElementNS(SVG_NS, "polygon");
-  pegbox.setAttribute("points", `${nutX},${nutTopY} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${nutBotY}`);
-  pegbox.setAttribute("fill", "#1a1310");
-  pegbox.setAttribute("stroke", palette.rosetteRing);
-  pegbox.setAttribute("stroke-width", "1.5");
-  svg.appendChild(pegbox);
-
   const openRailX = getPhysicalX(0, nutX, neckLengthPx, state.leftHanded);
+
+  // Geometria do Banjak Horizontal (coroa Mihrab + câmara limpa + 6 pinos alternados)
+  const shoulderX = nutX + awayDir * 128;
+  const crownTipX = nutX + awayDir * 164;
+  const shoulderTopY = topY + 10;
+  const shoulderBotY = bottomY - 10;
+
+  const topCol0 = openRailX + awayDir * 26;
+  const topCol2 = shoulderX - awayDir * 10;
+  const topCol1 = (topCol0 + topCol2) / 2;
+  const pegColsTop = [topCol0, topCol1, topCol2];
+  const pegColsBot = pegColsTop.map(x => x + awayDir * 6);
+
+  const getHorizCheekY = (/** @type {number} */ px, /** @type {"TOP"|"BOTTOM"} */ side) => {
+    const t = Math.max(0, Math.min(1, (px - nutX) / (shoulderX - nutX)));
+    return side === "TOP"
+      ? nutTopY + t * (shoulderTopY - nutTopY)
+      : nutBotY + t * (shoulderBotY - nutBotY);
+  };
+
+  if (showPegbox) {
+    const pegboxG = document.createElementNS(SVG_NS, "g");
+    pegboxG.setAttribute("class", "oud-pegbox-group");
+
+    // Silhueta suntuosa com coroa em arco Mihrab ogival
+    const bodyPath = document.createElementNS(SVG_NS, "path");
+    bodyPath.setAttribute(
+      "d",
+      `M ${nutX},${nutTopY} L ${shoulderX},${shoulderTopY} C ${shoulderX + awayDir * 22},${shoulderTopY + 8} ${crownTipX - awayDir * 6},${centerY - 34} ${crownTipX},${centerY} C ${crownTipX - awayDir * 6},${centerY + 34} ${shoulderX + awayDir * 22},${shoulderBotY - 8} ${shoulderX},${shoulderBotY} L ${nutX},${nutBotY} Z`
+    );
+    bodyPath.setAttribute("fill", "url(#pegboxWoodGrad)");
+    bodyPath.setAttribute("stroke", pegStyle.trim);
+    bodyPath.setAttribute("stroke-width", "1.9");
+    pegboxG.appendChild(bodyPath);
+
+    // Filete contínuo de madrepérola (Sadaf) nas duas laterais
+    [
+      { y1: nutTopY + 4.5, y2: shoulderTopY + 4.5 },
+      { y1: nutBotY - 4.5, y2: shoulderBotY - 4.5 }
+    ].forEach(strip => {
+      const line = document.createElementNS(SVG_NS, "line");
+      line.setAttribute("x1", String(nutX + awayDir * 2));
+      line.setAttribute("y1", String(strip.y1));
+      line.setAttribute("x2", String(shoulderX - awayDir * 2));
+      line.setAttribute("y2", String(strip.y2));
+      line.setAttribute("stroke", pegStyle.purfling);
+      line.setAttribute("stroke-width", "1.5");
+      line.setAttribute("stroke-dasharray", "7,3.5,1.8,3.5");
+      line.setAttribute("opacity", pegStyle.purflingOpacity);
+      pegboxG.appendChild(line);
+    });
+
+    // Câmara interna vazada com profundidade
+    const chamberFarX = shoulderX + awayDir * 2;
+    const chamberPath = document.createElementNS(SVG_NS, "path");
+    chamberPath.setAttribute(
+      "d",
+      `M ${nutX + awayDir * 2},${nutTopY + 11} L ${chamberFarX},${shoulderTopY + 11} Q ${chamberFarX + awayDir * 12},${centerY} ${chamberFarX},${shoulderBotY - 11} L ${nutX + awayDir * 2},${nutBotY - 11} Z`
+    );
+    chamberPath.setAttribute("fill", "url(#pegChamberGrad)");
+    chamberPath.setAttribute("stroke", "rgba(212, 168, 79, 0.34)");
+    chamberPath.setAttribute("stroke-width", "1");
+    pegboxG.appendChild(chamberPath);
+
+    // Sombra sutil logo atrás da pestana sugerindo a dobra inclinada do Banjak
+    const depthShadeX = awayDir < 0 ? nutX - 16 : nutX + 2;
+    const depthShade = document.createElementNS(SVG_NS, "rect");
+    depthShade.setAttribute("x", String(depthShadeX));
+    depthShade.setAttribute("y", String(nutTopY + 11));
+    depthShade.setAttribute("width", "14");
+    depthShade.setAttribute("height", String((nutBotY - nutTopY) - 22));
+    depthShade.setAttribute("fill", "rgba(0, 0, 0, 0.44)");
+    pegboxG.appendChild(depthShade);
+
+    // Medalhão incrustado na ponta da coroa Mihrab
+    const medX = shoulderX + awayDir * 19;
+    if (pegStyle.crownShape === "octagram") {
+      const star = document.createElementNS(SVG_NS, "polygon");
+      star.setAttribute("points", createOctagramStarPath(medX, centerY, 10.5, 5.8));
+      star.setAttribute("fill", "rgba(212, 168, 79, 0.22)");
+      star.setAttribute("stroke", pegStyle.trim);
+      star.setAttribute("stroke-width", "1.1");
+      pegboxG.appendChild(star);
+
+      const dot = document.createElementNS(SVG_NS, "circle");
+      dot.setAttribute("cx", String(medX));
+      dot.setAttribute("cy", String(centerY));
+      dot.setAttribute("r", "2.4");
+      dot.setAttribute("fill", pegStyle.eye);
+      pegboxG.appendChild(dot);
+    } else {
+      const lozenge = document.createElementNS(SVG_NS, "polygon");
+      lozenge.setAttribute("points", `${medX},${centerY - 14} ${medX + 5.5},${centerY} ${medX},${centerY + 14} ${medX - 5.5},${centerY}`);
+      lozenge.setAttribute("fill", "rgba(220, 213, 202, 0.20)");
+      lozenge.setAttribute("stroke", pegStyle.purfling);
+      lozenge.setAttribute("stroke-width", "1.1");
+      pegboxG.appendChild(lozenge);
+    }
+
+    svg.appendChild(pegboxG);
+  }
+
   const openZoneRect = document.createElementNS(SVG_NS, "rect");
   openZoneRect.setAttribute("x", String(openRailX - 17));
   openZoneRect.setAttribute("y", String(nutTopY + 2));
   openZoneRect.setAttribute("width", "34");
   openZoneRect.setAttribute("height", String(nutBotY - nutTopY - 4));
   openZoneRect.setAttribute("rx", "6");
-  openZoneRect.setAttribute("fill", "rgba(226, 217, 200, 0.06)");
-  openZoneRect.setAttribute("stroke", "rgba(226, 217, 200, 0.24)");
+  openZoneRect.setAttribute("fill", showPegbox ? "rgba(226, 217, 200, 0.05)" : (isLight ? "rgba(143, 94, 28, 0.08)" : "rgba(226, 217, 200, 0.06)"));
+  openZoneRect.setAttribute("stroke", showPegbox ? "rgba(226, 217, 200, 0.24)" : (isLight ? "rgba(143, 94, 28, 0.34)" : "rgba(226, 217, 200, 0.24)"));
   openZoneRect.setAttribute("stroke-dasharray", "3,3");
   svg.appendChild(openZoneRect);
 
@@ -1864,23 +2655,96 @@ export function renderOudNeckSVG(
   /** @type {Map<string, { x: number, y: number }>} */
   const coordLookup = new Map();
 
+  // Camadas ordenadas: pinos de madeira no fundo da câmara -> cordas convergentes & bobinas -> cravelhas externas
+  const pegShaftLayer = document.createElementNS(SVG_NS, "g");
+  const pegStringLayer = document.createElementNS(SVG_NS, "g");
+  const pegHeadLayer = document.createElementNS(SVG_NS, "g");
+  const hiddenCartoucheLayer = document.createElementNS(SVG_NS, "g");
+
+  if (showPegbox) {
+    svg.appendChild(pegShaftLayer);
+    svg.appendChild(pegStringLayer);
+  }
+
   tuning.courses.forEach((cObj, cIdx) => {
     const cy = topY + cIdx * courseSpacing;
     coursePositions.set(cObj.course, cy);
-    const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
 
-    const cText = document.createElementNS(SVG_NS, "text");
-    cText.setAttribute("x", String(courseLabelX));
-    cText.setAttribute("y", String(cy + 4));
-    cText.setAttribute("text-anchor", "middle");
-    cText.setAttribute("fill", extColors.pegboxCourseLabel);
-    cText.setAttribute("stroke", "#120c08");
-    cText.setAttribute("stroke-width", "2.2");
-    cText.setAttribute("paint-order", "stroke");
-    cText.setAttribute("font-size", "11.5");
-    cText.setAttribute("font-weight", "800");
-    cText.textContent = cObj.label;
-    svg.appendChild(cText);
+    const pegSide = cIdx < 3 ? "TOP" : "BOTTOM";
+    const pegTier = cIdx < 3 ? cIdx : (5 - cIdx);
+    const pegX = pegSide === "TOP" ? pegColsTop[pegTier] : pegColsBot[pegTier];
+    const topCheekY = getHorizCheekY(pegX, "TOP");
+    const botCheekY = getHorizCheekY(pegX, "BOTTOM");
+    const pegCheekY = pegSide === "TOP" ? topCheekY : botCheekY;
+    const coilY = cy + (centerY - cy) * (0.09 + pegTier * 0.05);
+
+    const isWoundBass = cIdx >= 3;
+
+    if (showPegbox) {
+      // 1. Pino de madeira cilíndrico atravessando de ponta a ponta a câmara do Banjak
+      const shaftShadow = document.createElementNS(SVG_NS, "line");
+      shaftShadow.setAttribute("x1", String(pegX + 0.9));
+      shaftShadow.setAttribute("y1", String(topCheekY + 10));
+      shaftShadow.setAttribute("x2", String(pegX + 0.9));
+      shaftShadow.setAttribute("y2", String(botCheekY - 10));
+      shaftShadow.setAttribute("stroke", "#080504");
+      shaftShadow.setAttribute("stroke-width", "5.0");
+      pegShaftLayer.appendChild(shaftShadow);
+
+      const shaftWood = document.createElementNS(SVG_NS, "line");
+      shaftWood.setAttribute("x1", String(pegX));
+      shaftWood.setAttribute("y1", String(topCheekY + 10));
+      shaftWood.setAttribute("x2", String(pegX));
+      shaftWood.setAttribute("y2", String(botCheekY - 10));
+      shaftWood.setAttribute("stroke", pegStyle.woodLight);
+      shaftWood.setAttribute("stroke-width", "3.5");
+      pegShaftLayer.appendChild(shaftWood);
+
+      const shaftHighlight = document.createElementNS(SVG_NS, "line");
+      shaftHighlight.setAttribute("x1", String(pegX - 0.9));
+      shaftHighlight.setAttribute("y1", String(topCheekY + 11));
+      shaftHighlight.setAttribute("x2", String(pegX - 0.9));
+      shaftHighlight.setAttribute("y2", String(botCheekY - 11));
+      shaftHighlight.setAttribute("stroke", "rgba(255, 240, 215, 0.24)");
+      shaftHighlight.setAttribute("stroke-width", "0.9");
+      pegShaftLayer.appendChild(shaftHighlight);
+
+      // Ponteira do pino encaixada na lateral oposta
+      const oppositeTipY = pegSide === "TOP" ? (botCheekY - 5) : (topCheekY + 5);
+      const oppTip = document.createElementNS(SVG_NS, "circle");
+      oppTip.setAttribute("cx", String(pegX));
+      oppTip.setAttribute("cy", String(oppositeTipY));
+      oppTip.setAttribute("r", "1.9");
+      oppTip.setAttribute("fill", pegStyle.collar);
+      oppTip.setAttribute("opacity", "0.82");
+      pegShaftLayer.appendChild(oppTip);
+
+      // 2. Enrolamento helicoidal metálico da corda no pino
+      appendPegStringCoil(pegStringLayer, pegX, coilY, false, isWoundBass);
+
+      // 3. Cravelha escultórica com o botão/rótulo da ordem composto na cabeça
+      const pos = appendSculptedPeg(pegHeadLayer, {
+        baseX: pegX,
+        baseY: pegCheekY,
+        side: pegSide,
+        pegStyle,
+        courseObj: cObj,
+        isEn,
+        onPegClick: () => triggerOpenCourseSound(cObj)
+      });
+      pegPositions.set(cObj.course, { headX: pos.headX, headY: pos.headY, side: pegSide });
+    } else {
+      // Quando o Banjak estiver oculto, os cartuchos clicáveis voltam ao lado da zona SOLTA
+      appendCourseCartouche(hiddenCartoucheLayer, openRailX + awayDir * 44, cy, cObj.label, {
+        width: 44,
+        height: 19,
+        fontSize: 10.6,
+        isLight,
+        courseObj: cObj,
+        isEn,
+        onClick: () => triggerOpenCourseSound(cObj)
+      });
+    }
 
     if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
       const mText = document.createElementNS(SVG_NS, "text");
@@ -1894,17 +2758,30 @@ export function renderOudNeckSVG(
       svg.appendChild(mText);
     }
 
-    const isWoundBass = cIdx >= 3;
     [-1.6, 1.6].forEach((offsetY) => {
-      const pegString = document.createElementNS(SVG_NS, "line");
-      pegString.setAttribute("x1", String(openRailX - dir * 18));
-      pegString.setAttribute("y1", String(cy + offsetY));
-      pegString.setAttribute("x2", String(nutX));
-      pegString.setAttribute("y2", String(cy + offsetY));
-      pegString.setAttribute("stroke", isWoundBass ? "#92400e" : "#94a3b8");
-      pegString.setAttribute("stroke-width", "1.1");
-      pegString.setAttribute("opacity", "0.55");
-      svg.appendChild(pegString);
+      if (showPegbox) {
+        // Corda sai alinhada da pestana pelo eixo SOLTA (0) e converge até a bobina no pino
+        const pegStr = document.createElementNS(SVG_NS, "path");
+        pegStr.setAttribute(
+          "d",
+          `M ${nutX},${(cy + offsetY).toFixed(1)} L ${openRailX.toFixed(1)},${(cy + offsetY).toFixed(1)} L ${pegX.toFixed(1)},${(coilY + offsetY * 0.65).toFixed(1)}`
+        );
+        pegStr.setAttribute("fill", "none");
+        pegStr.setAttribute("stroke", isWoundBass ? "#c98b3c" : "#dbe4f0");
+        pegStr.setAttribute("stroke-width", isWoundBass ? "1.4" : "1.0");
+        pegStr.setAttribute("opacity", isWoundBass ? "0.84" : "0.74");
+        pegStringLayer.appendChild(pegStr);
+      } else {
+        const stubLine = document.createElementNS(SVG_NS, "line");
+        stubLine.setAttribute("x1", String(openRailX - dir * 18));
+        stubLine.setAttribute("y1", String(cy + offsetY));
+        stubLine.setAttribute("x2", String(nutX));
+        stubLine.setAttribute("y2", String(cy + offsetY));
+        stubLine.setAttribute("stroke", isWoundBass ? "#b8792c" : "#94a3b8");
+        stubLine.setAttribute("stroke-width", "1.1");
+        stubLine.setAttribute("opacity", "0.52");
+        svg.appendChild(stubLine);
+      }
 
       const sLine = document.createElementNS(SVG_NS, "line");
       sLine.setAttribute("x1", String(nutX));
@@ -2001,6 +2878,12 @@ export function renderOudNeckSVG(
     }
   });
 
+  if (showPegbox) {
+    svg.appendChild(pegHeadLayer);
+  } else {
+    svg.appendChild(hiddenCartoucheLayer);
+  }
+
   if (isOctaveFilterActive) {
     const octPoints = octavePathNodes
       .map(n => {
@@ -2022,12 +2905,14 @@ export function renderOudNeckSVG(
     isLeftHanded: state.leftHanded,
     isLight,
     isEn,
+    showPegbox,
     shapeMode: state.shapeMode,
     boxAnchorQ: state.boxAnchorQ,
     tuning,
     nutCoord: nutX,
     neckLengthPx,
     coursePositions,
+    pegPositions,
     activeJewelsByAbsQ
   });
 
