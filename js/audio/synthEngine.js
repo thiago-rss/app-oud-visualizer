@@ -1,6 +1,64 @@
 // @ts-check
 import { PITCH_CLASSES_24 } from "../core/database.js";
 
+/** @typedef {"syrian"|"egyptian"} OudTimbreProfile */
+
+/** @type {OudTimbreProfile} */
+let activeTimbreProfile = "syrian";
+
+const TIMBRE_PROFILES = {
+  syrian: {
+    pluckPosMin: 0.118,
+    pluckPosRange: 0.024,
+    pluckPairOffset: 0.011,
+    combDepth: 0.78,
+    lpG: { bass: 0.28, mid: 0.33, high: 0.38 },
+    smoothCoeff: { bass: 0.54, mid: 0.48, high: 0.42 },
+    triWeight: { bass: 0.36, other: 0.26 },
+    decayMult: 0.96,
+    rishaLevel: 0.32,
+    rishaFreqMult: 6.2,
+    rishaFreqMin: 1500,
+    rishaFreqMax: 2850,
+    rishaQ: 1.35,
+    dryGain: 0.48,
+    wetGain: 0.62,
+    highpassHz: 56,
+    lowWarmthHz: 210,
+    lowWarmthQ: 1.2,
+    lowWarmthGain: 1.1,
+    nasalHz: 920,
+    nasalQ: 1.7,
+    nasalGain: 3.2,
+    harshTrimHz: 5200
+  },
+  egyptian: {
+    pluckPosMin: 0.205,
+    pluckPosRange: 0.035,
+    pluckPairOffset: 0.015,
+    combDepth: 0.62,
+    lpG: { bass: 0.36, mid: 0.43, high: 0.49 },
+    smoothCoeff: { bass: 0.65, mid: 0.58, high: 0.50 },
+    triWeight: { bass: 0.48, other: 0.36 },
+    decayMult: 1.12,
+    rishaLevel: 0.24,
+    rishaFreqMult: 4.8,
+    rishaFreqMin: 1050,
+    rishaFreqMax: 2150,
+    rishaQ: 1.1,
+    dryGain: 0.32,
+    wetGain: 0.86,
+    highpassHz: 48,
+    lowWarmthHz: 205,
+    lowWarmthQ: 1.05,
+    lowWarmthGain: 3.2,
+    nasalHz: 780,
+    nasalQ: 1.2,
+    nasalGain: 0.4,
+    harshTrimHz: 4100
+  }
+};
+
 /** @type {AudioContext | null} */
 let audioCtx = null;
 /** @type {GainNode | null} */
@@ -8,7 +66,24 @@ let masterGain = null;
 /** @type {GainNode | null} */
 let oudBodyInput = null;
 /** @type {AudioBuffer | null} */
-let rishaNoiseBuffer = null;
+let rishaThumpBuffer = null;
+
+/**
+ * Referências do barramento de corpo para chavear instantaneamente entre Sírio e Egípcio.
+ * @type {{
+ *   input: GainNode,
+ *   dryGain: GainNode,
+ *   wetGain: GainNode,
+ *   convolverSyrian: ConvolverNode,
+ *   convolverEgyptian: ConvolverNode,
+ *   connectedConvolver: ConvolverNode,
+ *   highpass: BiquadFilterNode,
+ *   lowWarmth: BiquadFilterNode,
+ *   nasalPresence: BiquadFilterNode,
+ *   harshTrim: BiquadFilterNode
+ * } | null}
+ */
+let bodyBusNodes = null;
 
 /** @type {HTMLAudioElement | null} */
 let iosKeepAliveAudio = null;
@@ -137,119 +212,271 @@ function configureIosAudioSession() {
 }
 
 /**
- * Monta o barramento compartilhado de Formantes da Caixa Acústica do Oud:
- * - Rota direta suavizada (clareza do ataque da risha)
- * - 4 formantes paralelos (roseta Helmholtz, modo principal do tampo, madeira média e presença)
- * - 2 reflexões internas curtas do bojo de madeira (sem cauda longa para não embolar Taqsim)
+ * Sintetiza uma Impulse Response (IR) modal de caixa acústica de Oud
+ * calibrada para o perfil "syrian" (seca e anasalada) ou "egyptian" (redonda e encorpada).
  *
+ * @param {AudioContext} ctx
+ * @param {OudTimbreProfile} profile
+ * @returns {AudioBuffer}
+ */
+function createAcousticOudBodyIR(ctx, profile) {
+  const sampleRate = ctx.sampleRate || 44100;
+  const isSyrian = profile === "syrian";
+  const durationSec = isSyrian ? 0.155 : 0.195;
+  const length = Math.floor(sampleRate * durationSec);
+  const irBuffer = ctx.createBuffer(1, length, sampleRate);
+  const data = irBuffer.getChannelData(0);
+
+  data[0] = isSyrian ? 0.44 : 0.34;
+  data[1] = isSyrian ? 0.22 : 0.25;
+  data[2] = isSyrian ? 0.08 : 0.13;
+
+  const modes = isSyrian
+    ? [
+        { freq: 102,  decay: 0.068, amp: 0.21, phase: 0.20 },
+        { freq: 122,  decay: 0.058, amp: 0.16, phase: 1.45 },
+        { freq: 205,  decay: 0.082, amp: 0.30, phase: 0.65 },
+        { freq: 262,  decay: 0.078, amp: 0.31, phase: 2.10 },
+        { freq: 345,  decay: 0.070, amp: 0.28, phase: 3.80 },
+        { freq: 448,  decay: 0.066, amp: 0.34, phase: 1.15 },
+        { freq: 560,  decay: 0.062, amp: 0.44, phase: 4.50 },
+        { freq: 710,  decay: 0.058, amp: 0.42, phase: 2.75 },
+        { freq: 910,  decay: 0.054, amp: 0.46, phase: 0.90 },
+        { freq: 1140, decay: 0.048, amp: 0.38, phase: 5.10 },
+        { freq: 1420, decay: 0.041, amp: 0.28, phase: 1.95 },
+        { freq: 1780, decay: 0.034, amp: 0.20, phase: 3.30 },
+        { freq: 2240, decay: 0.027, amp: 0.13, phase: 0.40 },
+        { freq: 2820, decay: 0.021, amp: 0.08, phase: 2.55 },
+        { freq: 3520, decay: 0.015, amp: 0.05, phase: 4.20 }
+      ]
+    : [
+        { freq: 94,   decay: 0.110, amp: 0.36, phase: 0.20 },
+        { freq: 112,  decay: 0.095, amp: 0.26, phase: 1.45 },
+        { freq: 192,  decay: 0.128, amp: 0.48, phase: 0.65 },
+        { freq: 238,  decay: 0.118, amp: 0.45, phase: 2.10 },
+        { freq: 312,  decay: 0.102, amp: 0.34, phase: 3.80 },
+        { freq: 408,  decay: 0.090, amp: 0.34, phase: 1.15 },
+        { freq: 525,  decay: 0.078, amp: 0.33, phase: 4.50 },
+        { freq: 660,  decay: 0.068, amp: 0.25, phase: 2.75 },
+        { freq: 825,  decay: 0.058, amp: 0.20, phase: 0.90 },
+        { freq: 1030, decay: 0.050, amp: 0.17, phase: 5.10 },
+        { freq: 1290, decay: 0.042, amp: 0.13, phase: 1.95 },
+        { freq: 1610, decay: 0.035, amp: 0.10, phase: 3.30 },
+        { freq: 2020, decay: 0.028, amp: 0.07, phase: 0.40 },
+        { freq: 2560, decay: 0.022, amp: 0.04, phase: 2.55 },
+        { freq: 3200, decay: 0.016, amp: 0.03, phase: 4.20 }
+      ];
+
+  let seed = isSyrian ? 133791 : 271828;
+  const nextRand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed / 1073741823.5) - 1;
+  };
+
+  let woodNoiseLP = 0;
+  const twoPi = Math.PI * 2;
+  const noiseAlpha = isSyrian ? 0.26 : 0.18;
+  const noiseLevel = isSyrian ? 0.065 : 0.090;
+  const noiseDecay = isSyrian ? 0.022 : 0.032;
+
+  for (let i = 0; i < length; i++) {
+    const t = i / sampleRate;
+    let sum = data[i];
+
+    for (let m = 0; m < modes.length; m++) {
+      const mode = modes[m];
+      const env = Math.exp(-t / mode.decay);
+      sum += mode.amp * env * Math.sin(twoPi * mode.freq * t + mode.phase);
+    }
+
+    const rawN = nextRand();
+    woodNoiseLP = woodNoiseLP * (1 - noiseAlpha) + rawN * noiseAlpha;
+    sum += woodNoiseLP * noiseLevel * Math.exp(-t / noiseDecay);
+
+    data[i] = sum;
+  }
+
+  let sumSq = 0;
+  for (let i = 0; i < length; i++) {
+    sumSq += data[i] * data[i];
+  }
+  const rms = Math.sqrt(sumSq / length) || 1;
+  const normGain = (isSyrian ? 0.052 : 0.056) / rms;
+  for (let i = 0; i < length; i++) {
+    data[i] *= normGain;
+  }
+
+  return irBuffer;
+}
+
+/**
+ * Aplica os parâmetros de EQ, ganho seco/molhado e Convolver ativo no barramento do Oud.
+ */
+function applyTimbreProfileToBodyBus() {
+  if (!audioCtx || !bodyBusNodes) return;
+  const cfg = TIMBRE_PROFILES[activeTimbreProfile] || TIMBRE_PROFILES.syrian;
+  const now = audioCtx.currentTime;
+
+  bodyBusNodes.dryGain.gain.setTargetAtTime(cfg.dryGain, now, 0.02);
+  bodyBusNodes.wetGain.gain.setTargetAtTime(cfg.wetGain, now, 0.02);
+
+  bodyBusNodes.highpass.frequency.setTargetAtTime(cfg.highpassHz, now, 0.02);
+  bodyBusNodes.lowWarmth.frequency.setTargetAtTime(cfg.lowWarmthHz, now, 0.02);
+  bodyBusNodes.lowWarmth.Q.setTargetAtTime(cfg.lowWarmthQ, now, 0.02);
+  bodyBusNodes.lowWarmth.gain.setTargetAtTime(cfg.lowWarmthGain, now, 0.02);
+
+  bodyBusNodes.nasalPresence.frequency.setTargetAtTime(cfg.nasalHz, now, 0.02);
+  bodyBusNodes.nasalPresence.Q.setTargetAtTime(cfg.nasalQ, now, 0.02);
+  bodyBusNodes.nasalPresence.gain.setTargetAtTime(cfg.nasalGain, now, 0.02);
+
+  bodyBusNodes.harshTrim.frequency.setTargetAtTime(cfg.harshTrimHz, now, 0.02);
+
+  const desiredConvolver = activeTimbreProfile === "egyptian"
+    ? bodyBusNodes.convolverEgyptian
+    : bodyBusNodes.convolverSyrian;
+
+  if (bodyBusNodes.connectedConvolver !== desiredConvolver) {
+    try {
+      bodyBusNodes.input.disconnect(bodyBusNodes.connectedConvolver);
+    } catch {
+      // Ignora
+    }
+    bodyBusNodes.input.connect(desiredConvolver);
+    bodyBusNodes.connectedConvolver = desiredConvolver;
+  }
+}
+
+/**
+ * Define o caráter sonoro do Oud ("syrian" = seco/anasaldo, "egyptian" = redondo/encorpado).
+ * @param {OudTimbreProfile} profile
+ * @returns {OudTimbreProfile}
+ */
+export function setOudTimbreProfile(profile) {
+  activeTimbreProfile = profile === "egyptian" ? "egyptian" : "syrian";
+  applyTimbreProfileToBodyBus();
+  return activeTimbreProfile;
+}
+
+/**
+ * Retorna o caráter sonoro ativo ("syrian" | "egyptian").
+ * @returns {OudTimbreProfile}
+ */
+export function getOudTimbreProfile() {
+  return activeTimbreProfile;
+}
+
+/**
+ * Monta o barramento acústico do Oud com 2 ConvolverNodes pré-carregados (Sírio & Egípcio)
+ * + rota seca + EQ paramétrico de tampo.
  * @param {AudioContext} ctx
  * @param {AudioNode} dest
  * @returns {GainNode}
  */
-function createOudBodyFormantBus(ctx, dest) {
+function createOudAcousticBodyBus(ctx, dest) {
+  const cfg = TIMBRE_PROFILES[activeTimbreProfile] || TIMBRE_PROFILES.syrian;
+  const now = ctx.currentTime;
+
   const input = ctx.createGain();
-  input.gain.setValueAtTime(1.0, ctx.currentTime);
+  input.gain.setValueAtTime(1.0, now);
 
   const busOut = ctx.createGain();
-  busOut.gain.setValueAtTime(0.95, ctx.currentTime);
+  busOut.gain.setValueAtTime(1.02, now);
 
-  // Limpeza sub-grave abaixo de 52 Hz para manter o bordão C2 (65.41 Hz) firme no celular
-  const subCleanup = ctx.createBiquadFilter();
-  subCleanup.type = "highpass";
-  subCleanup.frequency.setValueAtTime(52, ctx.currentTime);
-  subCleanup.Q.setValueAtTime(0.7, ctx.currentTime);
-  busOut.connect(subCleanup);
-  subCleanup.connect(dest);
+  const highpass = ctx.createBiquadFilter();
+  highpass.type = "highpass";
+  highpass.frequency.setValueAtTime(cfg.highpassHz, now);
+  highpass.Q.setValueAtTime(0.7, now);
 
-  // 1. Rota direta quente (preserva definição do ataque e articulação rápida)
-  const dryLp = ctx.createBiquadFilter();
-  dryLp.type = "lowpass";
-  dryLp.frequency.setValueAtTime(4200, ctx.currentTime);
-  dryLp.Q.setValueAtTime(0.7, ctx.currentTime);
+  const lowWarmth = ctx.createBiquadFilter();
+  lowWarmth.type = "peaking";
+  lowWarmth.frequency.setValueAtTime(cfg.lowWarmthHz, now);
+  lowWarmth.Q.setValueAtTime(cfg.lowWarmthQ, now);
+  lowWarmth.gain.setValueAtTime(cfg.lowWarmthGain, now);
+
+  const nasalPresence = ctx.createBiquadFilter();
+  nasalPresence.type = "peaking";
+  nasalPresence.frequency.setValueAtTime(cfg.nasalHz, now);
+  nasalPresence.Q.setValueAtTime(cfg.nasalQ, now);
+  nasalPresence.gain.setValueAtTime(cfg.nasalGain, now);
+
+  const harshTrim = ctx.createBiquadFilter();
+  harshTrim.type = "lowpass";
+  harshTrim.frequency.setValueAtTime(cfg.harshTrimHz, now);
+  harshTrim.Q.setValueAtTime(0.65, now);
+
+  busOut.connect(highpass);
+  highpass.connect(lowWarmth);
+  lowWarmth.connect(nasalPresence);
+  nasalPresence.connect(harshTrim);
+  harshTrim.connect(dest);
 
   const dryGain = ctx.createGain();
-  dryGain.gain.setValueAtTime(0.54, ctx.currentTime);
-
-  input.connect(dryLp);
-  dryLp.connect(dryGain);
+  dryGain.gain.setValueAtTime(cfg.dryGain, now);
+  input.connect(dryGain);
   dryGain.connect(busOut);
 
-  // 2. Banco de 4 Formantes do Corpo do Oud (Bojo + Tampo + Roseta)
-  const formants = [
-    { freq: 112, q: 3.1, gain: 0.36 },  // Ressonância de ar da roseta (Helmholtz)
-    { freq: 255, q: 2.7, gain: 0.46 },  // Modo principal do tampo (abeto / cedro)
-    { freq: 540, q: 2.3, gain: 0.34 },  // Corpo médio amadeirado
-    { freq: 1180, q: 1.9, gain: 0.21 }  // Projeção nasal típica do Oud acústico
-  ];
+  const convolverSyrian = ctx.createConvolver();
+  convolverSyrian.normalize = false;
+  convolverSyrian.buffer = createAcousticOudBodyIR(ctx, "syrian");
 
-  formants.forEach(f => {
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.setValueAtTime(f.freq, ctx.currentTime);
-    bp.Q.setValueAtTime(f.q, ctx.currentTime);
+  const convolverEgyptian = ctx.createConvolver();
+  convolverEgyptian.normalize = false;
+  convolverEgyptian.buffer = createAcousticOudBodyIR(ctx, "egyptian");
 
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(f.gain, ctx.currentTime);
+  const wetGain = ctx.createGain();
+  wetGain.gain.setValueAtTime(cfg.wetGain, now);
 
-    input.connect(bp);
-    bp.connect(g);
-    g.connect(busOut);
-  });
+  convolverSyrian.connect(wetGain);
+  convolverEgyptian.connect(wetGain);
+  wetGain.connect(busOut);
 
-  // 3. Micro-reflexões internas da caixa acústica (7 ms e 13 ms filtradas)
-  const chamberFilter = ctx.createBiquadFilter();
-  chamberFilter.type = "lowpass";
-  chamberFilter.frequency.setValueAtTime(1650, ctx.currentTime);
-  chamberFilter.Q.setValueAtTime(0.6, ctx.currentTime);
+  const initialConvolver = activeTimbreProfile === "egyptian" ? convolverEgyptian : convolverSyrian;
+  input.connect(initialConvolver);
 
-  const tap1 = ctx.createDelay(0.05);
-  tap1.delayTime.setValueAtTime(0.0073, ctx.currentTime);
-  const tap1Gain = ctx.createGain();
-  tap1Gain.gain.setValueAtTime(0.12, ctx.currentTime);
-
-  const tap2 = ctx.createDelay(0.05);
-  tap2.delayTime.setValueAtTime(0.0137, ctx.currentTime);
-  const tap2Gain = ctx.createGain();
-  tap2Gain.gain.setValueAtTime(0.08, ctx.currentTime);
-
-  input.connect(chamberFilter);
-  chamberFilter.connect(tap1);
-  chamberFilter.connect(tap2);
-  tap1.connect(tap1Gain);
-  tap2.connect(tap2Gain);
-  tap1Gain.connect(busOut);
-  tap2Gain.connect(busOut);
+  bodyBusNodes = {
+    input,
+    dryGain,
+    wetGain,
+    convolverSyrian,
+    convolverEgyptian,
+    connectedConvolver: initialConvolver,
+    highpass,
+    lowWarmth,
+    nasalPresence,
+    harshTrim
+  };
 
   return input;
 }
 
 /**
- * Pré-gera o buffer de ruído curto (35 ms) usado para o clique da palheta (risha de celuloide).
+ * Pré-gera o golpe percussivo curto da risha de celuloide (~17 ms).
  * @param {AudioContext} ctx
  * @returns {AudioBuffer}
  */
-function createRishaNoiseBuffer(ctx) {
+function createRishaThumpBuffer(ctx) {
   const sampleRate = ctx.sampleRate || 44100;
-  const length = Math.max(256, Math.floor(sampleRate * 0.035));
-  const buffer = ctx.createBuffer(1, length, sampleRate);
-  const data = buffer.getChannelData(0);
+  const len = Math.max(256, Math.floor(sampleRate * 0.017));
+  const buf = ctx.createBuffer(1, len, sampleRate);
+  const data = buf.getChannelData(0);
 
   let prev = 0;
-  for (let i = 0; i < length; i++) {
-    const t = i / length;
+  for (let i = 0; i < len; i++) {
+    const t = i / sampleRate;
+    const norm = i / len;
     const white = Math.random() * 2 - 1;
-    // Ruído levemente diferenciado (ênfase no estalo de celuloide) com envelope rápido
-    const crisp = white - 0.35 * prev;
+    const crisp = white - 0.25 * prev;
     prev = white;
-    const env = Math.pow(1 - t, 2.4);
-    data[i] = crisp * env;
+    const click = crisp * Math.pow(1 - norm, 3.0);
+    const bridgeTap = Math.sin(2 * Math.PI * 290 * t) * Math.exp(-t / 0.0042) * 0.25;
+    data[i] = click * 0.78 + bridgeTap;
   }
 
-  return buffer;
+  return buf;
 }
 
 /**
- * Garante que o AudioContext, o barramento master e o ressonador de caixa existam.
+ * Garante que o AudioContext, o barramento master e a caixa convoluída do Oud existam.
  * @returns {AudioContext | null}
  */
 function ensureAudioContext() {
@@ -263,20 +490,20 @@ function ensureAudioContext() {
     audioCtx = new AudioCtxCtor();
 
     masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.88, audioCtx.currentTime);
+    masterGain.gain.setValueAtTime(0.92, audioCtx.currentTime);
 
     const limiter = audioCtx.createDynamicsCompressor();
-    limiter.threshold.setValueAtTime(-9, audioCtx.currentTime);
+    limiter.threshold.setValueAtTime(-8, audioCtx.currentTime);
     limiter.knee.setValueAtTime(14, audioCtx.currentTime);
-    limiter.ratio.setValueAtTime(6, audioCtx.currentTime);
+    limiter.ratio.setValueAtTime(5.5, audioCtx.currentTime);
     limiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
     limiter.release.setValueAtTime(0.11, audioCtx.currentTime);
 
     masterGain.connect(limiter);
     limiter.connect(audioCtx.destination);
 
-    oudBodyInput = createOudBodyFormantBus(audioCtx, masterGain);
-    rishaNoiseBuffer = createRishaNoiseBuffer(audioCtx);
+    oudBodyInput = createOudAcousticBodyBus(audioCtx, masterGain);
+    rishaThumpBuffer = createRishaThumpBuffer(audioCtx);
   }
 
   return audioCtx;
@@ -290,7 +517,6 @@ export function unlockAudioEngine() {
   const ctx = ensureAudioContext();
   configureIosAudioSession();
 
-  // 1. Mantém o <audio loop> silencioso rodando para ignorar a chave física de silencioso no iOS
   const keepAlive = ensureIosKeepAliveElement();
   if (keepAlive && keepAlive.paused) {
     try {
@@ -308,14 +534,12 @@ export function unlockAudioEngine() {
 
   if (!ctx) return;
 
-  // 2. Retoma AudioContext se estiver suspended ou interrupted (estado exclusivo do iOS)
   if (ctx.state !== "running") {
     ctx.resume().catch(() => {
       // Ignora fora de gesto válido
     });
   }
 
-  // 3. Dispara buffer silencioso de 1 sample no Web Audio para acordar o hardware no WKWebView
   try {
     const silentBuf = ctx.createBuffer(1, 1, ctx.sampleRate || 22050);
     const src = ctx.createBufferSource();
@@ -329,7 +553,7 @@ export function unlockAudioEngine() {
 
 /**
  * Garante que o contexto esteja rodando antes de agendar a síntese.
- * @param {(ctx: AudioContext, dest: AudioNode, bodyDest: AudioNode) => void} fn
+ * @param {(ctx: AudioContext, masterDest: AudioNode, bodyDest: AudioNode) => void} fn
  */
 function withReadyAudio(fn) {
   const ctx = ensureAudioContext();
@@ -386,153 +610,247 @@ export function clearSequenceTimers() {
 }
 
 /**
- * Síntese FM Acústica de Oud com Corda Dupla + Transiente de Risha + Formantes de Caixa.
- * Preserva o centro exato de frequência (24-TET + cents_dev) via desafinação simétrica.
+ * Renderiza uma única corda física de Oud usando Karplus-Strong Estendido
+ * parametrizado pelo perfil ativo ("syrian" ou "egyptian").
+ *
+ * @param {Float32Array} out
+ * @param {number} sampleRate
+ * @param {number} freq
+ * @param {number} startOffsetSamples
+ * @param {number} gainScale
+ * @param {number} pluckPosRatio
+ * @param {number} decayTimeSec
+ * @param {typeof TIMBRE_PROFILES.syrian} cfg
+ */
+function renderPhysicalOudStringInto(
+  out,
+  sampleRate,
+  freq,
+  startOffsetSamples,
+  gainScale,
+  pluckPosRatio,
+  decayTimeSec,
+  cfg
+) {
+  const totalSamples = out.length;
+  if (startOffsetSamples >= totalSamples || freq < 35) return;
+
+  const isBass = freq < 115;
+  const isHigh = freq > 290;
+
+  const lpG = isBass ? cfg.lpG.bass : (isHigh ? cfg.lpG.high : cfg.lpG.mid);
+
+  const omega = (2 * Math.PI * freq) / sampleRate;
+  const re = (1 - lpG) + lpG * Math.cos(omega);
+  const im = -lpG * Math.sin(omega);
+  const lpDelay = -Math.atan2(im, re) / omega;
+  const lpMag = Math.hypot(re, im);
+
+  const period = sampleRate / freq;
+  const delayNeeded = period - lpDelay;
+  const N = Math.max(4, Math.floor(delayNeeded - 0.5));
+  const delta = delayNeeded - N;
+  const allpassC = (1 - delta) / (1 + delta);
+
+  const totalCycles = Math.max(12, decayTimeSec * freq);
+  const targetCycleGain = Math.pow(0.02, 1 / totalCycles);
+  const rho = Math.min(0.9988, targetCycleGain / Math.max(0.5, lpMag));
+
+  const rawExc = new Float32Array(N);
+  const smoothCoeff = isBass ? cfg.smoothCoeff.bass : (isHigh ? cfg.smoothCoeff.high : cfg.smoothCoeff.mid);
+  let lpState = 0;
+  const pickPointIdx = Math.max(1, Math.min(N - 1, Math.round(N * pluckPosRatio)));
+
+  for (let i = 0; i < N; i++) {
+    const white = Math.random() * 2 - 1;
+    lpState = lpState * smoothCoeff + white * (1 - smoothCoeff);
+
+    const tri = i < pickPointIdx
+      ? (i / pickPointIdx)
+      : (1 - (i - pickPointIdx) / Math.max(1, N - pickPointIdx));
+    const triBipolar = (tri * 2 - 1) * (isBass ? cfg.triWeight.bass : cfg.triWeight.other);
+
+    rawExc[i] = lpState * 0.76 + triBipolar;
+  }
+
+  const delayBuf = new Float32Array(N);
+  let mean = 0;
+  for (let i = 0; i < N; i++) {
+    const delayedIdx = i >= pickPointIdx ? i - pickPointIdx : i - pickPointIdx + N;
+    const v = rawExc[i] - cfg.combDepth * rawExc[delayedIdx];
+    delayBuf[i] = v;
+    mean += v;
+  }
+  mean /= N;
+
+  let maxAbs = 0;
+  for (let i = 0; i < N; i++) {
+    delayBuf[i] -= mean;
+    const a = Math.abs(delayBuf[i]);
+    if (a > maxAbs) maxAbs = a;
+  }
+  const invPeak = maxAbs > 1e-6 ? 1 / maxAbs : 1;
+  for (let i = 0; i < N; i++) {
+    delayBuf[i] *= invPeak;
+  }
+
+  let idx = 0;
+  let prevSample = delayBuf[N - 1];
+  let apPrevIn = 0;
+  let apPrevOut = 0;
+  let dcX = 0;
+  let dcY = 0;
+  const oneMinusG = 1 - lpG;
+  const fadeInSamples = Math.min(68, Math.floor(sampleRate * 0.0015));
+
+  for (let s = startOffsetSamples; s < totalSamples; s++) {
+    const cur = delayBuf[idx];
+
+    const lpOut = oneMinusG * cur + lpG * prevSample;
+    prevSample = cur;
+
+    const apOut = allpassC * lpOut + apPrevIn - allpassC * apPrevOut;
+    apPrevIn = lpOut;
+    apPrevOut = apOut;
+
+    const nextVal = apOut * rho;
+    delayBuf[idx] = nextVal;
+
+    const outSample = nextVal - dcX + 0.996 * dcY;
+    dcX = nextVal;
+    dcY = outSample;
+
+    const localIdx = s - startOffsetSamples;
+    const envIn = localIdx < fadeInSamples ? localIdx / fadeInSamples : 1;
+    out[s] += outSample * gainScale * envIn;
+
+    idx++;
+    if (idx >= N) idx = 0;
+  }
+}
+
+/**
+ * Sintetiza o par de cordas (ordem dupla do Oud) em um AudioBuffer pronto para reprodução.
+ * @param {AudioContext} ctx
+ * @param {number} freq
+ * @param {number} durationSec
+ * @returns {AudioBuffer}
+ */
+function synthesizeDoubleCourseOudBuffer(ctx, freq, durationSec) {
+  const cfg = TIMBRE_PROFILES[activeTimbreProfile] || TIMBRE_PROFILES.syrian;
+  const sampleRate = ctx.sampleRate || 44100;
+  const safeDur = Math.max(0.28, Math.min(1.9, durationSec));
+  const length = Math.floor(sampleRate * safeDur);
+  const audioBuf = ctx.createBuffer(1, length, sampleRate);
+  const out = audioBuf.getChannelData(0);
+
+  const isLowBass = freq < 105;
+  const isHigh = freq > 290;
+
+  const baseDecay = isLowBass
+    ? Math.min(safeDur * 1.12, 1.8)
+    : (isHigh ? Math.min(safeDur * 0.84, 0.98) : Math.min(safeDur * 0.98, 1.38));
+  const naturalDecay = Math.min(1.9, baseDecay * cfg.decayMult);
+
+  const pluckPosA = cfg.pluckPosMin + Math.random() * cfg.pluckPosRange;
+  const pluckPosB = pluckPosA + cfg.pluckPairOffset;
+  const detuneRatio = isLowBass ? 0.0007 : 0.0012;
+
+  renderPhysicalOudStringInto(
+    out,
+    sampleRate,
+    freq * (1 - detuneRatio),
+    0,
+    isLowBass ? 0.72 : 0.56,
+    pluckPosA,
+    naturalDecay,
+    cfg
+  );
+
+  const staggerMs = isLowBass ? 1.8 : (2.3 + Math.random() * 1.3);
+  const staggerSamples = Math.floor((staggerMs / 1000) * sampleRate);
+  renderPhysicalOudStringInto(
+    out,
+    sampleRate,
+    freq * (1 + detuneRatio),
+    staggerSamples,
+    isLowBass ? 0.34 : 0.50,
+    pluckPosB,
+    naturalDecay * 0.96,
+    cfg
+  );
+
+  const fadeOutSamples = Math.min(Math.floor(sampleRate * 0.075), Math.floor(length * 0.25));
+  const fadeStart = length - fadeOutSamples;
+  for (let i = fadeStart; i < length; i++) {
+    const remain = (length - i) / fadeOutSamples;
+    out[i] *= remain * remain;
+  }
+
+  return audioBuf;
+}
+
+/**
+ * Toca uma nota dedilhada no motor físico de Oud (Ordem Dupla + Risha + Caixa Convoluída).
  *
  * @param {number} freq
  * @param {number} [duration=1.45]
- * @param {number} [volume=0.34]
+ * @param {number} [volume=0.38]
  */
-export function playPluckedNote(freq, duration = 1.45, volume = 0.34) {
+export function playPluckedNote(freq, duration = 1.45, volume = 0.38) {
   if (!Number.isFinite(freq) || freq <= 20) return;
 
   withReadyAudio((ctx, _masterDest, bodyDest) => {
+    const cfg = TIMBRE_PROFILES[activeTimbreProfile] || TIMBRE_PROFILES.syrian;
     const now = ctx.currentTime + 0.004;
-    const safeDur = Math.max(0.24, duration);
-
-    // Micro-variação orgânica apenas de timbre/dinâmica (NUNCA altera o centro de afinação)
-    const timbreJitter = 0.94 + Math.random() * 0.12;
-    const volJitter = 0.96 + Math.random() * 0.08;
+    const safeDur = Math.max(0.28, Math.min(1.9, duration));
+    const volJitter = 0.95 + Math.random() * 0.10;
     const safeVol = Math.max(0.02, volume * volJitter);
 
-    // Registro grave (ordens 6ª e 5ª) tem ataque mais encorpado e corda menos desafinada
-    const isBassCourse = freq < 125;
-    const isHighCourse = freq > 310;
-    const symDetuneRatio = isBassCourse ? 0.00055 : 0.00105;
+    // 1. Corda física dupla (Extended Karplus-Strong)
+    const stringBuf = synthesizeDoubleCourseOudBuffer(ctx, freq, safeDur);
+    const stringSrc = ctx.createBufferSource();
+    stringSrc.buffer = stringBuf;
 
-    // 1. Par de portadores simétricos (ordem dupla de Oud com centro de pitch exato = freq)
-    const carrierA = ctx.createOscillator();
-    const carrierB = ctx.createOscillator();
-    carrierA.type = "sine";
-    carrierB.type = "sine";
-    carrierA.frequency.setValueAtTime(freq * (1 - symDetuneRatio), now);
-    carrierB.frequency.setValueAtTime(freq * (1 + symDetuneRatio), now);
+    // Micro-queda de tensão no ataque (corda de baixa tensão puxada pela risha)
+    const tensionOvershoot = freq < 115 ? 1.0065 : 1.0050;
+    stringSrc.playbackRate.setValueAtTime(tensionOvershoot, now);
+    stringSrc.playbackRate.exponentialRampToValueAtTime(1.0, now + 0.030);
 
-    // Leve ganho de 2º harmônico puro nos bordões para projeção clara em alto-falantes de celular
-    const bassHarmOsc = ctx.createOscillator();
-    bassHarmOsc.type = "sine";
-    bassHarmOsc.frequency.setValueAtTime(freq * 2, now);
-    const bassHarmGain = ctx.createGain();
-    bassHarmGain.gain.setValueAtTime(isBassCourse ? 0.24 : 0.08, now);
-    bassHarmGain.gain.exponentialRampToValueAtTime(0.0001, now + safeDur * 0.65);
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(safeVol * 1.12, now);
 
-    // 2. Modulador FM Principal (razão 2:1 — calor amadeirado de corda dedilhada)
-    const modPrimary = ctx.createOscillator();
-    modPrimary.type = "sine";
-    modPrimary.frequency.setValueAtTime(freq * 2, now);
+    stringSrc.connect(noteGain);
+    noteGain.connect(bodyDest);
 
-    // Índice de modulação decai rápido: brilho de ataque → corpo quente
-    const baseModDepth = isBassCourse ? freq * 2.55 : (isHighCourse ? freq * 1.15 : freq * 1.75);
-    const peakModHz = Math.min(1850, baseModDepth * timbreJitter);
-    const sustainModHz = Math.max(8, peakModHz * 0.16);
+    stringSrc.start(now);
+    stringSrc.stop(now + safeDur + 0.02);
 
-    const modPrimaryGain = ctx.createGain();
-    modPrimaryGain.gain.setValueAtTime(peakModHz, now);
-    modPrimaryGain.gain.exponentialRampToValueAtTime(sustainModHz, now + 0.042);
-    modPrimaryGain.gain.exponentialRampToValueAtTime(Math.max(1.5, sustainModHz * 0.25), now + safeDur * 0.45);
-    modPrimaryGain.gain.exponentialRampToValueAtTime(0.001, now + safeDur);
-
-    // 3. Sub-modulador de ataque curto (razão 3.004 — mordida percussiva da palheta no início)
-    const modBite = ctx.createOscillator();
-    modBite.type = "sine";
-    modBite.frequency.setValueAtTime(freq * 3.004, now);
-
-    const bitePeakHz = Math.min(920, freq * (isHighCourse ? 0.55 : 0.92) * timbreJitter);
-    const modBiteGain = ctx.createGain();
-    modBiteGain.gain.setValueAtTime(bitePeakHz, now);
-    modBiteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.026);
-
-    // Conecta moduladores à frequência dos dois portadores
-    modPrimary.connect(modPrimaryGain);
-    modPrimaryGain.connect(carrierA.frequency);
-    modPrimaryGain.connect(carrierB.frequency);
-
-    modBite.connect(modBiteGain);
-    modBiteGain.connect(carrierA.frequency);
-    modBiteGain.connect(carrierB.frequency);
-
-    // Mistura dos portadores + filtro dinâmico de amortecimento natural da corda
-    const stringMix = ctx.createGain();
-    stringMix.gain.setValueAtTime(0.56, now);
-
-    const carrierBGain = ctx.createGain();
-    // 6ª ordem costuma soar mais focada (par de menor batimento)
-    carrierBGain.gain.setValueAtTime(isBassCourse ? 0.45 : 0.85, now);
-
-    const stringDampFilter = ctx.createBiquadFilter();
-    stringDampFilter.type = "lowpass";
-    const startCutoff = Math.min(5400, Math.max(1500, freq * 8.2 * timbreJitter));
-    const endCutoff = Math.min(1350, Math.max(380, freq * 2.1));
-    stringDampFilter.frequency.setValueAtTime(startCutoff, now);
-    stringDampFilter.frequency.exponentialRampToValueAtTime(endCutoff, now + safeDur * 0.72);
-    stringDampFilter.Q.setValueAtTime(0.9, now);
-
-    // Envelope acústico de amplitude (ataque rápido de 4 ms + queda dupla natural)
-    const ampEnv = ctx.createGain();
-    ampEnv.gain.setValueAtTime(0.0001, now);
-    ampEnv.gain.linearRampToValueAtTime(safeVol * 1.18, now + 0.0045);
-    ampEnv.gain.exponentialRampToValueAtTime(Math.max(0.0001, safeVol * 0.46), now + Math.min(0.28, safeDur * 0.24));
-    ampEnv.gain.exponentialRampToValueAtTime(Math.max(0.0001, safeVol * 0.12), now + safeDur * 0.68);
-    ampEnv.gain.exponentialRampToValueAtTime(0.0001, now + safeDur);
-
-    carrierA.connect(stringMix);
-    carrierB.connect(carrierBGain);
-    carrierBGain.connect(stringMix);
-    bassHarmOsc.connect(bassHarmGain);
-    bassHarmGain.connect(stringMix);
-
-    stringMix.connect(stringDampFilter);
-    stringDampFilter.connect(ampEnv);
-    ampEnv.connect(bodyDest);
-
-    // 4. Transiente de Risha (palheta de celuloide) pré-alocado
-    if (rishaNoiseBuffer) {
+    // 2. Golpe da risha de celuloide no ataque
+    if (rishaThumpBuffer) {
       const rishaSrc = ctx.createBufferSource();
-      rishaSrc.buffer = rishaNoiseBuffer;
-      // Variação leve de taxa de leitura dá textura diferente a cada toque
+      rishaSrc.buffer = rishaThumpBuffer;
       rishaSrc.playbackRate.setValueAtTime(0.92 + Math.random() * 0.18, now);
 
-      const rishaFilter = ctx.createBiquadFilter();
-      rishaFilter.type = "bandpass";
-      const clickFreq = Math.min(3700, Math.max(1450, freq * 6.8 * timbreJitter));
-      rishaFilter.frequency.setValueAtTime(clickFreq, now);
-      rishaFilter.Q.setValueAtTime(1.75, now);
+      const rishaBP = ctx.createBiquadFilter();
+      rishaBP.type = "bandpass";
+      rishaBP.frequency.setValueAtTime(
+        Math.min(cfg.rishaFreqMax, Math.max(cfg.rishaFreqMin, freq * cfg.rishaFreqMult)),
+        now
+      );
+      rishaBP.Q.setValueAtTime(cfg.rishaQ, now);
 
       const rishaGain = ctx.createGain();
-      const clickLevel = safeVol * (isBassCourse ? 0.42 : 0.34);
-      rishaGain.gain.setValueAtTime(Math.max(0.0001, clickLevel), now);
+      rishaGain.gain.setValueAtTime(safeVol * cfg.rishaLevel, now);
       rishaGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.017);
 
-      rishaSrc.connect(rishaFilter);
-      rishaFilter.connect(rishaGain);
+      rishaSrc.connect(rishaBP);
+      rishaBP.connect(rishaGain);
       rishaGain.connect(bodyDest);
 
       rishaSrc.start(now);
-      rishaSrc.stop(now + 0.025);
+      rishaSrc.stop(now + 0.024);
     }
-
-    carrierA.start(now);
-    carrierB.start(now);
-    bassHarmOsc.start(now);
-    modPrimary.start(now);
-    modBite.start(now);
-
-    const stopAt = now + safeDur + 0.04;
-    carrierA.stop(stopAt);
-    carrierB.stop(stopAt);
-    bassHarmOsc.stop(stopAt);
-    modPrimary.stop(stopAt);
-    modBite.stop(now + 0.045);
   });
 }
 
@@ -546,7 +864,7 @@ export function strumChordVoicing(voicingFreqs) {
 
   voicingFreqs.forEach((item, idx) => {
     const id = window.setTimeout(() => {
-      playPluckedNote(item.freq, 1.6, 0.25);
+      playPluckedNote(item.freq, 1.55, 0.28);
     }, idx * 42);
     sequenceTimers.push(id);
   });
@@ -563,7 +881,7 @@ export function arpeggiateChordVoicing(voicingFreqs) {
 
   voicingFreqs.forEach((item, idx) => {
     const id = window.setTimeout(() => {
-      playPluckedNote(item.freq, 1.4, 0.3);
+      playPluckedNote(item.freq, 1.4, 0.34);
     }, idx * 210);
     sequenceTimers.push(id);
   });
@@ -587,7 +905,7 @@ export function playScaleSequence(rootQ, intervals, centsMap = {}) {
     const centsDev = centsMap[intQ] || 0;
     const freq = baseRootFreq * Math.pow(2, (intQ * 50 + centsDev) / 1200);
     const id = window.setTimeout(() => {
-      playPluckedNote(freq, idx === intervals.length - 1 ? 1.55 : 0.95, 0.33);
+      playPluckedNote(freq, idx === intervals.length - 1 ? 1.6 : 0.95, 0.36);
     }, idx * 320);
     sequenceTimers.push(id);
   });
@@ -619,7 +937,7 @@ export function playTaqsimPhrase(rootQ, steps, centsMap = {}, onStepHighlight) {
 
     const id = window.setTimeout(() => {
       if (onStepHighlight) onStepHighlight(idx);
-      playPluckedNote(freq, Math.max(0.75, (durMs / 1000) * 1.95), step.accent ? 0.37 : 0.30);
+      playPluckedNote(freq, Math.max(0.75, (durMs / 1000) * 1.9), step.accent ? 0.40 : 0.33);
     }, elapsedMs);
     sequenceTimers.push(id);
     elapsedMs += durMs;

@@ -24,6 +24,8 @@ import {
 } from "./core/studyGuide.js";
 import {
   unlockAudioEngine,
+  setOudTimbreProfile,
+  getOudTimbreProfile,
   clearSequenceTimers,
   playPluckedNote,
   strumChordVoicing,
@@ -70,6 +72,15 @@ try {
   const savedTheme = localStorage.getItem("oud_theme_pref");
   if (!window.location.hash.includes("th=") && (savedTheme === "light" || savedTheme === "dark")) {
     state.theme = savedTheme;
+  }
+} catch {
+  // Ignora se localStorage estiver bloqueado
+}
+
+try {
+  const savedTimbre = localStorage.getItem("oud_timbre_pref");
+  if (savedTimbre === "syrian" || savedTimbre === "egyptian") {
+    setOudTimbreProfile(savedTimbre);
   }
 } catch {
   // Ignora se localStorage estiver bloqueado
@@ -287,7 +298,6 @@ function renderTunerCoursesList() {
   const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
   const lockedCourse = getLockedTunerCourse();
 
-  // Botão Auto (detecção automática entre as 6 ordens)
   const autoBtn = document.createElement("button");
   autoBtn.type = "button";
   autoBtn.className = `tuner-course-btn ${lockedCourse === null ? "is-locked" : ""}`;
@@ -296,7 +306,6 @@ function renderTunerCoursesList() {
   autoBtn.title = isEn ? "Automatically detect the nearest open course" : "Detectar automaticamente a ordem mais próxima";
   container.appendChild(autoBtn);
 
-  // Lista do bordão grave (6ª) para a aguda (1ª)
   const orderedCourses = [...tuning.courses].sort((a, b) => b.course - a.course);
   orderedCourses.forEach(cObj => {
     const isLocked = lockedCourse === cObj.course;
@@ -372,7 +381,6 @@ function renderLiveTunerReadout(det) {
     return;
   }
 
-  // Mapeia status para atributo de cor da barra
   let statusAttr = "off";
   if (det.status === "IN_TUNE") statusAttr = "in-tune";
   else if (det.status === "CLOSE") statusAttr = "close";
@@ -390,7 +398,6 @@ function renderLiveTunerReadout(det) {
   needle.classList.add("is-active");
   needle.classList.toggle("is-holding", det.isHolding);
 
-  // Subtexto informativo (Ordem / Nome Árabe / Grau / Desvio tradicional cents_dev)
   if (det.mode === "TUNER") {
     noteSub.textContent = `${det.courseLabel} • ${det.arabicName} (${det.targetFreqHz.toFixed(1)} Hz)`;
   } else {
@@ -401,7 +408,6 @@ function renderLiveTunerReadout(det) {
     noteSub.textContent = `${det.noteName}${det.octave} • ${det.arabicName}${degPart}${tradPart}`;
   }
 
-  // Orientação física de correção
   const isVert = state.orientation === "VERTICAL";
   if (det.mode === "TUNER") {
     if (det.direction === "OK") {
@@ -412,8 +418,9 @@ function renderLiveTunerReadout(det) {
       dirHint.textContent = isEn ? "↓ Tune down (loosen peg)" : "↓ Descer afinação (afrouxar cravelha)";
     }
   } else if (!det.inScale) {
-    const nearestPrefix = isEn ? `Outside active mode • Nearest ${det.noteName}` : `Fora do modo ativo • Mais próxima: ${det.noteName}`;
-    dirHint.textContent = nearestPrefix;
+    dirHint.textContent = isEn
+      ? `Outside active mode • Nearest ${det.noteName}`
+      : `Fora do modo ativo • Mais próxima: ${det.noteName}`;
   } else if (det.direction === "OK") {
     dirHint.textContent = isEn ? "✓ In tune" : "✓ Afinado";
   } else if (det.direction === "FLAT") {
@@ -422,8 +429,7 @@ function renderLiveTunerReadout(det) {
     } else {
       dirHint.textContent = state.leftHanded
         ? (isEn ? "← Move finger toward body (sharper)" : "← Avançar dedo ao tampo (mais agudo)")
-        : (isEn ? "Avançar dedo → (mais agudo)" : "Avançar dedo → (mais agudo)");
-      if (isEn && !state.leftHanded) dirHint.textContent = "Move finger forward → (sharper)";
+        : (isEn ? "Move finger forward → (sharper)" : "Avançar dedo → (mais agudo)");
     }
   } else {
     if (isVert) {
@@ -435,7 +441,6 @@ function renderLiveTunerReadout(det) {
     }
   }
 
-  // Destaca ordem ativa no strip sem recriar os botões a cada frame
   if (det.mode === "TUNER") {
     document.querySelectorAll(".tuner-course-btn").forEach(el => {
       const btn = /** @type {HTMLElement} */ (el);
@@ -2754,6 +2759,14 @@ function syncControlsWithState() {
       : safeT("btnThemeLight", "☀️ Tema Claro", "☀️ Light Theme");
   }
 
+  const btnTimbre = document.getElementById("btn-timbre-profile");
+  if (btnTimbre) {
+    const isEgyptian = getOudTimbreProfile() === "egyptian";
+    btnTimbre.textContent = isEgyptian
+      ? (state.lang === "en" ? "🪕 Tone: Egyptian (Warm)" : "🪕 Timbre: Egípcio (Encorpado)")
+      : (state.lang === "en" ? "🪕 Tone: Syrian (Dry)" : "🪕 Timbre: Sírio (Seco)");
+  }
+
   const btnZen = document.getElementById("btn-zen-mode");
   if (btnZen) {
     btnZen.textContent = state.lang === "en" ? "🪷 Zen Stage (F)" : "🪷 Modo Imersivo (F)";
@@ -3124,6 +3137,22 @@ function initApp() {
     if (target.closest("#btn-theme, #btn-zen-theme")) {
       e.preventDefault();
       toggleAppTheme();
+      return;
+    }
+
+    if (target.closest("#btn-timbre-profile")) {
+      e.preventDefault();
+      const nextProfile = getOudTimbreProfile() === "syrian" ? "egyptian" : "syrian";
+      setOudTimbreProfile(nextProfile);
+      try {
+        localStorage.setItem("oud_timbre_pref", nextProfile);
+      } catch {
+        // Ignora
+      }
+      syncControlsWithState();
+      suspendPitchDetection(750);
+      const previewFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
+      playPluckedNote(previewFreq, 1.35, 0.36);
       return;
     }
 
