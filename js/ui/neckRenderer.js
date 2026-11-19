@@ -11,6 +11,8 @@ import {
 } from "../core/modalEngine.js";
 import { playPluckedNote } from "../audio/synthEngine.js";
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
 function createOctagramStarPath(cx, cy, outerR, innerR) {
   const points = [];
   for (let i = 0; i < 16; i++) {
@@ -27,7 +29,7 @@ function createOctagramStarPath(cx, cy, outerR, innerR) {
 function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, fontSize = 10, padX = 8, height = 19) {
   const approxWidth = Math.max(36, text.length * (fontSize * 0.62) + padX * 2);
 
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  const rect = document.createElementNS(SVG_NS, "rect");
   rect.setAttribute("x", String(cx - approxWidth / 2));
   rect.setAttribute("y", String(cy - height / 2));
   rect.setAttribute("width", String(approxWidth));
@@ -38,7 +40,7 @@ function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, 
   rect.setAttribute("stroke-width", "1.4");
   parent.appendChild(rect);
 
-  const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const lbl = document.createElementNS(SVG_NS, "text");
   lbl.setAttribute("x", String(cx));
   lbl.setAttribute("y", String(cy + fontSize * 0.35));
   lbl.setAttribute("text-anchor", "middle");
@@ -47,14 +49,16 @@ function appendPillLabel(parent, cx, cy, text, strokeColor, textColor, bgColor, 
   lbl.setAttribute("font-weight", "800");
   lbl.textContent = text;
   parent.appendChild(lbl);
+
+  return { width: approxWidth, height };
 }
 
 function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const g = document.createElementNS(SVG_NS, "g");
   g.style.cursor = "pointer";
   g.addEventListener("click", onRosetteClick);
 
-  const outerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const outerRing = document.createElementNS(SVG_NS, "circle");
   outerRing.setAttribute("cx", String(cx));
   outerRing.setAttribute("cy", String(cy));
   outerRing.setAttribute("r", String(radius + 6));
@@ -63,7 +67,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   outerRing.setAttribute("stroke-width", "2");
   g.appendChild(outerRing);
 
-  const pearlRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const pearlRing = document.createElementNS(SVG_NS, "circle");
   pearlRing.setAttribute("cx", String(cx));
   pearlRing.setAttribute("cy", String(cy));
   pearlRing.setAttribute("r", String(radius + 3));
@@ -73,7 +77,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   pearlRing.setAttribute("stroke-dasharray", "3,2");
   g.appendChild(pearlRing);
 
-  const hole = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const hole = document.createElementNS(SVG_NS, "circle");
   hole.setAttribute("cx", String(cx));
   hole.setAttribute("cy", String(cy));
   hole.setAttribute("r", String(radius));
@@ -83,7 +87,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   g.appendChild(hole);
 
   for (let a = 0; a < 180; a += 15) {
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const rect = document.createElementNS(SVG_NS, "rect");
     const side = radius * 1.32;
     rect.setAttribute("x", String(cx - side / 2));
     rect.setAttribute("y", String(cy - side / 2));
@@ -98,7 +102,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
     g.appendChild(rect);
   }
 
-  const innerStar = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  const innerStar = document.createElementNS(SVG_NS, "polygon");
   innerStar.setAttribute("points", createOctagramStarPath(cx, cy, radius * 0.52, radius * 0.28));
   innerStar.setAttribute("fill", "rgba(201, 154, 73, 0.18)");
   innerStar.setAttribute("stroke", "#e2d9c8");
@@ -109,27 +113,75 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
 }
 
 /**
- * Desenha os Colchetes de Região Anatômica (I · 1ª Pos, II · 2ª Pos, III · Tampo),
- * a linha divisória da Junta do Corpo (10q) e o indicador do Polegar (Ibham) com paleta contida.
+ * Desenha as faixas translúcidas de pré-visualização no hover das regiões anatômicas (atrás das notas).
  */
-function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
+function renderRegionHoverZones(svg, state, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
   if (!state.showPositionsMap) return;
 
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const hoverGroup = document.createElementNS(SVG_NS, "g");
+  hoverGroup.setAttribute("class", "region-hover-layer");
+  hoverGroup.setAttribute("pointer-events", "none");
+
+  const defs = [
+    { id: "OPEN_FIRST_POS", q1: 0, q2: 8, color: isLight ? "#5c4e3c" : "#e2d9c8" },
+    { id: "POS_SECOND", q1: 4, q2: 10, color: isLight ? "#9a6515" : "#d4a84f" },
+    { id: "POS_THIRD_BODY", q1: 8, q2: MAX_NECK_Q, color: isLight ? "#6b3f8c" : "#c49be0" }
+  ];
+
+  defs.forEach(reg => {
+    const c1 = getPhysicalX(reg.q1, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const c2 = getPhysicalX(reg.q2, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const minC = Math.min(c1, c2) - 14;
+    const span = Math.abs(c2 - c1) + 28;
+
+    const rect = document.createElementNS(SVG_NS, "rect");
+    rect.setAttribute("id", `hover-zone-${reg.id}`);
+    rect.setAttribute("class", "region-hover-zone");
+    if (isVert) {
+      rect.setAttribute("x", String(edgeStart - 15));
+      rect.setAttribute("y", String(minC));
+      rect.setAttribute("width", String((edgeEnd - edgeStart) + 30));
+      rect.setAttribute("height", String(span));
+    } else {
+      rect.setAttribute("x", String(minC));
+      rect.setAttribute("y", String(edgeStart + 4));
+      rect.setAttribute("width", String(span));
+      rect.setAttribute("height", String((edgeEnd - edgeStart) - 8));
+    }
+    rect.setAttribute("rx", "8");
+    rect.setAttribute("fill", reg.color);
+    rect.setAttribute("fill-opacity", "0");
+    rect.setAttribute("stroke", reg.color);
+    rect.setAttribute("stroke-opacity", "0");
+    rect.setAttribute("stroke-width", "1.6");
+    rect.setAttribute("stroke-dasharray", "4,3");
+    hoverGroup.appendChild(rect);
+  });
+
+  svg.appendChild(hoverGroup);
+}
+
+/**
+ * Desenha os Colchetes de Região Anatômica interativos (I, II, III com toggle, hover e botão ▶),
+ * a linha divisória da Junta do Corpo (10q) e o indicador do Polegar (Ibham).
+ */
+function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight, interactions) {
+  if (!state.showPositionsMap) return;
+
+  const g = document.createElementNS(SVG_NS, "g");
   g.setAttribute("class", "region-overlay");
-  g.setAttribute("pointer-events", "none");
 
   const isEn = state.lang === "en";
   const posBounds = getPositionBounds(state.shapeMode, state.boxAnchorQ);
   const pillBg = isLight ? "#fcfaf6" : "#17120f";
 
-  // Escala cromática contida: Madrepérola/Sépia -> Latão/Ocre -> Ameixa
   const regions = [
     {
       id: "OPEN_FIRST_POS",
       q1: 1,
       q2: 7,
       color: isLight ? "#5c4e3c" : "#e2d9c8",
+      activeFill: isLight ? "#f0e7d8" : "#2a231d",
       labelHoriz: isEn ? "I · 1st Pos (Nut)" : "I · 1ª Pos (Pestana)",
       labelVert: isEn ? "I · 1st Pos" : "I · 1ª Pos"
     },
@@ -138,6 +190,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       q1: 4,
       q2: 10,
       color: isLight ? "#9a6515" : "#d4a84f",
+      activeFill: isLight ? "#fbf2de" : "#2d2111",
       labelHoriz: isEn ? "II · 2nd Pos (Mid)" : "II · 2ª Pos (Média)",
       labelVert: isEn ? "II · 2nd Pos" : "II · 2ª Pos"
     },
@@ -146,6 +199,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       q1: 9,
       q2: 16,
       color: isLight ? "#6b3f8c" : "#c49be0",
+      activeFill: isLight ? "#f4eafb" : "#281933",
       labelHoriz: isEn ? "III · 3rd Pos (Body)" : "III · 3ª Pos (Tampo)",
       labelVert: isEn ? "III · Body" : "III · Tampo"
     }
@@ -153,7 +207,8 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
 
   // Linha divisória da Junta do Corpo (10q)
   const jointCoord = getPhysicalX(10, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
-  const jointLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const jointLine = document.createElementNS(SVG_NS, "line");
+  jointLine.setAttribute("pointer-events", "none");
   if (isVert) {
     jointLine.setAttribute("x1", String(edgeStart - 16));
     jointLine.setAttribute("y1", String(jointCoord));
@@ -171,17 +226,38 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
   jointLine.setAttribute("opacity", "0.8");
   g.appendChild(jointLine);
 
+  const toggleHoverZone = (regionId, visible) => {
+    const zone = svg.querySelector(`#hover-zone-${regionId}`);
+    if (!zone) return;
+    zone.setAttribute("fill-opacity", visible ? "0.14" : "0");
+    zone.setAttribute("stroke-opacity", visible ? "0.68" : "0");
+  };
+
   regions.forEach((reg, idx) => {
     const isFocusedRegion = state.shapeMode === reg.id;
+    const isPlayingThisRegion = interactions?.playingRegionId === reg.id;
     const c1 = getPhysicalX(reg.q1, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
     const c2 = getPhysicalX(reg.q2, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
     const minC = Math.min(c1, c2);
     const maxC = Math.max(c1, c2);
     const midC = (minC + maxC) / 2;
 
+    const regGroup = document.createElementNS(SVG_NS, "g");
+    regGroup.setAttribute("class", `region-pill-btn ${isFocusedRegion ? "is-active-region" : ""}`);
+
+    const pillTitle = document.createElementNS(SVG_NS, "title");
+    pillTitle.textContent = isFocusedRegion
+      ? (isEn ? "Click to return to Full Fingerboard" : "Clique para voltar ao Espelho Completo")
+      : (isEn ? "Click to isolate this anatomical position" : "Clique para isolar esta posição anatômica");
+    regGroup.appendChild(pillTitle);
+
+    let playBtnX = 0;
+    let playBtnY = 0;
+
     if (isVert) {
-      const railX = idx === 1 ? edgeEnd + 46 : edgeEnd + 34;
-      const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const railX = idx === 1 ? edgeEnd + 44 : edgeEnd + 32;
+      const bracket = document.createElementNS(SVG_NS, "path");
+      bracket.setAttribute("pointer-events", "none");
       bracket.setAttribute(
         "d",
         `M ${railX - 6},${minC} L ${railX},${minC} L ${railX},${maxC} L ${railX - 6},${maxC}`
@@ -190,60 +266,128 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       bracket.setAttribute("stroke", reg.color);
       bracket.setAttribute("stroke-width", isFocusedRegion ? "2.6" : "1.6");
       bracket.setAttribute("opacity", isFocusedRegion ? "1" : "0.78");
-      g.appendChild(bracket);
+      regGroup.appendChild(bracket);
 
       const pillY = idx === 0
         ? minC + (maxC - minC) * 0.28
         : (idx === 1 ? minC + (maxC - minC) * 0.66 : midC);
-      const pillCenterX = edgeEnd + 92;
+      const pillCenterX = isFocusedRegion ? edgeEnd + 86 : edgeEnd + 92;
 
-      const connector = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const connector = document.createElementNS(SVG_NS, "line");
+      connector.setAttribute("pointer-events", "none");
       connector.setAttribute("x1", String(railX));
       connector.setAttribute("y1", String(pillY));
-      connector.setAttribute("x2", String(pillCenterX - 38));
+      connector.setAttribute("x2", String(pillCenterX - 36));
       connector.setAttribute("y2", String(pillY));
       connector.setAttribute("stroke", reg.color);
-      connector.setAttribute("stroke-width", "1.4");
-      connector.setAttribute("opacity", "0.85");
-      g.appendChild(connector);
+      connector.setAttribute("stroke-width", isFocusedRegion ? "1.8" : "1.3");
+      connector.setAttribute("opacity", "0.88");
+      regGroup.appendChild(connector);
 
-      appendPillLabel(
-        g,
+      const metrics = appendPillLabel(
+        regGroup,
         pillCenterX,
         pillY,
         reg.labelVert,
         reg.color,
         reg.color,
-        pillBg,
-        isFocusedRegion ? 10.5 : 9.8,
-        8,
-        21
+        isFocusedRegion ? reg.activeFill : pillBg,
+        isFocusedRegion ? 10.2 : 9.6,
+        7,
+        22
       );
+
+      playBtnX = Math.min(446, pillCenterX + metrics.width / 2 + 11);
+      playBtnY = pillY;
     } else {
       const railY = idx === 1 ? 52 : 24;
-      const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const bracket = document.createElementNS(SVG_NS, "path");
+      bracket.setAttribute("pointer-events", "none");
       bracket.setAttribute(
         "d",
         `M ${minC},${railY + 7} L ${minC},${railY} L ${maxC},${railY} L ${maxC},${railY + 7}`
       );
       bracket.setAttribute("fill", "none");
       bracket.setAttribute("stroke", reg.color);
-      bracket.setAttribute("stroke-width", isFocusedRegion ? "2.5" : "1.6");
+      bracket.setAttribute("stroke-width", isFocusedRegion ? "2.6" : "1.6");
       bracket.setAttribute("opacity", isFocusedRegion ? "1" : "0.82");
-      g.appendChild(bracket);
+      regGroup.appendChild(bracket);
 
-      appendPillLabel(
-        g,
-        midC,
+      const pillShiftX = isFocusedRegion ? -9 : 0;
+      const pillCenterX = midC + pillShiftX;
+
+      const metrics = appendPillLabel(
+        regGroup,
+        pillCenterX,
         railY,
         reg.labelHoriz,
         reg.color,
         reg.color,
-        pillBg,
+        isFocusedRegion ? reg.activeFill : pillBg,
         isFocusedRegion ? 10.5 : 9.8,
         9,
-        20
+        21
       );
+
+      playBtnX = pillCenterX + metrics.width / 2 + 12;
+      playBtnY = railY;
+    }
+
+    // Interações Nível 1: Hover + Clique Toggle
+    regGroup.addEventListener("mouseenter", () => toggleHoverZone(reg.id, true));
+    regGroup.addEventListener("mouseleave", () => toggleHoverZone(reg.id, false));
+    regGroup.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      interactions?.onToggleRegion?.(reg.id);
+    });
+
+    g.appendChild(regGroup);
+
+    // Nível 2: Microbotão ▶ / ■ acoplado à cápsula ativa para ouvir a região
+    if (isFocusedRegion) {
+      const playG = document.createElementNS(SVG_NS, "g");
+      playG.setAttribute("class", "region-play-btn");
+
+      const pTitle = document.createElementNS(SVG_NS, "title");
+      pTitle.textContent = isPlayingThisRegion
+        ? (isEn ? "Stop region playback" : "Parar audição da região")
+        : (isEn ? "Play notes inside this position" : "Ouvir notas desta posição");
+      playG.appendChild(pTitle);
+
+      const pCircle = document.createElementNS(SVG_NS, "circle");
+      pCircle.setAttribute("cx", String(playBtnX));
+      pCircle.setAttribute("cy", String(playBtnY));
+      pCircle.setAttribute("r", "10");
+      pCircle.setAttribute("fill", isPlayingThisRegion ? (isLight ? "#6b3f8c" : "#8755ab") : (isLight ? "#8f5e1c" : "#c99a49"));
+      pCircle.setAttribute("stroke", isLight ? "#fcfaf6" : "#17120f");
+      pCircle.setAttribute("stroke-width", "1.6");
+      playG.appendChild(pCircle);
+
+      if (isPlayingThisRegion) {
+        const stopSq = document.createElementNS(SVG_NS, "rect");
+        stopSq.setAttribute("x", String(playBtnX - 3.4));
+        stopSq.setAttribute("y", String(playBtnY - 3.4));
+        stopSq.setAttribute("width", "6.8");
+        stopSq.setAttribute("height", "6.8");
+        stopSq.setAttribute("rx", "1");
+        stopSq.setAttribute("fill", "#ffffff");
+        playG.appendChild(stopSq);
+      } else {
+        const playTri = document.createElementNS(SVG_NS, "polygon");
+        playTri.setAttribute(
+          "points",
+          `${playBtnX - 2.6},${playBtnY - 4.2} ${playBtnX + 4.4},${playBtnY} ${playBtnX - 2.6},${playBtnY + 4.2}`
+        );
+        playTri.setAttribute("fill", isLight ? "#ffffff" : "#16100a");
+        playG.appendChild(playTri);
+      }
+
+      playG.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        interactions?.onPlayRegion?.(reg.id);
+      });
+
+      g.appendChild(playG);
     }
   });
 
@@ -253,15 +397,18 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
     const thumbColor = isLight ? "#6b3f8c" : "#c49be0";
     const thumbText = isEn ? `▲ Thumb (${posBounds.thumbQ}q)` : `▲ Polegar (${posBounds.thumbQ}q)`;
 
+    const thumbG = document.createElementNS(SVG_NS, "g");
+    thumbG.setAttribute("pointer-events", "none");
+
     if (isVert) {
       const tx = edgeStart - 22;
-      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      const poly = document.createElementNS(SVG_NS, "polygon");
       poly.setAttribute("points", `${tx - 5},${thumbCoord - 5.5} ${tx + 5},${thumbCoord} ${tx - 5},${thumbCoord + 5.5}`);
       poly.setAttribute("fill", thumbColor);
-      g.appendChild(poly);
+      thumbG.appendChild(poly);
 
       appendPillLabel(
-        g,
+        thumbG,
         edgeEnd + 92,
         166,
         isEn ? `▶ Thumb ${posBounds.thumbQ}q` : `▶ Polegar ${posBounds.thumbQ}q`,
@@ -274,7 +421,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       );
     } else {
       appendPillLabel(
-        g,
+        thumbG,
         thumbCoord,
         edgeEnd + 54,
         thumbText,
@@ -286,15 +433,155 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
         20
       );
     }
+
+    g.appendChild(thumbG);
   }
 
   svg.appendChild(g);
 }
 
+/**
+ * Nível 3: Renderiza a visualização vetorial da transição de mão (SHIFT) ou ponte de uníssono (UNISON).
+ */
+function renderHandShiftOverlay(svg, state, shiftOverlay, coordLookup, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
+  if (!shiftOverlay) return;
+
+  const overlayG = document.createElementNS(SVG_NS, "g");
+  overlayG.setAttribute("class", "region-overlay shift-vector-overlay");
+  overlayG.setAttribute("pointer-events", "none");
+
+  const isEn = state.lang === "en";
+  const plumStroke = isLight ? "#6b3f8c" : "#c49be0";
+  const pillBg = isLight ? "#fcfaf6" : "#1a1220";
+
+  if (shiftOverlay.type === "UNISON") {
+    const pFrom = coordLookup.get(`${shiftOverlay.fromCourse}:${shiftOverlay.fromQ}`);
+    const pTo = coordLookup.get(`${shiftOverlay.toCourse}:${shiftOverlay.toQ}`);
+    if (!pFrom || !pTo) return;
+
+    const midX = (pFrom.x + pTo.x) / 2;
+    const midY = (pFrom.y + pTo.y) / 2;
+    const dx = pTo.x - pFrom.x;
+    const dy = pTo.y - pFrom.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const curveLift = isVert ? -32 : -28;
+    const ctrlX = midX - (dy / dist) * curveLift;
+    const ctrlY = midY + (dx / dist) * curveLift;
+
+    const arc = document.createElementNS(SVG_NS, "path");
+    arc.setAttribute(
+      "d",
+      `M ${pFrom.x.toFixed(1)},${pFrom.y.toFixed(1)} Q ${ctrlX.toFixed(1)},${ctrlY.toFixed(1)} ${pTo.x.toFixed(1)},${pTo.y.toFixed(1)}`
+    );
+    arc.setAttribute("fill", "none");
+    arc.setAttribute("stroke", plumStroke);
+    arc.setAttribute("stroke-width", "3");
+    arc.setAttribute("stroke-dasharray", "6,3");
+    arc.setAttribute("marker-end", "url(#sayrArrowActive)");
+    overlayG.appendChild(arc);
+
+    // Halos duplos conectando a nota presa à corda solta equivalente
+    [pFrom, pTo].forEach(pt => {
+      const ring = document.createElementNS(SVG_NS, "circle");
+      ring.setAttribute("cx", String(pt.x));
+      ring.setAttribute("cy", String(pt.y));
+      ring.setAttribute("r", "19.5");
+      ring.setAttribute("fill", "rgba(196, 155, 224, 0.22)");
+      ring.setAttribute("stroke", plumStroke);
+      ring.setAttribute("stroke-width", "2.4");
+      overlayG.appendChild(ring);
+    });
+
+    const lblX = (pFrom.x + 2 * ctrlX + pTo.x) / 4;
+    const lblY = (pFrom.y + 2 * ctrlY + pTo.y) / 4;
+    const txt = isEn
+      ? `Unison = ${shiftOverlay.toCourse}th Open`
+      : `Uníssono = ${shiftOverlay.toCourse}ª Solta`;
+    appendPillLabel(overlayG, lblX, lblY, txt, plumStroke, plumStroke, pillBg, 9.6, 8, 20);
+
+    svg.appendChild(overlayG);
+    return;
+  }
+
+  if (shiftOverlay.type === "SHIFT") {
+    const cFrom = getPhysicalX(shiftOverlay.fromThumbQ, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const cTo = getPhysicalX(shiftOverlay.toThumbQ, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
+    const midC = (cFrom + cTo) / 2;
+
+    if (isVert) {
+      const railX = edgeStart - 24;
+      const ctrlX = railX - 24;
+      const arc = document.createElementNS(SVG_NS, "path");
+      arc.setAttribute(
+        "d",
+        `M ${railX},${cFrom.toFixed(1)} Q ${ctrlX},${midC.toFixed(1)} ${railX},${cTo.toFixed(1)}`
+      );
+      arc.setAttribute("fill", "none");
+      arc.setAttribute("stroke", plumStroke);
+      arc.setAttribute("stroke-width", "2.8");
+      arc.setAttribute("marker-end", "url(#sayrArrowActive)");
+      overlayG.appendChild(arc);
+
+      appendPillLabel(
+        overlayG,
+        edgeEnd + 92,
+        136,
+        shiftOverlay.badgeText,
+        plumStroke,
+        plumStroke,
+        pillBg,
+        9.4,
+        7,
+        20
+      );
+    } else {
+      const baseY = edgeEnd + 36;
+      const ctrlY = baseY + 18;
+      const arc = document.createElementNS(SVG_NS, "path");
+      arc.setAttribute(
+        "d",
+        `M ${cFrom.toFixed(1)},${baseY} Q ${midC.toFixed(1)},${ctrlY} ${cTo.toFixed(1)},${baseY}`
+      );
+      arc.setAttribute("fill", "none");
+      arc.setAttribute("stroke", plumStroke);
+      arc.setAttribute("stroke-width", "2.8");
+      arc.setAttribute("marker-end", "url(#sayrArrowActive)");
+      overlayG.appendChild(arc);
+
+      const pivotPt = coordLookup.get(`${shiftOverlay.course}:${shiftOverlay.pivotQ}`);
+      if (pivotPt) {
+        const pRing = document.createElementNS(SVG_NS, "circle");
+        pRing.setAttribute("cx", String(pivotPt.x));
+        pRing.setAttribute("cy", String(pivotPt.y));
+        pRing.setAttribute("r", "20");
+        pRing.setAttribute("fill", "rgba(196, 155, 224, 0.22)");
+        pRing.setAttribute("stroke", plumStroke);
+        pRing.setAttribute("stroke-width", "2.4");
+        overlayG.appendChild(pRing);
+
+        appendPillLabel(
+          overlayG,
+          pivotPt.x,
+          pivotPt.y - 28,
+          shiftOverlay.badgeText,
+          plumStroke,
+          plumStroke,
+          pillBg,
+          9.6,
+          8,
+          20
+        );
+      }
+    }
+
+    svg.appendChild(overlayG);
+  }
+}
+
 function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#e2b963") {
   if (orderedPoints.length < 2) return;
 
-  const trailGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const trailGroup = document.createElementNS(SVG_NS, "g");
   trailGroup.setAttribute("pointer-events", "none");
 
   for (let i = 0; i < orderedPoints.length - 1; i++) {
@@ -314,7 +601,7 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
 
     const isCurrentSegment = highlightedStepIdx === i || highlightedStepIdx === i + 1;
 
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", `M ${p1.x.toFixed(1)},${p1.y.toFixed(1)} Q ${ctrlX.toFixed(1)},${ctrlY.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
     path.setAttribute("fill", "none");
     path.setAttribute("stroke", isCurrentSegment ? "#c49be0" : baseColor);
@@ -329,7 +616,7 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
     const badgeX = pt.x + 12;
     const badgeY = pt.y - 12;
 
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const circle = document.createElementNS(SVG_NS, "circle");
     circle.setAttribute("cx", String(badgeX));
     circle.setAttribute("cy", String(badgeY));
     circle.setAttribute("r", isHighlighted ? "9.5" : "7.5");
@@ -338,7 +625,7 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
     circle.setAttribute("stroke-width", "1.4");
     trailGroup.appendChild(circle);
 
-    const num = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const num = document.createElementNS(SVG_NS, "text");
     num.setAttribute("x", String(badgeX));
     num.setAttribute("y", String(badgeY + 2.8));
     num.setAttribute("text-anchor", "middle");
@@ -400,12 +687,14 @@ function appendNoteJewel(
   pivotInfo,
   showPositionsMap,
   isLight,
+  isEn,
   displayText,
   labelMode,
   noteFreq,
   palette,
   selectedPitch,
-  onNeckJewelSelect
+  onNeckJewelSelect,
+  onPivotAction
 ) {
   let fillGrad = "url(#fixedGem)";
   let strokeColor = "#cbd5e1";
@@ -428,7 +717,7 @@ function appendNoteJewel(
     nodeOpacity = (isExactStaffMatch || isOctaveStaffMatch) ? "1.0" : "0.35";
   }
 
-  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const group = document.createElementNS(SVG_NS, "g");
   group.setAttribute("class", "note-node");
   group.setAttribute("opacity", nodeOpacity);
 
@@ -464,10 +753,10 @@ function appendNoteJewel(
     }
   });
 
-  // Halo da Nota-Pivô / Uníssono de Ordem (Ameixa para uníssono, Latão para mudança de posição)
+  // Halo da Nota-Pivô / Uníssono de Ordem
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
-    const pivotRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const pivotRing = document.createElementNS(SVG_NS, "circle");
     pivotRing.setAttribute("cx", String(nx));
     pivotRing.setAttribute("cy", String(ny));
     pivotRing.setAttribute("r", "16.2");
@@ -479,7 +768,7 @@ function appendNoteJewel(
   }
 
   if (isExactStaffMatch || isOctaveStaffMatch) {
-    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const halo = document.createElementNS(SVG_NS, "circle");
     halo.setAttribute("cx", String(nx));
     halo.setAttribute("cy", String(ny));
     halo.setAttribute("r", isExactStaffMatch ? "20" : "18");
@@ -491,7 +780,7 @@ function appendNoteJewel(
   }
 
   if (qFromNut === 0 && isSelectedActiveNote) {
-    const openHalo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const openHalo = document.createElementNS(SVG_NS, "circle");
     openHalo.setAttribute("cx", String(nx));
     openHalo.setAttribute("cy", String(ny));
     openHalo.setAttribute("r", "15.5");
@@ -506,7 +795,7 @@ function appendNoteJewel(
   if (isMicroNote) {
     const outerR = isRoot ? 15.5 : 13.8;
     const innerR = isRoot ? 11.2 : 9.8;
-    const star = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    const star = document.createElementNS(SVG_NS, "polygon");
     star.setAttribute("points", createOctagramStarPath(nx, ny, outerR, innerR));
     star.setAttribute("fill", fillGrad);
     star.setAttribute("stroke", isExactStaffMatch ? "#ffffff" : strokeColor);
@@ -514,7 +803,7 @@ function appendNoteJewel(
     group.appendChild(star);
   } else {
     const radius = isRoot ? 13.5 : (isGhammaz ? 12.6 : 11.5);
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const circle = document.createElementNS(SVG_NS, "circle");
     circle.setAttribute("cx", String(nx));
     circle.setAttribute("cy", String(ny));
     circle.setAttribute("r", String(radius));
@@ -524,7 +813,7 @@ function appendNoteJewel(
     group.appendChild(circle);
 
     if (isRoot || isGhammaz) {
-      const innerRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      const innerRing = document.createElementNS(SVG_NS, "circle");
       innerRing.setAttribute("cx", String(nx));
       innerRing.setAttribute("cy", String(ny));
       innerRing.setAttribute("r", String(radius - 3));
@@ -535,7 +824,7 @@ function appendNoteJewel(
     }
   }
 
-  const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const textEl = document.createElementNS(SVG_NS, "text");
   textEl.setAttribute("x", String(nx));
   textEl.setAttribute("y", String(ny + 3.6));
   textEl.setAttribute("text-anchor", "middle");
@@ -546,13 +835,13 @@ function appendNoteJewel(
   textEl.textContent = displayText;
   group.appendChild(textEl);
 
-  // Microcápsula legível do Pivô/Uníssono no canto superior esquerdo
+  // Nível 3: Microcápsula clicável do Pivô/Uníssono no canto superior esquerdo
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const bx = nx - 14;
     const by = ny - 13;
-    const bw = Math.max(22, pivotInfo.badge.length * 6.2 + 6);
-    const bh = 13;
+    const bw = Math.max(24, pivotInfo.badge.length * 6.4 + 6);
+    const bh = 14;
 
     const pillBg = isLight
       ? (isUnisonBridge ? "#f5eefb" : "#fbf5e6")
@@ -561,28 +850,56 @@ function appendNoteJewel(
       ? (isUnisonBridge ? "#6b3f8c" : "#9a6515")
       : (isUnisonBridge ? "#c49be0" : "#d4a84f");
 
-    const pRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const pivotBtnG = document.createElementNS(SVG_NS, "g");
+    pivotBtnG.setAttribute("class", "pivot-pill-btn");
+
+    const pTip = document.createElementNS(SVG_NS, "title");
+    pTip.textContent = isUnisonBridge
+      ? (isEn ? `Click to preview unison bridge with ${pivotInfo.targetCourse}th open course` : `Clique para ver ponte de uníssono com a ${pivotInfo.targetCourse}ª ordem solta`)
+      : (isEn ? `Click to shift hand via ${pivotInfo.badge}` : `Clique para mover a posição da mão via ${pivotInfo.badge}`);
+    pivotBtnG.appendChild(pTip);
+
+    const pRect = document.createElementNS(SVG_NS, "rect");
     pRect.setAttribute("x", String(bx - bw / 2));
     pRect.setAttribute("y", String(by - bh / 2));
     pRect.setAttribute("width", String(bw));
     pRect.setAttribute("height", String(bh));
-    pRect.setAttribute("rx", "4");
+    pRect.setAttribute("rx", "4.5");
     pRect.setAttribute("fill", pillBg);
     pRect.setAttribute("stroke", pillStroke);
-    pRect.setAttribute("stroke-width", "1.1");
-    pRect.setAttribute("pointer-events", "none");
-    group.appendChild(pRect);
+    pRect.setAttribute("stroke-width", "1.2");
+    pivotBtnG.appendChild(pRect);
 
-    const pTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const pTag = document.createElementNS(SVG_NS, "text");
     pTag.setAttribute("x", String(bx));
     pTag.setAttribute("y", String(by + 3));
     pTag.setAttribute("text-anchor", "middle");
     pTag.setAttribute("fill", pillStroke);
-    pTag.setAttribute("font-size", "8.2");
+    pTag.setAttribute("font-size", "8.3");
     pTag.setAttribute("font-weight", "800");
     pTag.setAttribute("pointer-events", "none");
     pTag.textContent = pivotInfo.badge;
-    group.appendChild(pTag);
+    pivotBtnG.appendChild(pTag);
+
+    pivotBtnG.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (onPivotAction) {
+        onPivotAction({
+          type: pivotInfo.type,
+          badge: pivotInfo.badge,
+          targetCourse: pivotInfo.targetCourse,
+          targetPosId: pivotInfo.targetPosId,
+          course: courseNumber,
+          qFromNut,
+          absQ,
+          pitchClassQ,
+          freq: noteFreq
+        });
+      }
+    });
+
+    group.appendChild(pivotBtnG);
   }
 
   svg.appendChild(group);
@@ -595,9 +912,18 @@ function appendNoteJewel(
  * @param {{ absQ: number | null, pitchClassQ: number | null } | null} [selectedPitch=null]
  * @param {(noteInfo: { absQ: number, pitchClassQ: number, qFromNut: number, course: number, finger: string | number, freq: number, makeRoot?: boolean }) => void} [onNeckJewelSelect]
  * @param {ReturnType<import("../core/modalEngine.js").computeAnchoredOctavePath>} [octavePathNodes=[]]
+ * @param {{ onToggleRegion?: (regionId: string) => void, onPlayRegion?: (regionId: string) => void, onPivotAction?: (payload: any) => void, playingRegionId?: string | null, highlightedRegionNodeKey?: string | null, activeShiftOverlay?: any }} [regionInteractions]
  * @returns {{ course: number, freq: number }[]}
  */
-export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, selectedPitch = null, onNeckJewelSelect, octavePathNodes = []) {
+export function renderOudNeckSVG(
+  state,
+  onRosetteClick,
+  highlightedStep = -1,
+  selectedPitch = null,
+  onNeckJewelSelect,
+  octavePathNodes = [],
+  regionInteractions = {}
+) {
   const svg = /** @type {SVGElement} */ (/** @type {unknown} */ (document.getElementById("oud-neck")));
   svg.innerHTML = "";
   /** @type {{ course: number, freq: number }[]} */
@@ -633,7 +959,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     });
   }
 
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const activeShift = regionInteractions?.activeShiftOverlay || null;
+  const highlightedRegionKey = regionInteractions?.highlightedRegionNodeKey || null;
+
+  const defs = document.createElementNS(SVG_NS, "defs");
   defs.innerHTML = `
     <linearGradient id="soundboardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="${palette.soundboard}" />
@@ -708,7 +1037,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     const bodyJointY = getPhysicalX(10, nutY, neckLengthPx, false);
     const soundboardFarY = 1070;
 
-    const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const sbPath = document.createElementNS(SVG_NS, "path");
     sbPath.setAttribute(
       "d",
       `M ${leftX - 20},${bodyJointY} Q 12,${bodyJointY + 50} 12,${bodyJointY + 145} L 12,${soundboardFarY} L 446,${soundboardFarY} L 446,${bodyJointY + 145} Q 446,${bodyJointY + 50} ${rightX + 20},${bodyJointY} Z`
@@ -719,7 +1048,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(sbPath);
 
     const rosetteCenterY = 998;
-    const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const raqma = document.createElementNS(SVG_NS, "path");
     raqma.setAttribute(
       "d",
       `M ${leftX - 6},${neckEndY - 12} Q ${leftX - 24},${neckEndY + 25} ${centerX - 46},${rosetteCenterY - 38} L ${centerX + 46},${rosetteCenterY - 38} Q ${rightX + 24},${neckEndY + 25} ${rightX + 6},${neckEndY - 12} Z`
@@ -734,7 +1063,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     renderShamsiyyaRosette(svg, leftX - 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
     renderShamsiyyaRosette(svg, rightX + 24, rosetteCenterY - 62, 14, palette, onRosetteClick);
 
-    const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    const pegbox = document.createElementNS(SVG_NS, "polygon");
     pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
     pegbox.setAttribute("fill", "#1a1310");
     pegbox.setAttribute("stroke", palette.rosetteRing);
@@ -742,7 +1071,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(pegbox);
 
     const openRailY = getPhysicalX(0, nutY, neckLengthPx, false);
-    const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const openZoneRect = document.createElementNS(SVG_NS, "rect");
     openZoneRect.setAttribute("x", String(leftX - 12));
     openZoneRect.setAttribute("y", String(openRailY - 17));
     openZoneRect.setAttribute("width", String((rightX - leftX) + 24));
@@ -753,7 +1082,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     openZoneRect.setAttribute("stroke-dasharray", "3,3");
     svg.appendChild(openZoneRect);
 
-    const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const openLbl = document.createElementNS(SVG_NS, "text");
     openLbl.setAttribute("x", String(leftX - 44));
     openLbl.setAttribute("y", String(openRailY + 3.5));
     openLbl.setAttribute("text-anchor", "middle");
@@ -763,7 +1092,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     openLbl.textContent = isEn ? "OPEN" : "SOLTA";
     svg.appendChild(openLbl);
 
-    const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    const neckPolygon = document.createElementNS(SVG_NS, "polygon");
     neckPolygon.setAttribute("points", `${leftX - 14},${nutY} ${rightX + 14},${nutY} ${rightX + 20},${neckEndY} ${leftX - 20},${neckEndY}`);
     neckPolygon.setAttribute("fill", "url(#ebonyGrad)");
     neckPolygon.setAttribute("stroke", palette.rosetteRing);
@@ -774,7 +1103,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       { x1: leftX - 11, x2: leftX - 17 },
       { x1: rightX + 11, x2: rightX + 17 }
     ].forEach(strip => {
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const line = document.createElementNS(SVG_NS, "line");
       line.setAttribute("x1", String(strip.x1));
       line.setAttribute("y1", String(nutY));
       line.setAttribute("x2", String(strip.x2));
@@ -786,11 +1115,13 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       svg.appendChild(line);
     });
 
+    renderRegionHoverZones(svg, state, nutY, neckLengthPx, leftX, rightX, true, isLight);
+
     if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
       const y1 = getPhysicalX(posBounds.startQ, nutY, neckLengthPx, false);
       const y2 = getPhysicalX(posBounds.endQ, nutY, neckLengthPx, false);
 
-      const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      const boxRect = document.createElementNS(SVG_NS, "rect");
       boxRect.setAttribute("x", String(leftX - 15));
       boxRect.setAttribute("y", String(y1 - 16));
       boxRect.setAttribute("width", String((rightX - leftX) + 30));
@@ -803,7 +1134,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       svg.appendChild(boxRect);
     }
 
-    const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const nutLine = document.createElementNS(SVG_NS, "line");
     nutLine.setAttribute("x1", String(leftX - 15));
     nutLine.setAttribute("y1", String(nutY));
     nutLine.setAttribute("x2", String(rightX + 15));
@@ -812,7 +1143,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     nutLine.setAttribute("stroke-width", "9");
     svg.appendChild(nutLine);
 
-    const nutBorder = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const nutBorder = document.createElementNS(SVG_NS, "line");
     nutBorder.setAttribute("x1", String(leftX - 15));
     nutBorder.setAttribute("y1", String(nutY + 4.5));
     nutBorder.setAttribute("x2", String(rightX + 15));
@@ -821,7 +1152,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     nutBorder.setAttribute("stroke-width", "1.5");
     svg.appendChild(nutBorder);
 
-    const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const nutTag = document.createElementNS(SVG_NS, "text");
     nutTag.setAttribute("x", String(leftX - 44));
     nutTag.setAttribute("y", String(nutY + 3.5));
     nutTag.setAttribute("text-anchor", "middle");
@@ -837,7 +1168,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       if (!isMicro && !state.showSemiGuides) continue;
 
       const gy = getPhysicalX(q, nutY, neckLengthPx, false);
-      const gLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const gLine = document.createElementNS(SVG_NS, "line");
       gLine.setAttribute("x1", String(leftX - 12));
       gLine.setAttribute("y1", String(gy));
       gLine.setAttribute("x2", String(rightX + 12));
@@ -848,7 +1179,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       svg.appendChild(gLine);
 
       if (keySemitones.includes(q)) {
-        const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const inlayDiamond = document.createElementNS(SVG_NS, "polygon");
         const ix = rightX + 23;
         inlayDiamond.setAttribute("points", `${ix},${gy - 4} ${ix + 4},${gy} ${ix},${gy + 4} ${ix - 4},${gy}`);
         inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : extColors.inlayFixed);
@@ -856,7 +1187,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       }
 
       if (!isMicro || state.showMicroGuides) {
-        const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        const lbl = document.createElementNS(SVG_NS, "text");
         lbl.setAttribute("x", String(leftX - 44));
         lbl.setAttribute("y", String(gy + 3.5));
         lbl.setAttribute("text-anchor", "middle");
@@ -868,7 +1199,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       }
     }
 
-    renderPositionRegionsOverlay(svg, state, nutY, neckLengthPx, leftX, rightX, true, isLight);
+    renderPositionRegionsOverlay(svg, state, nutY, neckLengthPx, leftX, rightX, true, isLight, regionInteractions);
 
     const courseSpacingX = (rightX - leftX) / 5;
     /** @type {Map<string, { x: number, y: number }>} */
@@ -878,7 +1209,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const posIndex = state.leftHanded ? cIdx : (5 - cIdx);
       const cx = leftX + posIndex * courseSpacingX;
 
-      const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const cText = document.createElementNS(SVG_NS, "text");
       cText.setAttribute("x", String(cx));
       cText.setAttribute("y", "22");
       cText.setAttribute("text-anchor", "middle");
@@ -889,7 +1220,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       svg.appendChild(cText);
 
       if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
-        const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        const mText = document.createElementNS(SVG_NS, "text");
         mText.setAttribute("x", String(cx));
         mText.setAttribute("y", String(openRailY + 5));
         mText.setAttribute("text-anchor", "middle");
@@ -902,7 +1233,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
       const isWoundBass = cIdx >= 3;
       [-1.5, 1.5].forEach((offsetX) => {
-        const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        const pegString = document.createElementNS(SVG_NS, "line");
         pegString.setAttribute("x1", String(cx + offsetX));
         pegString.setAttribute("y1", "34");
         pegString.setAttribute("x2", String(cx + offsetX));
@@ -912,7 +1243,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         pegString.setAttribute("opacity", "0.55");
         svg.appendChild(pegString);
 
-        const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        const sLine = document.createElementNS(SVG_NS, "line");
         sLine.setAttribute("x1", String(cx + offsetX));
         sLine.setAttribute("y1", String(nutY));
         sLine.setAttribute("x2", String(cx + offsetX));
@@ -934,12 +1265,17 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
         const pivotInfo = evaluateShiftPivot(qFromNut, cIdx, tuning);
 
-        const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
-        let isSelectedActiveNote = shapeEval.inBox;
+        const nodeKey = `${cObj.course}:${qFromNut}`;
+        const isUnisonTarget = activeShift && activeShift.type === "UNISON" &&
+          ((activeShift.toCourse === cObj.course && activeShift.toQ === qFromNut) ||
+           (activeShift.fromCourse === cObj.course && activeShift.fromQ === qFromNut));
+
+        const octMatch = octaveNodeMap.get(nodeKey);
+        let isSelectedActiveNote = shapeEval.inBox || Boolean(isUnisonTarget);
         if (isOctaveFilterActive) {
-          isSelectedActiveNote = Boolean(octMatch);
+          isSelectedActiveNote = Boolean(octMatch) || Boolean(isUnisonTarget);
         } else if (isChordVoicingActive && chordVoicingMap) {
-          isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut);
+          isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut) || Boolean(isUnisonTarget);
         }
         if (!isSelectedActiveNote && !state.showGhostNotes) continue;
 
@@ -949,7 +1285,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         }
 
         const ny = getPhysicalX(qFromNut, nutY, neckLengthPx, false);
-        coordLookup.set(`${cObj.course}:${qFromNut}`, { x: cx, y: ny });
+        coordLookup.set(nodeKey, { x: cx, y: ny });
 
         if (isSelectedActiveNote) {
           visibleActiveNodes.push({ x: cx, y: ny, absQ, modOffsetQ: offsetFromRoot });
@@ -957,7 +1293,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
         const isRoot = offsetFromRoot === 0;
         const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
-        const isPlaybackStepHit = isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex;
+        const isPlaybackStepHit = (isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex) ||
+          (highlightedRegionKey === nodeKey);
 
         let displayText = pcData.flat;
         if (state.labelMode === "DEGREE") displayText = octMatch ? octMatch.degree : noteInfo.degree;
@@ -981,12 +1318,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
           pivotInfo,
           state.showPositionsMap,
           isLight,
+          isEn,
           displayText,
           state.labelMode,
           noteFreq,
           palette,
           selectedPitch,
-          onNeckJewelSelect
+          onNeckJewelSelect,
+          regionInteractions?.onPivotAction
         );
       }
     });
@@ -1004,6 +1343,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
       if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedStep);
     }
+
+    renderHandShiftOverlay(svg, state, activeShift, coordLookup, nutY, neckLengthPx, leftX, rightX, true, isLight);
 
     currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
     return currentChordVoicingFreqs;
@@ -1027,7 +1368,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const sbTopY = 70;
   const sbBotY = 370;
 
-  const sbPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const sbPath = document.createElementNS(SVG_NS, "path");
   sbPath.setAttribute(
     "d",
     `M ${bodyJointX},${topY - 22} Q ${curveCtrlX},${sbTopY} ${bodyJointX + dir * 160},${sbTopY} L ${soundboardFarX},${sbTopY} L ${soundboardFarX},${sbBotY} L ${bodyJointX + dir * 160},${sbBotY} Q ${curveCtrlX},${sbBotY} ${bodyJointX},${bottomY + 22} Z`
@@ -1037,7 +1378,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   sbPath.setAttribute("stroke-width", "3");
   svg.appendChild(sbPath);
 
-  const sbInlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const sbInlay = document.createElementNS(SVG_NS, "path");
   sbInlay.setAttribute(
     "d",
     `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},${sbTopY + 6} ${bodyJointX + dir * 160},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbBotY - 6} L ${bodyJointX + dir * 160},${sbBotY - 6} Q ${curveCtrlX + dir * 4},${sbBotY - 6} ${bodyJointX + dir * 5},${bottomY + 18}`
@@ -1053,7 +1394,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const raqmaStartX = neckEndX - dir * 18;
   const raqmaEndX = rosetteCenterX - dir * 48;
 
-  const raqma = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const raqma = document.createElementNS(SVG_NS, "path");
   raqma.setAttribute(
     "d",
     `M ${raqmaStartX},${topY - 8} Q ${(raqmaStartX + raqmaEndX) / 2},${topY - 26} ${raqmaEndX},${centerY - 48} L ${raqmaEndX},${centerY + 48} Q ${(raqmaStartX + raqmaEndX) / 2},${bottomY + 26} ${raqmaStartX},${bottomY + 8} Z`
@@ -1074,7 +1415,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const bodyBotY = bottomY + 22;
 
   const pegboxEndX = state.leftHanded ? 1105 : 15;
-  const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  const pegbox = document.createElementNS(SVG_NS, "polygon");
   pegbox.setAttribute("points", `${nutX},${nutTopY} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${nutBotY}`);
   pegbox.setAttribute("fill", "#1a1310");
   pegbox.setAttribute("stroke", palette.rosetteRing);
@@ -1082,7 +1423,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   svg.appendChild(pegbox);
 
   const openRailX = getPhysicalX(0, nutX, neckLengthPx, state.leftHanded);
-  const openZoneRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  const openZoneRect = document.createElementNS(SVG_NS, "rect");
   openZoneRect.setAttribute("x", String(openRailX - 17));
   openZoneRect.setAttribute("y", String(nutTopY + 2));
   openZoneRect.setAttribute("width", "34");
@@ -1093,7 +1434,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   openZoneRect.setAttribute("stroke-dasharray", "3,3");
   svg.appendChild(openZoneRect);
 
-  const openLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const openLbl = document.createElementNS(SVG_NS, "text");
   openLbl.setAttribute("x", String(openRailX));
   openLbl.setAttribute("y", String(bodyBotY + 28));
   openLbl.setAttribute("text-anchor", "middle");
@@ -1103,7 +1444,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   openLbl.textContent = isEn ? "OPEN (0)" : "SOLTA (0)";
   svg.appendChild(openLbl);
 
-  const neckPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  const neckPolygon = document.createElementNS(SVG_NS, "polygon");
   neckPolygon.setAttribute("points", `${nutX},${nutTopY} ${neckEndX},${bodyTopY} ${neckEndX},${bodyBotY} ${nutX},${nutBotY}`);
   neckPolygon.setAttribute("fill", "url(#ebonyGrad)");
   neckPolygon.setAttribute("stroke", palette.rosetteRing);
@@ -1114,7 +1455,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     { y1: nutTopY + 3, y2: bodyTopY + 3 },
     { y1: nutBotY - 3, y2: bodyBotY - 3 }
   ].forEach(strip => {
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const line = document.createElementNS(SVG_NS, "line");
     line.setAttribute("x1", String(nutX));
     line.setAttribute("y1", String(strip.y1));
     line.setAttribute("x2", String(neckEndX));
@@ -1126,13 +1467,15 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(line);
   });
 
+  renderRegionHoverZones(svg, state, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight);
+
   if (state.shapeMode !== "FULL_NECK" || isChordVoicingActive) {
     const x1 = getPhysicalX(posBounds.startQ, nutX, neckLengthPx, state.leftHanded);
     const x2 = getPhysicalX(posBounds.endQ, nutX, neckLengthPx, state.leftHanded);
     const rectX = Math.min(x1, x2) - 16;
     const rectW = Math.abs(x2 - x1) + 32;
 
-    const boxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const boxRect = document.createElementNS(SVG_NS, "rect");
     boxRect.setAttribute("x", String(rectX));
     boxRect.setAttribute("y", String(bodyTopY + 5));
     boxRect.setAttribute("width", String(rectW));
@@ -1145,7 +1488,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(boxRect);
   }
 
-  const nutLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const nutLine = document.createElementNS(SVG_NS, "line");
   nutLine.setAttribute("x1", String(nutX));
   nutLine.setAttribute("y1", String(nutTopY - 2));
   nutLine.setAttribute("x2", String(nutX));
@@ -1154,7 +1497,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   nutLine.setAttribute("stroke-width", "9");
   svg.appendChild(nutLine);
 
-  const nutInnerEdge = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const nutInnerEdge = document.createElementNS(SVG_NS, "line");
   nutInnerEdge.setAttribute("x1", String(nutX + dir * 4.5));
   nutInnerEdge.setAttribute("y1", String(nutTopY - 2));
   nutInnerEdge.setAttribute("x2", String(nutX + dir * 4.5));
@@ -1163,7 +1506,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   nutInnerEdge.setAttribute("stroke-width", "1.6");
   svg.appendChild(nutInnerEdge);
 
-  const nutTag = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const nutTag = document.createElementNS(SVG_NS, "text");
   nutTag.setAttribute("x", String(nutX));
   nutTag.setAttribute("y", String(nutTopY - 11));
   nutTag.setAttribute("text-anchor", "middle");
@@ -1179,7 +1522,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     if (!isMicro && !state.showSemiGuides) continue;
 
     const gx = getPhysicalX(q, nutX, neckLengthPx, state.leftHanded);
-    const gLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const gLine = document.createElementNS(SVG_NS, "line");
     gLine.setAttribute("x1", String(gx));
     gLine.setAttribute("y1", String(nutTopY + 6));
     gLine.setAttribute("x2", String(gx));
@@ -1190,7 +1533,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(gLine);
 
     if (keySemitones.includes(q)) {
-      const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      const inlayDiamond = document.createElementNS(SVG_NS, "polygon");
       const iy = bodyTopY - 5;
       inlayDiamond.setAttribute("points", `${gx},${iy - 4} ${gx + 4},${iy} ${gx},${iy + 4} ${gx - 4},${iy}`);
       inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : extColors.inlayFixed);
@@ -1198,7 +1541,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     }
 
     if (!isMicro || state.showMicroGuides) {
-      const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const lbl = document.createElementNS(SVG_NS, "text");
       lbl.setAttribute("x", String(gx));
       lbl.setAttribute("y", String(bodyBotY + 28));
       lbl.setAttribute("text-anchor", "middle");
@@ -1210,7 +1553,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     }
   }
 
-  renderPositionRegionsOverlay(svg, state, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight);
+  renderPositionRegionsOverlay(svg, state, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight, regionInteractions);
 
   const courseSpacing = (bottomY - topY) / 5;
   /** @type {Map<string, { x: number, y: number }>} */
@@ -1220,7 +1563,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     const cy = topY + cIdx * courseSpacing;
     const courseLabelX = state.leftHanded ? nutX + 92 : nutX - 92;
 
-    const cText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const cText = document.createElementNS(SVG_NS, "text");
     cText.setAttribute("x", String(courseLabelX));
     cText.setAttribute("y", String(cy + 4));
     cText.setAttribute("text-anchor", "middle");
@@ -1231,7 +1574,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     svg.appendChild(cText);
 
     if (isChordVoicingActive && chordVoicingMap && chordVoicingMap[cObj.course] === null) {
-      const mText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const mText = document.createElementNS(SVG_NS, "text");
       mText.setAttribute("x", String(openRailX));
       mText.setAttribute("y", String(cy + 5));
       mText.setAttribute("text-anchor", "middle");
@@ -1244,7 +1587,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
     const isWoundBass = cIdx >= 3;
     [-1.6, 1.6].forEach((offsetY) => {
-      const pegString = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const pegString = document.createElementNS(SVG_NS, "line");
       pegString.setAttribute("x1", String(openRailX - dir * 18));
       pegString.setAttribute("y1", String(cy + offsetY));
       pegString.setAttribute("x2", String(nutX));
@@ -1254,7 +1597,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       pegString.setAttribute("opacity", "0.55");
       svg.appendChild(pegString);
 
-      const sLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const sLine = document.createElementNS(SVG_NS, "line");
       sLine.setAttribute("x1", String(nutX));
       sLine.setAttribute("y1", String(cy + offsetY));
       sLine.setAttribute("x2", String(soundboardFarX));
@@ -1276,12 +1619,17 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const shapeEval = evaluateShapeAndFinger(qFromNut, state.shapeMode, state.boxAnchorQ);
       const pivotInfo = evaluateShiftPivot(qFromNut, cIdx, tuning);
 
-      const octMatch = octaveNodeMap.get(`${cObj.course}:${qFromNut}`);
-      let isSelectedActiveNote = shapeEval.inBox;
+      const nodeKey = `${cObj.course}:${qFromNut}`;
+      const isUnisonTarget = activeShift && activeShift.type === "UNISON" &&
+        ((activeShift.toCourse === cObj.course && activeShift.toQ === qFromNut) ||
+         (activeShift.fromCourse === cObj.course && activeShift.fromQ === qFromNut));
+
+      const octMatch = octaveNodeMap.get(nodeKey);
+      let isSelectedActiveNote = shapeEval.inBox || Boolean(isUnisonTarget);
       if (isOctaveFilterActive) {
-        isSelectedActiveNote = Boolean(octMatch);
+        isSelectedActiveNote = Boolean(octMatch) || Boolean(isUnisonTarget);
       } else if (isChordVoicingActive && chordVoicingMap) {
-        isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut);
+        isSelectedActiveNote = (chordVoicingMap[cObj.course] === qFromNut) || Boolean(isUnisonTarget);
       }
       if (!isSelectedActiveNote && !state.showGhostNotes) continue;
 
@@ -1291,7 +1639,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       }
 
       const nx = getPhysicalX(qFromNut, nutX, neckLengthPx, state.leftHanded);
-      coordLookup.set(`${cObj.course}:${qFromNut}`, { x: nx, y: cy });
+      coordLookup.set(nodeKey, { x: nx, y: cy });
 
       if (isSelectedActiveNote) {
         visibleActiveNodes.push({ x: nx, y: cy, absQ, modOffsetQ: offsetFromRoot });
@@ -1299,7 +1647,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
       const isRoot = offsetFromRoot === 0;
       const isGhammaz = activeStruct.ghammazOffsets.includes(offsetFromRoot);
-      const isPlaybackStepHit = isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex;
+      const isPlaybackStepHit = (isOctaveFilterActive && octMatch && highlightedStep === octMatch.stepIndex) ||
+        (highlightedRegionKey === nodeKey);
 
       let displayText = pcData.flat;
       if (state.labelMode === "DEGREE") displayText = octMatch ? octMatch.degree : noteInfo.degree;
@@ -1323,12 +1672,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         pivotInfo,
         state.showPositionsMap,
         isLight,
+        isEn,
         displayText,
         state.labelMode,
         noteFreq,
         palette,
         selectedPitch,
-        onNeckJewelSelect
+        onNeckJewelSelect,
+        regionInteractions?.onPivotAction
       );
     }
   });
@@ -1346,6 +1697,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
     if (phrase) renderSayrMelodicPaths(svg, visibleActiveNodes, phrase.steps, highlightedStep);
   }
+
+  renderHandShiftOverlay(svg, state, activeShift, coordLookup, nutX, neckLengthPx, bodyTopY, bodyBotY, false, isLight);
 
   currentChordVoicingFreqs.sort((a, b) => b.course - a.course);
   return currentChordVoicingFreqs;

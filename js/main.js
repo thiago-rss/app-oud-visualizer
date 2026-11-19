@@ -1,6 +1,11 @@
 // @ts-check
 import { DB, PITCH_CLASSES_24 } from "./core/database.js";
-import { getActiveStructure, computeAnchoredOctavePath } from "./core/modalEngine.js";
+import {
+  getActiveStructure,
+  getPositionBounds,
+  computePositionRegionSequence,
+  computeAnchoredOctavePath
+} from "./core/modalEngine.js";
 import { getInitialStateFromUrl, syncStateToUrl } from "./core/urlState.js";
 import { GLOSSARY_ENTRIES } from "./core/glossary.js";
 import {
@@ -77,6 +82,18 @@ let activeDeckTab = "theory";
 /** @type {number | undefined} */
 let loupeHideTimer;
 
+// Estados dos Níveis 2 e 3 (Audição da Região & Transição pelos Pivôs)
+/** @type {string | null} */
+let playingRegionId = null;
+/** @type {string | null} */
+let highlightedRegionNodeKey = null;
+/** @type {number[]} */
+let regionPlaybackTimers = [];
+/** @type {any} */
+let activeShiftOverlay = null;
+/** @type {number | undefined} */
+let shiftOverlayTimer;
+
 /** @type {{ mode: any, entityId: string, rootQ: number, anchorAbsQ: number | null, label: string } | null} */
 let modulationOrigin = null;
 
@@ -90,6 +107,185 @@ function safeT(key, fallbackPt, fallbackEn) {
   const val = t(state.lang, /** @type {any} */ (key));
   if (val && val !== key) return val;
   return state.lang === "en" ? fallbackEn : fallbackPt;
+}
+
+function stopRegionPlayback(shouldRefresh = false) {
+  regionPlaybackTimers.forEach(id => window.clearTimeout(id));
+  regionPlaybackTimers = [];
+  const hadPlayback = playingRegionId !== null || highlightedRegionNodeKey !== null;
+  playingRegionId = null;
+  highlightedRegionNodeKey = null;
+  if (shouldRefresh && hadPlayback) {
+    refreshAll();
+  }
+}
+
+function clearShiftOverlay(shouldRefresh = false) {
+  window.clearTimeout(shiftOverlayTimer);
+  const hadOverlay = activeShiftOverlay !== null;
+  activeShiftOverlay = null;
+  if (shouldRefresh && hadOverlay) {
+    refreshAll();
+  }
+}
+
+function clearAllActivePlayback() {
+  clearSequenceTimers();
+  stopRegionPlayback(false);
+  highlightedSequenceStep = -1;
+}
+
+/**
+ * Nível 1: Clique direto nas cápsulas I, II, III — isola a posição ou volta ao Espelho Completo.
+ * @param {string} regionId
+ */
+function handleTogglePositionRegion(regionId) {
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
+
+  if (state.shapeMode === regionId) {
+    state.shapeMode = "FULL_NECK";
+  } else {
+    state.shapeMode = /** @type {any} */ (regionId);
+  }
+
+  syncControlsWithState();
+  refreshAll();
+}
+
+/**
+ * Nível 2: Clique no botão ▶ da cápsula ativa — executa em sequência as notas daquela posição.
+ * @param {string} regionId
+ */
+function handlePlayPositionRegion(regionId) {
+  if (playingRegionId === regionId) {
+    stopRegionPlayback(true);
+    return;
+  }
+
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
+
+  const notes = computePositionRegionSequence(state, regionId);
+  if (!notes.length) return;
+
+  playingRegionId = regionId;
+  const stepMs = 310;
+
+  notes.forEach((n, idx) => {
+    const tId = window.setTimeout(() => {
+      highlightedRegionNodeKey = `${n.course}:${n.qFromNut}`;
+      selectedStaffOrNeckPitch = {
+        absQ: n.absQ,
+        pitchClassQ: n.pitchClassQ,
+        qFromNut: n.qFromNut,
+        course: n.course,
+        finger: n.finger,
+        freq: n.freq
+      };
+      playPluckedNote(n.freq, 0.85);
+      refreshAll();
+    }, idx * stepMs);
+    regionPlaybackTimers.push(tId);
+  });
+
+  const endId = window.setTimeout(() => {
+    playingRegionId = null;
+    highlightedRegionNodeKey = null;
+    selectedStaffOrNeckPitch = null;
+    refreshAll();
+  }, notes.length * stepMs + 320);
+  regionPlaybackTimers.push(endId);
+
+  refreshAll();
+}
+
+/**
+ * Nível 3: Clique nos pivôs ⇄P2, ⇄P3 (mudança de posição) ou =1ª..5ª (ponte de uníssono).
+ * @param {{ type: string, badge: string, targetCourse: number | null, targetPosId: string | null, course: number, qFromNut: number, absQ: number, pitchClassQ: number, freq: number }} payload
+ */
+function handlePivotAction(payload) {
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
+
+  const isEn = state.lang === "en";
+
+  if (payload.type === "UNISON_BRIDGE" && payload.targetCourse !== null) {
+    // Toca a nota presa seguida pela corda solta equivalente para comparação de timbre
+    playPluckedNote(payload.freq, 1.1);
+    const tId = window.setTimeout(() => {
+      playPluckedNote(payload.freq, 1.4);
+    }, 280);
+    regionPlaybackTimers.push(tId);
+
+    selectedStaffOrNeckPitch = {
+      absQ: payload.absQ,
+      pitchClassQ: payload.pitchClassQ,
+      qFromNut: payload.qFromNut,
+      course: payload.course,
+      freq: payload.freq
+    };
+
+    activeShiftOverlay = {
+      type: "UNISON",
+      fromCourse: payload.course,
+      fromQ: payload.qFromNut,
+      toCourse: payload.targetCourse,
+      toQ: 0,
+      absQ: payload.absQ,
+      pitchClassQ: payload.pitchClassQ
+    };
+
+    shiftOverlayTimer = window.setTimeout(() => {
+      clearShiftOverlay(true);
+    }, 4500);
+
+    refreshAll();
+    return;
+  }
+
+  if (payload.type === "SHIFT_POS2" || payload.type === "SHIFT_POS3") {
+    const prevMode = state.shapeMode;
+    const prevBounds = getPositionBounds(prevMode, state.boxAnchorQ);
+
+    let nextMode = payload.targetPosId || "POS_SECOND";
+    if (payload.type === "SHIFT_POS2" && prevMode === "POS_SECOND") {
+      nextMode = "OPEN_FIRST_POS";
+    } else if (payload.type === "SHIFT_POS3" && prevMode === "POS_THIRD_BODY") {
+      nextMode = "POS_SECOND";
+    }
+
+    const nextBounds = getPositionBounds(nextMode, state.boxAnchorQ);
+    const shortName = (/** @type {string} */ m) => {
+      if (m === "OPEN_FIRST_POS") return "I";
+      if (m === "POS_SECOND") return "II";
+      if (m === "POS_THIRD_BODY") return "III";
+      return isEn ? "Full" : "I";
+    };
+
+    state.shapeMode = /** @type {any} */ (nextMode);
+    playPluckedNote(payload.freq, 1.35);
+
+    activeShiftOverlay = {
+      type: "SHIFT",
+      fromPosId: prevMode,
+      toPosId: nextMode,
+      fromThumbQ: prevBounds.thumbQ,
+      toThumbQ: nextBounds.thumbQ,
+      course: payload.course,
+      pivotQ: payload.qFromNut,
+      badgeText: isEn
+        ? `⇄ Shift ${shortName(prevMode)} → ${shortName(nextMode)} (${prevBounds.thumbQ}q→${nextBounds.thumbQ}q)`
+        : `⇄ Pos ${shortName(prevMode)} → ${shortName(nextMode)} (${prevBounds.thumbQ}q→${nextBounds.thumbQ}q)`
+    };
+
+    shiftOverlayTimer = window.setTimeout(() => {
+      clearShiftOverlay(true);
+    }, 4500);
+
+    syncControlsWithState();
+    refreshAll();
+  }
 }
 
 /** @type {Record<string, { targetMode: "MAQAM"|"JINS", targetId: string, offsetQ: number, isGhammaz?: boolean, pivotPt: string, pivotEn: string, reasonPt: string, reasonEn: string }[]>} */
@@ -734,8 +930,8 @@ function applySelectedPitchAsRoot(targetPitch) {
   const newRootQ = resolvePitchClassQ(targetPitch);
   if (newRootQ === null) return;
 
-  clearSequenceTimers();
-  highlightedSequenceStep = -1;
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
   state.rootQ = newRootQ;
 
   if (targetPitch && typeof targetPitch.absQ === "number" && !Number.isNaN(targetPitch.absQ)) {
@@ -780,8 +976,8 @@ function handlePlayAnchoredOctavePath() {
   const pathNodes = computeAnchoredOctavePath(state);
   if (!pathNodes.length) return;
 
-  clearSequenceTimers();
-  highlightedSequenceStep = -1;
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
 
   if (!state.octavePathOnly) {
     state.octavePathOnly = true;
@@ -845,13 +1041,11 @@ function syncCommandBarSummaries() {
   if (v2) v2.textContent = `${shapeShort} • ${lblShort}`;
   if (v3) v3.textContent = `${shortIqa} • ${state.bpm} BPM${isIqaPlaying ? " ●" : ""}`;
 
-  // Ponto indicador discreto no botão ⋯ quando o Drone está ativo
   const droneDot = document.getElementById("menu-drone-dot");
   if (droneDot) {
     droneDot.style.display = state.droneActive ? "block" : "none";
   }
 
-  // Traduções dinâmicas da Barra Única, Menu ⋯ e Deck
   const setKicker = (sel, pt, en) => {
     const el = document.querySelector(sel);
     if (el) el.textContent = state.lang === "en" ? en : pt;
@@ -886,7 +1080,6 @@ function syncCommandBarSummaries() {
     btn.textContent = safeT("btnMobileDone", "✓ Concluir", "✓ Done");
   });
 
-  // Botões da barra mobile inferior
   const btnMobPlay = document.getElementById("btn-mob-play");
   const btnMobTaqsim = document.getElementById("btn-mob-taqsim");
   const btnMobDrone = document.getElementById("btn-mob-drone");
@@ -913,7 +1106,6 @@ function syncCommandBarSummaries() {
       : (state.lang === "en" ? "✕ Theory" : "✕ Teoria");
   }
 
-  // HUD do Modo Imersivo (Zen)
   const zenEntity = document.getElementById("zen-badge-entity");
   const zenTuning = document.getElementById("zen-badge-tuning");
   const zenIqa = document.getElementById("zen-badge-iqa");
@@ -1084,7 +1276,8 @@ function renderCadenceBar() {
     `;
 
     card.addEventListener("click", () => {
-      clearSequenceTimers();
+      clearAllActivePlayback();
+      clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
       state.cadenceStepIndex = idx;
       refreshAll();
@@ -1137,8 +1330,8 @@ function renderModulationRadarCard() {
 
       originBanner.querySelector("#btn-return-mod-origin")?.addEventListener("click", () => {
         if (!modulationOrigin) return;
-        clearSequenceTimers();
-        highlightedSequenceStep = -1;
+        clearAllActivePlayback();
+        clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
         state.mode = modulationOrigin.mode;
         state.entityId = modulationOrigin.entityId;
@@ -1191,7 +1384,7 @@ function renderModulationRadarCard() {
 
     card.querySelector(".btn-preview-mod")?.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      clearSequenceTimers();
+      clearAllActivePlayback();
       const targetIntervals = route.targetMode === "MAQAM"
         ? /** @type {any} */ (rawTarget).intervals_asc
         : /** @type {any} */ (rawTarget).intervals_q;
@@ -1209,8 +1402,8 @@ function renderModulationRadarCard() {
 
     card.querySelector(".btn-apply-mod")?.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
+      clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
 
       if (!modulationOrigin) {
@@ -1315,8 +1508,8 @@ function updateInfoPanel() {
       `;
       bridgeContainer.appendChild(box);
       document.getElementById("btn-jump-cadence")?.addEventListener("click", () => {
-        clearSequenceTimers();
-        highlightedSequenceStep = -1;
+        clearAllActivePlayback();
+        clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
         state.mode = "CADENCE";
         state.entityId = entity.linked_cadence;
@@ -1338,7 +1531,8 @@ function updateInfoPanel() {
       `;
       bridgeContainer.appendChild(box);
       document.getElementById("btn-jump-maqam")?.addEventListener("click", () => {
-        clearSequenceTimers();
+        clearAllActivePlayback();
+        clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
         state.mode = "MAQAM";
         state.entityId = entity.bridge_maqam;
@@ -1353,8 +1547,7 @@ function updateInfoPanel() {
 
 function handlePrimaryAudioAction() {
   setActiveHeaderMenu(null);
-  clearSequenceTimers();
-  highlightedSequenceStep = -1;
+  clearAllActivePlayback();
 
   if (state.octavePathOnly && hasValidAnchor()) {
     handlePlayAnchoredOctavePath();
@@ -1382,6 +1575,7 @@ function handlePrimaryAudioAction() {
 
 function handlePlayTaqsim() {
   setActiveHeaderMenu(null);
+  clearAllActivePlayback();
   if (state.mode !== "MAQAM") return;
   const activeStruct = getActiveStructure(state);
   const entity = /** @type {any} */ (activeStruct.entity);
@@ -1585,7 +1779,6 @@ function syncControlsWithState() {
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
-  // Sincroniza estado visual das abas do Deck Horizontal
   document.querySelectorAll(".deck-tab-btn").forEach(btn => {
     const el = /** @type {HTMLElement} */ (btn);
     const isAct = el.dataset.deckTab === activeDeckTab;
@@ -1725,7 +1918,6 @@ function syncControlsWithState() {
     el.classList.toggle("selected", el.dataset.filter === state.jinsFilter);
   });
 
-  // Cápsula de Áudio (Split Button): exibe a seta apenas quando há ação secundária (Taqsim ou Arpejar)
   const btnPlay = document.getElementById("btn-play-scale");
   const btnTaqsim = document.getElementById("btn-play-taqsim");
   const btnArp = document.getElementById("btn-arp-chord");
@@ -1777,6 +1969,7 @@ function refreshAll() {
       highlightedSequenceStep,
       (staffSelection) => {
         selectedStaffOrNeckPitch = staffSelection;
+        clearShiftOverlay(false);
         refreshAll();
       },
       octavePathNodes
@@ -1789,6 +1982,7 @@ function refreshAll() {
     highlightedSequenceStep,
     selectedStaffOrNeckPitch,
     (neckNoteInfo) => {
+      clearShiftOverlay(false);
       selectedStaffOrNeckPitch = neckNoteInfo;
       if (isMobileViewport()) {
         showTouchLoupeFeedback(neckNoteInfo);
@@ -1799,7 +1993,15 @@ function refreshAll() {
         refreshAll();
       }
     },
-    octavePathNodes
+    octavePathNodes,
+    {
+      onToggleRegion: handleTogglePositionRegion,
+      onPlayRegion: handlePlayPositionRegion,
+      onPivotAction: handlePivotAction,
+      playingRegionId,
+      highlightedRegionNodeKey,
+      activeShiftOverlay
+    }
   );
 
   updateInfoPanel();
@@ -1840,13 +2042,11 @@ function initApp() {
     wasMobile = nowMobile;
   });
 
-  // Delegação de eventos globais para Cabeçalho, Barra Única, Popovers, Deck, Zen e Mobile Dock
   document.addEventListener("click", (e) => {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
 
-    // Abertura/fechamento dos menus do cabeçalho (Cápsula de Áudio & Menu ⋯)
     if (target.closest("#btn-audio-menu")) {
       e.preventDefault();
       setActiveHeaderMenu(activeHeaderMenu === "audio" ? null : "audio");
@@ -1859,7 +2059,6 @@ function initApp() {
       return;
     }
 
-    // Fecha menus do cabeçalho ao clicar fora deles
     if (
       activeHeaderMenu !== null &&
       !target.closest("#audio-split-capsule") &&
@@ -1964,6 +2163,7 @@ function initApp() {
     if (target.closest("#btn-pos-map")) {
       e.preventDefault();
       state.showPositionsMap = !state.showPositionsMap;
+      clearShiftOverlay(false);
       syncControlsWithState();
       refreshAll();
       return;
@@ -1978,14 +2178,14 @@ function initApp() {
     if (target.closest("#btn-dock-clear-note")) {
       e.preventDefault();
       selectedStaffOrNeckPitch = null;
+      clearShiftOverlay(false);
       refreshAll();
       return;
     }
 
     if (target.closest("#btn-oct-mode-all")) {
       e.preventDefault();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
       state.octavePathOnly = false;
       refreshAll();
       return;
@@ -1993,8 +2193,7 @@ function initApp() {
 
     if (target.closest("#btn-oct-mode-single")) {
       e.preventDefault();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
       state.octavePathOnly = true;
       state.staffMode = "SCALE";
       refreshAll();
@@ -2003,8 +2202,7 @@ function initApp() {
 
     if (target.closest("#btn-oct-dir-asc")) {
       e.preventDefault();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
       state.octavePathDir = "ASC";
       state.octavePathOnly = true;
       refreshAll();
@@ -2013,8 +2211,7 @@ function initApp() {
 
     if (target.closest("#btn-oct-dir-desc")) {
       e.preventDefault();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
       state.octavePathDir = "DESC";
       state.octavePathOnly = true;
       refreshAll();
@@ -2029,15 +2226,13 @@ function initApp() {
 
     if (target.closest("#btn-close-octave-bar")) {
       e.preventDefault();
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
       state.anchorAbsQ = null;
       state.octavePathOnly = false;
       refreshAll();
     }
   });
 
-  // Listeners diretos dos controles
   const selTradition = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
   selTradition?.addEventListener("change", (e) => {
     state.tradition = /** @type {HTMLSelectElement} */ (e.target).value;
@@ -2082,10 +2277,13 @@ function initApp() {
 
   document.getElementById("btn-clear-staff-filter")?.addEventListener("click", () => {
     selectedStaffOrNeckPitch = null;
+    clearShiftOverlay(false);
     refreshAll();
   });
 
   document.getElementById("select-tuning")?.addEventListener("change", (e) => {
+    clearAllActivePlayback();
+    clearShiftOverlay(false);
     state.tuningId = /** @type {HTMLSelectElement} */ (e.target).value;
     selectedStaffOrNeckPitch = null;
     refreshAll();
@@ -2093,8 +2291,8 @@ function initApp() {
 
   const selRoot = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-root"));
   selRoot?.addEventListener("change", (e) => {
-    clearSequenceTimers();
-    highlightedSequenceStep = -1;
+    clearAllActivePlayback();
+    clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     state.anchorAbsQ = null;
@@ -2105,8 +2303,8 @@ function initApp() {
 
   document.getElementById("btn-trad-root")?.addEventListener("click", (e) => {
     e.preventDefault();
-    clearSequenceTimers();
-    highlightedSequenceStep = -1;
+    clearAllActivePlayback();
+    clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     state.anchorAbsQ = null;
@@ -2153,8 +2351,8 @@ function initApp() {
 
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
+      clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
       modulationOrigin = null;
       state.mode = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode);
@@ -2175,8 +2373,8 @@ function initApp() {
   });
 
   document.getElementById("select-entity")?.addEventListener("change", (e) => {
-    clearSequenceTimers();
-    highlightedSequenceStep = -1;
+    clearAllActivePlayback();
+    clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     state.entityId = /** @type {HTMLSelectElement} */ (e.target).value;
@@ -2199,8 +2397,8 @@ function initApp() {
 
   document.querySelectorAll(".sayr-phrase-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      clearSequenceTimers();
-      highlightedSequenceStep = -1;
+      clearAllActivePlayback();
+      clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
       state.octavePathOnly = false;
       state.sayrPhraseIndex = Number(/** @type {HTMLElement} */ (btn).dataset.phrase);
@@ -2237,6 +2435,8 @@ function initApp() {
 
   const selShape = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
   selShape?.addEventListener("change", (e) => {
+    clearAllActivePlayback();
+    clearShiftOverlay(false);
     state.shapeMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
     if (
       state.shapeMode === "CLOSED_BOX" ||
@@ -2361,6 +2561,14 @@ function initApp() {
     const isTyping = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
 
     if (e.key === "Escape") {
+      if (playingRegionId !== null) {
+        stopRegionPlayback(true);
+        return;
+      }
+      if (activeShiftOverlay !== null) {
+        clearShiftOverlay(true);
+        return;
+      }
       if (activeHeaderMenu !== null) {
         setActiveHeaderMenu(null);
         return;

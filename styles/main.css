@@ -1114,6 +1114,24 @@ body[data-orientation="VERTICAL"] #oud-neck {
   transition: opacity 0.15s ease;
 }
 
+.region-pill-btn,
+.region-play-btn,
+.pivot-pill-btn {
+  cursor: pointer;
+  transition: filter 0.14s ease, opacity 0.14s ease;
+}
+
+.region-pill-btn:hover,
+.region-play-btn:hover,
+.pivot-pill-btn:hover {
+  filter: brightness(1.16);
+}
+
+.region-hover-zone {
+  transition: fill-opacity 0.16s ease, stroke-opacity 0.16s ease;
+}
+
+
 .inlay-dock-bottom {
   display: flex;
   align-items: center;

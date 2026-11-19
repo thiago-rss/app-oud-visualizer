@@ -135,7 +135,7 @@ export function evaluateShapeAndFinger(qFromNut, shapeMode, boxAnchorQ) {
  */
 export function evaluateShiftPivot(qFromNut, courseIdx, tuning) {
   if (qFromNut <= 0) {
-    return { isPivot: false, type: null, badge: "" };
+    return { isPivot: false, type: null, badge: "", targetCourse: null, targetPosId: null };
   }
 
   if (courseIdx > 0 && tuning && Array.isArray(tuning.courses)) {
@@ -147,7 +147,9 @@ export function evaluateShiftPivot(qFromNut, courseIdx, tuning) {
         return {
           isPivot: true,
           type: "UNISON_BRIDGE",
-          badge: `=${nextHigherCourse.course}ª`
+          badge: `=${nextHigherCourse.course}ª`,
+          targetCourse: nextHigherCourse.course,
+          targetPosId: null
         };
       }
     }
@@ -157,18 +159,22 @@ export function evaluateShiftPivot(qFromNut, courseIdx, tuning) {
     return {
       isPivot: true,
       type: "SHIFT_POS2",
-      badge: "⇄P2"
+      badge: "⇄P2",
+      targetCourse: null,
+      targetPosId: "POS_SECOND"
     };
   }
   if (qFromNut === 10) {
     return {
       isPivot: true,
       type: "SHIFT_POS3",
-      badge: "⇄P3"
+      badge: "⇄P3",
+      targetCourse: null,
+      targetPosId: "POS_THIRD_BODY"
     };
   }
 
-  return { isPivot: false, type: null, badge: "" };
+  return { isPivot: false, type: null, badge: "", targetCourse: null, targetPosId: null };
 }
 
 /**
@@ -303,6 +309,74 @@ export function getActiveStructure(state) {
     ghammazOffsets: [entity.ghammaz_q],
     centsMap: entity.cents_dev || /** @type {Record<number, number>} */ ({})
   };
+}
+
+/**
+ * Monta a sequência ordenada de notas executáveis dentro de uma posição anatômica específica
+ * (da corda mais grave à mais aguda, sem repetir alturas em uníssono).
+ *
+ * @param {import("./urlState.js").OudAppState} state
+ * @param {string} regionId
+ */
+export function computePositionRegionSequence(state, regionId) {
+  const tuning = DB.tunings.find(t => t.id === state.tuningId) || DB.tunings[0];
+  const activeStruct = getActiveStructure(state);
+  const effectiveRootQ = activeStruct.effectiveRootQ;
+  const bounds = getPositionBounds(regionId, state.boxAnchorQ);
+  const centerQ = (bounds.startQ + bounds.endQ) / 2;
+
+  const activeOffsetMap = new Map();
+  activeStruct.intervals.forEach((intQ, idx) => {
+    const modQ = ((intQ % 24) + 24) % 24;
+    if (!activeOffsetMap.has(modQ)) {
+      activeOffsetMap.set(modQ, {
+        degree: activeStruct.degrees[idx],
+        centsDev: activeStruct.centsMap[intQ] || 0
+      });
+    }
+  });
+
+  /** @type {Map<number, { course: number, qFromNut: number, absQ: number, pitchClassQ: number, freq: number, degree: string, finger: number | string, score: number }>} */
+  const bestByAbsQ = new Map();
+
+  tuning.courses.forEach(cObj => {
+    for (let qFromNut = 0; qFromNut <= MAX_NECK_Q; qFromNut++) {
+      const shapeEval = evaluateShapeAndFinger(qFromNut, regionId, state.boxAnchorQ);
+      if (!shapeEval.inBox) continue;
+
+      const absQ = cObj.abs_q + qFromNut;
+      const pitchClassQ = ((absQ % 24) + 24) % 24;
+      const offsetFromRoot = ((pitchClassQ - effectiveRootQ) % 24 + 24) % 24;
+      if (!activeOffsetMap.has(offsetFromRoot)) continue;
+
+      const noteInfo = activeOffsetMap.get(offsetFromRoot);
+      const freq = cObj.freq_hz * Math.pow(2, (qFromNut * 50 + noteInfo.centsDev) / 1200);
+
+      // Prefere corda solta na 1ª posição; nas demais, prefere proximidade ao centro da caixa
+      let score = 100 - Math.abs(qFromNut - centerQ) * 5;
+      if (qFromNut === 0 && regionId === "OPEN_FIRST_POS") score += 18;
+
+      const prev = bestByAbsQ.get(absQ);
+      if (!prev || score > prev.score) {
+        bestByAbsQ.set(absQ, {
+          course: cObj.course,
+          qFromNut,
+          absQ,
+          pitchClassQ,
+          freq,
+          degree: noteInfo.degree,
+          finger: shapeEval.finger,
+          score
+        });
+      }
+    }
+  });
+
+  const sorted = Array.from(bestByAbsQ.values()).sort((a, b) => a.absQ - b.absQ);
+  if (state.mode === "MAQAM" && state.direction === "DESC") {
+    sorted.reverse();
+  }
+  return sorted;
 }
 
 /**
