@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>App Oud Visualizer — v2.8 Studio & PWA</title>
-  <meta name="description" content="Método interativo 24-TET para Oud: Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria." />
+  <title>App Oud Visualizer — v3.0 Studio & PWA</title>
+  <meta name="description" content="Método interativo 24-TET para Oud: Guia de Estudos Progressivo, Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria." />
   <meta name="theme-color" content="#100d0b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -37,7 +37,7 @@
         <h1>App Oud Visualizer</h1>
         <div class="brand-subtitle">
           <span data-i18n="appSubtitle">Método Interativo 24-TET, Partitura, Sayr, Iqa'at & Luthieria</span>
-          <span class="badge">v2.8 Studio & PWA</span>
+          <span class="badge">v3.0 Studio & PWA</span>
         </div>
       </div>
     </div>
@@ -277,7 +277,7 @@
           <button type="button" id="btn-ghost-notes" class="selected" data-i18n="btnGhost">Ghost Notes</button>
           <button type="button" id="btn-orientation" class="desktop-only-btn">⇅ Modo: Horizontal</button>
           <button type="button" id="btn-hand">⇄ Destro</button>
-          <button type="button" id="btn-toggle-sidebar">◧ Ocultar Teoria</button>
+          <button type="button" id="btn-toggle-sidebar">◧ Ocultar Painel</button>
         </div>
       </div>
       <div class="popover-mobile-footer">
@@ -436,10 +436,15 @@
       </div>
     </section>
 
-    <!-- Deck Horizontal Único (Teoria & Sayr | Radar de Modulação) -->
-    <section class="studio-deck info-panel" id="studio-deck" aria-label="Teoria Modal e Modulação">
+    <!-- Deck Horizontal Único (Guia de Estudos | Teoria & Sayr | Radar de Modulação) -->
+    <section class="studio-deck info-panel" id="studio-deck" aria-label="Guia de Estudos, Teoria Modal e Modulação">
       <div class="deck-header">
         <div class="deck-tabs" role="tablist">
+          <button type="button" class="deck-tab-btn" id="tab-deck-guide" data-deck-tab="guide" role="tab" aria-selected="false">
+            <span>🎓</span>
+            <span data-i18n="deckTabGuide">Guia de Estudos</span>
+            <span class="deck-tab-count" id="deck-guide-count">0/12</span>
+          </button>
           <button type="button" class="deck-tab-btn active" id="tab-deck-theory" data-deck-tab="theory" role="tab" aria-selected="true">
             <span>📖</span>
             <span data-i18n="deckTabTheory">Teoria & Sayr</span>
@@ -458,7 +463,30 @@
       </div>
 
       <div class="deck-body" id="deck-body">
-        <!-- Aba 1: Teoria & Sayr -->
+        <!-- Aba 1: Guia de Estudos Progressivo (v3.0) -->
+        <div class="deck-pane" id="deck-pane-guide" data-deck-pane="guide" role="tabpanel">
+          <div class="guide-topbar">
+            <div class="guide-heading-group">
+              <h2 class="info-subhead" data-i18n="guideTitle">🎓 Trilha Progressiva de Estudos — Do Zero ao Taqsim</h2>
+              <p class="tuning-description" id="guide-module-subtitle" style="margin:0;"></p>
+            </div>
+            <div class="guide-progress-box">
+              <div class="guide-progress-meta">
+                <span id="guide-progress-label">Progresso: 0/12 lições</span>
+                <button type="button" id="btn-guide-reset" class="ghost-btn compact-btn" style="display:none;">↺ Reiniciar</button>
+              </div>
+              <div class="guide-progress-track" aria-hidden="true">
+                <div class="guide-progress-fill" id="guide-progress-fill" style="width:0%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="guide-modules-bar" id="guide-modules-bar" role="tablist" aria-label="Módulos de Estudo"></div>
+          <div class="study-lessons-grid" id="study-lessons-grid"></div>
+          <div class="study-active-spotlight" id="study-active-spotlight"></div>
+        </div>
+
+        <!-- Aba 2: Teoria & Sayr -->
         <div class="deck-pane active-pane" id="deck-pane-theory" data-deck-pane="theory" role="tabpanel">
           <div class="deck-theory-grid">
             <div class="deck-theory-main">
@@ -473,7 +501,7 @@
           </div>
         </div>
 
-        <!-- Aba 2: Radar de Modulação & Ajnas -->
+        <!-- Aba 3: Radar de Modulação & Ajnas -->
         <div class="deck-pane" id="deck-pane-modulation" data-deck-pane="modulation" role="tabpanel">
           <div class="deck-mod-top">
             <div class="deck-mod-heading">
@@ -520,7 +548,7 @@
     <button type="button" id="btn-mob-taqsim" class="ghost-btn">🎶 Taqsim</button>
     <button type="button" id="btn-mob-drone" class="ghost-btn">🔊 Drone</button>
     <button type="button" id="btn-mob-iqa" class="ghost-btn">🥁 Iqa'</button>
-    <button type="button" id="btn-mob-theory" class="ghost-btn">📖 Teoria</button>
+    <button type="button" id="btn-mob-theory" class="ghost-btn">🎓 Guia</button>
   </nav>
 
   <!-- Lupa Flutuante de Precisão Microtonal (Mobile) -->

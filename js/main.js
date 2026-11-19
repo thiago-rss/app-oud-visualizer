@@ -15,6 +15,14 @@ import {
   applyStaticTranslations
 } from "./core/i18n.js";
 import {
+  STUDY_MODULES,
+  getAllStudyLessons,
+  getStudyLessonById,
+  getNextStudyLesson,
+  localizeStudyModule,
+  localizeStudyLesson
+} from "./core/studyGuide.js";
+import {
   clearSequenceTimers,
   playPluckedNote,
   strumChordVoicing,
@@ -77,7 +85,7 @@ let isSidebarCollapsed = isMobileViewport();
 let activePopoverIdx = null;
 /** @type {"audio"|"main"|null} */
 let activeHeaderMenu = null;
-/** @type {"theory"|"modulation"} */
+/** @type {"theory"|"modulation"|"study"} */
 let activeDeckTab = "theory";
 /** @type {number | undefined} */
 let loupeHideTimer;
@@ -97,6 +105,66 @@ let shiftOverlayTimer;
 /** @type {{ mode: any, entityId: string, rootQ: number, anchorAbsQ: number | null, label: string } | null} */
 let modulationOrigin = null;
 
+// ==========================================================================
+// Estado e Persistência do Guia de Estudos (v3.0)
+// ==========================================================================
+const STORAGE_STUDY_DONE = "oud_study_completed_v3";
+const STORAGE_STUDY_ACTIVE = "oud_study_active_v3";
+const STORAGE_STUDY_VISITED = "oud_study_visited_v3";
+
+/** @type {Set<string>} */
+let completedStudyLessons = new Set();
+let activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
+let activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
+/** @type {string | null} */
+let appliedStudyLessonId = null;
+
+function loadStudyProgress() {
+  const allLessons = getAllStudyLessons();
+  try {
+    const rawDone = localStorage.getItem(STORAGE_STUDY_DONE);
+    if (rawDone) {
+      const parsed = JSON.parse(rawDone);
+      if (Array.isArray(parsed)) {
+        const validIds = new Set(allLessons.map(l => l.id));
+        completedStudyLessons = new Set(parsed.filter(id => typeof id === "string" && validIds.has(id)));
+      }
+    }
+
+    const savedActive = localStorage.getItem(STORAGE_STUDY_ACTIVE);
+    const savedLesson = savedActive ? getStudyLessonById(savedActive) : null;
+    if (savedLesson) {
+      activeStudyLessonId = savedLesson.id;
+      activeStudyModuleId = savedLesson.moduleId;
+    } else {
+      const firstPending = allLessons.find(l => !completedStudyLessons.has(l.id)) || allLessons[0];
+      if (firstPending) {
+        activeStudyLessonId = firstPending.id;
+        activeStudyModuleId = firstPending.moduleId;
+      }
+    }
+
+    // Na primeira visita sem link compartilhado, abre o Deck diretamente no Guia de Estudos
+    const alreadyVisited = localStorage.getItem(STORAGE_STUDY_VISITED);
+    if (!alreadyVisited && !window.location.hash) {
+      activeDeckTab = "study";
+      localStorage.setItem(STORAGE_STUDY_VISITED, "1");
+    }
+  } catch {
+    // Ignora se localStorage não estiver disponível
+  }
+}
+
+function saveStudyProgress() {
+  try {
+    localStorage.setItem(STORAGE_STUDY_DONE, JSON.stringify(Array.from(completedStudyLessons)));
+    localStorage.setItem(STORAGE_STUDY_ACTIVE, activeStudyLessonId);
+    localStorage.setItem(STORAGE_STUDY_VISITED, "1");
+  } catch {
+    // Ignora
+  }
+}
+
 /**
  * Busca chave de tradução com fallback seguro em PT/EN.
  * @param {string} key
@@ -107,6 +175,17 @@ function safeT(key, fallbackPt, fallbackEn) {
   const val = t(state.lang, /** @type {any} */ (key));
   if (val && val !== key) return val;
   return state.lang === "en" ? fallbackEn : fallbackPt;
+}
+
+/**
+ * Normaliza o identificador de aba do Deck (aceita "guide" como alias de "study").
+ * @param {string | undefined} rawTab
+ * @returns {"theory"|"modulation"|"study"}
+ */
+function normalizeDeckTab(rawTab) {
+  if (rawTab === "modulation") return "modulation";
+  if (rawTab === "study" || rawTab === "guide") return "study";
+  return "theory";
 }
 
 function stopRegionPlayback(shouldRefresh = false) {
@@ -211,7 +290,6 @@ function handlePivotAction(payload) {
   const isEn = state.lang === "en";
 
   if (payload.type === "UNISON_BRIDGE" && payload.targetCourse !== null) {
-    // Toca a nota presa seguida pela corda solta equivalente para comparação de timbre
     playPluckedNote(payload.freq, 1.1);
     const tId = window.setTimeout(() => {
       playPluckedNote(payload.freq, 1.4);
@@ -286,6 +364,403 @@ function handlePivotAction(payload) {
     syncControlsWithState();
     refreshAll();
   }
+}
+
+/**
+ * Aplica o preset completo de uma lição do Guia de Estudos no espelho do Oud.
+ * @param {string} lessonId
+ * @param {{ playConfirmTone?: boolean, scrollToStage?: boolean }} [opts]
+ */
+function applyStudyLessonPreset(lessonId, opts = {}) {
+  const lesson = getStudyLessonById(lessonId);
+  if (!lesson) return;
+
+  clearAllActivePlayback();
+  clearShiftOverlay(false);
+  selectedStaffOrNeckPitch = null;
+  modulationOrigin = null;
+  state.anchorAbsQ = null;
+  state.octavePathOnly = false;
+
+  const p = lesson.preset;
+  if (p.tuningId) state.tuningId = p.tuningId;
+  state.mode = p.mode;
+  state.entityId = p.entityId;
+  state.rootQ = p.rootQ;
+  state.direction = p.direction || "ASC";
+  state.shapeMode = p.shapeMode;
+  if (typeof p.boxAnchorQ === "number") state.boxAnchorQ = p.boxAnchorQ;
+  state.labelMode = p.labelMode;
+  state.jinsFilter = p.jinsFilter || "ALL";
+  state.showSemiGuides = p.showSemiGuides;
+  state.showMicroGuides = p.showMicroGuides;
+  state.showGhostNotes = p.showGhostNotes;
+  state.showSayr = p.showSayr;
+  state.sayrPhraseIndex = typeof p.sayrPhraseIndex === "number" ? p.sayrPhraseIndex : 0;
+  state.showStaff = p.showStaff;
+  state.staffMode = p.staffMode || "SCALE";
+  state.showPositionsMap = p.showPositionsMap;
+  state.cadenceStepIndex = 0;
+
+  if (p.iqaId) state.iqaId = p.iqaId;
+  if (typeof p.bpm === "number") {
+    state.bpm = p.bpm;
+    const sliderBpm = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-bpm"));
+    const labelBpm = document.getElementById("label-bpm");
+    if (sliderBpm) sliderBpm.value = String(state.bpm);
+    if (labelBpm) labelBpm.textContent = String(state.bpm);
+    restartIqaIfPlaying();
+  }
+
+  activeStudyLessonId = lesson.id;
+  activeStudyModuleId = lesson.moduleId;
+  appliedStudyLessonId = lesson.id;
+  saveStudyProgress();
+
+  syncControlsWithState();
+  refreshAll();
+
+  if (opts.playConfirmTone !== false) {
+    const confirmFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
+    playPluckedNote(confirmFreq, 1.15, 0.28);
+  }
+
+  if (opts.scrollToStage && isMobileViewport()) {
+    requestAnimationFrame(() => {
+      document.querySelector(".neck-showcase")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+}
+
+/**
+ * Executa o exemplo sonoro recomendado pela lição ativa (Escala, Taqsim ou Posição).
+ * @param {string} lessonId
+ */
+function playStudyLessonExample(lessonId) {
+  const lesson = getStudyLessonById(lessonId);
+  if (!lesson) return;
+
+  if (appliedStudyLessonId !== lesson.id) {
+    applyStudyLessonPreset(lesson.id, { playConfirmTone: false, scrollToStage: false });
+  }
+
+  if (lesson.audioAction === "REGION") {
+    handlePlayPositionRegion(lesson.preset.shapeMode);
+    return;
+  }
+
+  if (lesson.audioAction === "TAQSIM" && state.mode === "MAQAM") {
+    handlePlayTaqsim();
+    return;
+  }
+
+  handlePrimaryAudioAction();
+}
+
+/**
+ * Marca ou desmarca uma lição como concluída e persiste no localStorage.
+ * @param {string} lessonId
+ */
+function toggleStudyLessonComplete(lessonId) {
+  if (completedStudyLessons.has(lessonId)) {
+    completedStudyLessons.delete(lessonId);
+  } else {
+    completedStudyLessons.add(lessonId);
+  }
+  saveStudyProgress();
+  syncCommandBarSummaries();
+  renderStudyGuidePane();
+}
+
+/**
+ * Garante que a 3ª aba ("Guia de Estudos") exista no DOM mesmo em variações de markup.
+ */
+function getStudyPaneElement() {
+  return (
+    document.getElementById("deck-pane-study") ||
+    document.querySelector('[data-deck-pane="study"]') ||
+    document.getElementById("deck-pane-guide") ||
+    document.querySelector('[data-deck-pane="guide"]')
+  );
+}
+
+/**
+ * Renderiza toda a aba "Guia de Estudos" (barra de progresso, 4 módulos, cartões e missão ativa).
+ */
+function renderStudyGuidePane() {
+  const pane = getStudyPaneElement();
+  if (!pane) return;
+
+  const isEn = state.lang === "en";
+  const allLessons = getAllStudyLessons();
+  const totalCount = allLessons.length;
+  const doneCount = completedStudyLessons.size;
+  const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  // Atualiza contador na aba do Deck (se existir)
+  const studyCountBadge =
+    document.getElementById("deck-study-count") ||
+    document.getElementById("deck-guide-count");
+  if (studyCountBadge) {
+    studyCountBadge.textContent = `${doneCount}/${totalCount}`;
+  }
+
+  const currentMod = STUDY_MODULES.find(m => m.id === activeStudyModuleId) || STUDY_MODULES[0];
+  const locMod = localizeStudyModule(state.lang, currentMod);
+
+  let currentLesson = getStudyLessonById(activeStudyLessonId);
+  if (!currentLesson || currentLesson.moduleId !== currentMod.id) {
+    currentLesson = currentMod.lessons[0];
+    if (currentLesson) activeStudyLessonId = currentLesson.id;
+  }
+  const locLesson = currentLesson ? localizeStudyLesson(state.lang, currentLesson) : null;
+  const nextLesson = currentLesson ? getNextStudyLesson(currentLesson.id) : null;
+  const isCurrentDone = currentLesson ? completedStudyLessons.has(currentLesson.id) : false;
+  const isCurrentApplied = currentLesson ? appliedStudyLessonId === currentLesson.id : false;
+
+  const modulesTabsHtml = STUDY_MODULES.map(rawMod => {
+    const m = localizeStudyModule(state.lang, rawMod);
+    const modDone = rawMod.lessons.filter(l => completedStudyLessons.has(l.id)).length;
+    const isAct = rawMod.id === currentMod.id;
+    return `
+      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""}" data-study-module="${rawMod.id}">
+        <span>${m.icon} ${m.title}</span>
+        <span class="deck-tab-count">${modDone}/${rawMod.lessons.length}</span>
+      </button>
+    `;
+  }).join("");
+
+  const lessonCardsHtml = currentMod.lessons.map(rawLes => {
+    const les = localizeStudyLesson(state.lang, rawLes);
+    const isSelected = currentLesson && rawLes.id === currentLesson.id;
+    const isDone = completedStudyLessons.has(rawLes.id);
+    const isApplied = appliedStudyLessonId === rawLes.id;
+
+    return `
+      <article class="mod-route-card study-lesson-card ${isSelected ? "is-selected-lesson" : ""} ${isDone ? "is-done-lesson" : ""}" data-study-select="${rawLes.id}" style="${isSelected ? "border-color: var(--accent); background: var(--accent-soft);" : ""}">
+        <div class="mod-route-top" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+          <span class="mod-pivot-badge ${isDone ? "is-ghammaz-pivot" : ""}">
+            ${isDone ? "✓" : `#${les.number}`} · ${les.duration}
+          </span>
+          ${isApplied ? `<span class="badge">${isEn ? "Active on Neck" : "Ativa no Braço"}</span>` : ""}
+        </div>
+        <div class="mod-target-title">${les.title}</div>
+        <div class="mod-route-desc">${les.summary}</div>
+        <div class="mod-route-actions">
+          <button type="button" class="${isSelected ? "primary" : "plum-btn"} btn-study-apply" data-lesson-id="${rawLes.id}">
+            ${isApplied ? (isEn ? "↺ Reapply" : "↺ Reaplicar") : (isEn ? "▶ Apply to Oud" : "▶ Aplicar no Oud")}
+          </button>
+          <button type="button" class="ghost-btn btn-study-toggle-done" data-lesson-id="${rawLes.id}" title="${isEn ? "Mark completed" : "Marcar como concluída"}">
+            ${isDone ? (isEn ? "✓ Done" : "✓ Feita") : (isEn ? "○ Complete" : "○ Concluir")}
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  const activeDetailHtml = locLesson && currentLesson ? `
+    <div class="bridge-box sayr-highlight-box study-active-detail" style="margin-top:12px; align-items:flex-start; flex-direction:column; gap:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:10px; flex-wrap:wrap;">
+        <div>
+          <span style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--plum);">
+            ${isEn ? `Step ${locLesson.number} of ${totalCount} • Practical Mission` : `Passo ${locLesson.number} de ${totalCount} • Missão Prática`}
+          </span>
+          <div style="font-size:0.96rem; font-weight:800; color:var(--text-main); margin-top:2px;">
+            ${locLesson.title}
+          </div>
+        </div>
+        <div class="segmented-pills">
+          <button type="button" class="primary compact-btn btn-study-apply" data-lesson-id="${currentLesson.id}">
+            ${isCurrentApplied ? (isEn ? "↺ Reapply Preset" : "↺ Reaplicar no Oud") : (isEn ? "▶ Apply to Oud" : "▶ Aplicar no Oud")}
+          </button>
+          <button type="button" class="plum-btn compact-btn btn-study-audio" data-lesson-id="${currentLesson.id}">
+            ${isEn ? "🔊 Play Example" : "🔊 Ouvir Exemplo"}
+          </button>
+          <button type="button" class="ghost-btn compact-btn btn-study-toggle-done ${isCurrentDone ? "selected" : ""}" data-lesson-id="${currentLesson.id}">
+            ${isCurrentDone ? (isEn ? "✓ Completed" : "✓ Concluída") : (isEn ? "✓ Mark Done" : "✓ Concluir Lição")}
+          </button>
+          ${nextLesson ? `
+            <button type="button" class="ghost-btn compact-btn btn-study-next" data-next-id="${nextLesson.id}">
+              ${isEn ? "Next →" : "Próxima →"}
+            </button>
+          ` : ""}
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; width:100%;">
+        <div class="meta-pill" style="margin:0;">
+          <strong>🪕 ${isEn ? "What to do on the Oud:" : "O que praticar no espelho:"}</strong>
+          <div style="margin-top:3px; color:var(--text-secondary);">${locLesson.task}</div>
+        </div>
+        <div class="meta-pill" style="margin:0;">
+          <strong>👂 ${isEn ? "Ear & Technique Tip:" : "Dica de Ouvido & Técnica:"}</strong>
+          <div style="margin-top:3px; color:var(--text-secondary);">${locLesson.earTip}</div>
+        </div>
+      </div>
+
+      <div class="segmented-pills" style="width:100%; padding-top:4px; border-top:1px solid var(--border-subtle);">
+        ${currentLesson.suggestDrone ? `
+          <button type="button" class="ghost-btn compact-btn btn-study-drone ${state.droneActive ? "active-toggle" : ""}">
+            ${state.droneActive
+              ? (isEn ? "🔊 Drone: ON" : "🔊 Drone: LIGADO")
+              : (isEn ? "🔊 Turn on Drone" : "🔊 Ligar Drone")}
+          </button>
+        ` : ""}
+        ${currentLesson.suggestIqa ? `
+          <button type="button" class="ghost-btn compact-btn btn-study-iqa ${isIqaPlaying ? "active-toggle" : ""}">
+            ${isIqaPlaying
+              ? (isEn ? "⏹ Stop Iqa'" : "⏹ Parar Iqa'")
+              : (isEn ? `🥁 Start Iqa' (${currentLesson.preset.bpm || 86} BPM)` : `🥁 Iniciar Iqa' (${currentLesson.preset.bpm || 86} BPM)`)}
+          </button>
+        ` : ""}
+        ${currentLesson.openRadarHint ? `
+          <button type="button" class="plum-btn compact-btn btn-study-open-radar">
+            ${isEn ? "🧭 Open Modulation Radar" : "🧭 Abrir Radar de Modulação"}
+          </button>
+        ` : ""}
+        <button type="button" class="ghost-btn compact-btn btn-study-glossary" data-term="${currentLesson.glossaryTerm}">
+          ${isEn ? "📖 Related Glossary Term" : "📖 Ver Termo no Glossário"}
+        </button>
+      </div>
+    </div>
+  ` : "";
+
+  pane.innerHTML = `
+    <div class="deck-mod-top study-guide-top">
+      <div class="deck-mod-heading">
+        <h2 class="info-subhead">${isEn ? "🎓 Guided Oud Study Path — From Zero to Taqsim" : "🎓 Guia de Estudos Progressivo — Do Zero ao Taqsim"}</h2>
+        <p class="tuning-description">${locMod.subtitle}</p>
+      </div>
+      <div class="study-progress-wrap" style="display:flex; align-items:center; gap:10px; min-width:220px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:130px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.73rem; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">
+            <span>${isEn ? "Progress" : "Progresso"}</span>
+            <span style="color:var(--accent);">${doneCount}/${totalCount} (${pct}%)</span>
+          </div>
+          <div style="height:7px; border-radius:999px; background:var(--bg-input); border:1px solid var(--border-subtle); overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, var(--accent), var(--plum)); transition:width 0.25s ease;"></div>
+          </div>
+        </div>
+        ${doneCount > 0 ? `
+          <button type="button" class="ghost-btn compact-btn btn-study-reset" title="${isEn ? "Reset progress" : "Reiniciar progresso"}">
+            ↺ ${isEn ? "Reset" : "Zerar"}
+          </button>
+        ` : ""}
+      </div>
+    </div>
+
+    <div class="segmented-pills study-modules-bar" style="margin-bottom:12px;">
+      ${modulesTabsHtml}
+    </div>
+
+    <div class="mod-routes-grid study-lessons-grid">
+      ${lessonCardsHtml}
+    </div>
+
+    ${activeDetailHtml}
+  `;
+
+  // Eventos internos do Guia de Estudos
+  pane.querySelectorAll(".study-mod-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const modId = /** @type {HTMLElement} */ (btn).dataset.studyModule;
+      if (!modId) return;
+      activeStudyModuleId = modId;
+      const foundMod = STUDY_MODULES.find(m => m.id === modId);
+      if (foundMod && foundMod.lessons.length) {
+        const firstUnfinished = foundMod.lessons.find(l => !completedStudyLessons.has(l.id)) || foundMod.lessons[0];
+        activeStudyLessonId = firstUnfinished.id;
+      }
+      saveStudyProgress();
+      renderStudyGuidePane();
+    });
+  });
+
+  pane.querySelectorAll(".study-lesson-card").forEach(card => {
+    card.addEventListener("click", (ev) => {
+      const targetEl = ev.target instanceof Element ? ev.target : null;
+      if (targetEl?.closest("button")) return;
+      const lesId = /** @type {HTMLElement} */ (card).dataset.studySelect;
+      if (!lesId) return;
+      activeStudyLessonId = lesId;
+      saveStudyProgress();
+      renderStudyGuidePane();
+    });
+  });
+
+  pane.querySelectorAll(".btn-study-apply").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const lesId = /** @type {HTMLElement} */ (btn).dataset.lessonId;
+      if (lesId) applyStudyLessonPreset(lesId, { playConfirmTone: true, scrollToStage: true });
+    });
+  });
+
+  pane.querySelectorAll(".btn-study-audio").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const lesId = /** @type {HTMLElement} */ (btn).dataset.lessonId;
+      if (lesId) playStudyLessonExample(lesId);
+    });
+  });
+
+  pane.querySelectorAll(".btn-study-toggle-done").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const lesId = /** @type {HTMLElement} */ (btn).dataset.lessonId;
+      if (lesId) toggleStudyLessonComplete(lesId);
+    });
+  });
+
+  pane.querySelector(".btn-study-next")?.addEventListener("click", (ev) => {
+    const nextId = /** @type {HTMLElement | null} */ (ev.currentTarget)?.dataset.nextId;
+    if (nextId) {
+      applyStudyLessonPreset(nextId, { playConfirmTone: true, scrollToStage: false });
+    }
+  });
+
+  pane.querySelector(".btn-study-drone")?.addEventListener("click", () => {
+    const droneBtn = document.getElementById("btn-drone");
+    if (droneBtn) {
+      state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
+    }
+    syncCommandBarSummaries();
+    renderStudyGuidePane();
+  });
+
+  pane.querySelector(".btn-study-iqa")?.addEventListener("click", () => {
+    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+      applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
+    }
+    toggleIqaPlayback();
+    renderStudyGuidePane();
+  });
+
+  pane.querySelector(".btn-study-open-radar")?.addEventListener("click", () => {
+    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+      applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
+    }
+    setActiveDeckTab("modulation");
+  });
+
+  pane.querySelector(".btn-study-glossary")?.addEventListener("click", (ev) => {
+    const termId = /** @type {HTMLElement | null} */ (ev.currentTarget)?.dataset.term;
+    openGlossary(termId);
+  });
+
+  pane.querySelector(".btn-study-reset")?.addEventListener("click", () => {
+    const msg = isEn
+      ? "Reset all completed lessons in the Study Guide?"
+      : "Deseja zerar o progresso de todas as lições do Guia de Estudos?";
+    if (!window.confirm(msg)) return;
+    completedStudyLessons.clear();
+    activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
+    activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
+    appliedStudyLessonId = null;
+    saveStudyProgress();
+    syncCommandBarSummaries();
+    renderStudyGuidePane();
+  });
 }
 
 /** @type {Record<string, { targetMode: "MAQAM"|"JINS", targetId: string, offsetQ: number, isGhammaz?: boolean, pivotPt: string, pivotEn: string, reasonPt: string, reasonEn: string }[]>} */
@@ -844,9 +1319,9 @@ function toggleSidebarCollapsed(forceVal) {
   syncControlsWithState();
 }
 
-/** @param {"theory"|"modulation"} tabName */
+/** @param {"theory"|"modulation"|"study"} tabName */
 function setActiveDeckTab(tabName) {
-  activeDeckTab = tabName;
+  activeDeckTab = normalizeDeckTab(tabName);
   if (isSidebarCollapsed) {
     isSidebarCollapsed = false;
     userOverrodeSidebar = true;
@@ -855,14 +1330,14 @@ function setActiveDeckTab(tabName) {
 
   document.querySelectorAll(".deck-tab-btn").forEach(btn => {
     const el = /** @type {HTMLElement} */ (btn);
-    const isAct = el.dataset.deckTab === tabName;
+    const isAct = normalizeDeckTab(el.dataset.deckTab) === activeDeckTab;
     el.classList.toggle("active", isAct);
     el.setAttribute("aria-selected", isAct ? "true" : "false");
   });
 
   document.querySelectorAll(".deck-pane").forEach(pane => {
     const el = /** @type {HTMLElement} */ (pane);
-    el.classList.toggle("active-pane", el.dataset.deckPane === tabName);
+    el.classList.toggle("active-pane", normalizeDeckTab(el.dataset.deckPane) === activeDeckTab);
   });
 
   syncControlsWithState();
@@ -1062,6 +1537,15 @@ function syncCommandBarSummaries() {
   setKicker('[data-i18n="lblVisualLayers"]', "Camadas & Ergonomia", "Layers & Ergonomics");
   setKicker('[data-i18n="deckTabTheory"]', "Teoria & Sayr", "Theory & Sayr");
   setKicker('[data-i18n="deckTabModulation"]', "Radar de Modulação", "Modulation Radar");
+  setKicker('[data-i18n="deckTabStudy"]', "Guia de Estudos", "Study Guide");
+  setKicker('[data-i18n="deckTabGuide"]', "Guia de Estudos", "Study Guide");
+
+  const studyCountBadge =
+    document.getElementById("deck-study-count") ||
+    document.getElementById("deck-guide-count");
+  if (studyCountBadge) {
+    studyCountBadge.textContent = `${completedStudyLessons.size}/${getAllStudyLessons().length}`;
+  }
 
   const deckStatus = document.getElementById("deck-mini-status");
   if (deckStatus) {
@@ -1102,8 +1586,8 @@ function syncCommandBarSummaries() {
   if (btnMobTheory) {
     btnMobTheory.classList.toggle("active-toggle", !isSidebarCollapsed);
     btnMobTheory.textContent = isSidebarCollapsed
-      ? (state.lang === "en" ? "📖 Theory" : "📖 Teoria")
-      : (state.lang === "en" ? "✕ Theory" : "✕ Teoria");
+      ? (state.lang === "en" ? "📖 Study" : "📖 Estudo")
+      : (state.lang === "en" ? "✕ Study" : "✕ Estudo");
   }
 
   const zenEntity = document.getElementById("zen-badge-entity");
@@ -1543,6 +2027,7 @@ function updateInfoPanel() {
   }
 
   renderModulationRadarCard();
+  renderStudyGuidePane();
 }
 
 function handlePrimaryAudioAction() {
@@ -1779,15 +2264,16 @@ function syncControlsWithState() {
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
+  // Sincroniza abas e painéis do Deck Horizontal (Teoria | Modulação | Guia de Estudos)
   document.querySelectorAll(".deck-tab-btn").forEach(btn => {
     const el = /** @type {HTMLElement} */ (btn);
-    const isAct = el.dataset.deckTab === activeDeckTab;
+    const isAct = normalizeDeckTab(el.dataset.deckTab) === activeDeckTab;
     el.classList.toggle("active", isAct);
     el.setAttribute("aria-selected", isAct ? "true" : "false");
   });
   document.querySelectorAll(".deck-pane").forEach(pane => {
     const el = /** @type {HTMLElement} */ (pane);
-    el.classList.toggle("active-pane", el.dataset.deckPane === activeDeckTab);
+    el.classList.toggle("active-pane", normalizeDeckTab(el.dataset.deckPane) === activeDeckTab);
   });
 
   const selTrad = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
@@ -2011,7 +2497,43 @@ function refreshAll() {
   syncStateToUrl(state);
 }
 
+/**
+ * Garante a presença da 3ª aba "Guia de Estudos" no Deck caso ainda não tenha sido inserida no HTML.
+ */
+function ensureStudyGuideScaffold() {
+  const deckTabs = document.querySelector(".deck-tabs");
+  const deckBody = document.getElementById("deck-body") || document.querySelector(".deck-body");
+
+  if (deckTabs && !deckTabs.querySelector('[data-deck-tab="study"], [data-deck-tab="guide"]')) {
+    const tabBtn = document.createElement("button");
+    tabBtn.type = "button";
+    tabBtn.className = "deck-tab-btn";
+    tabBtn.id = "tab-deck-study";
+    tabBtn.dataset.deckTab = "study";
+    tabBtn.setAttribute("role", "tab");
+    tabBtn.setAttribute("aria-selected", "false");
+    tabBtn.innerHTML = `
+      <span>🎓</span>
+      <span data-i18n="deckTabStudy">Guia de Estudos</span>
+      <span class="deck-tab-count" id="deck-study-count">0/${getAllStudyLessons().length}</span>
+    `;
+    deckTabs.appendChild(tabBtn);
+  }
+
+  if (deckBody && !getStudyPaneElement()) {
+    const pane = document.createElement("div");
+    pane.className = "deck-pane";
+    pane.id = "deck-pane-study";
+    pane.dataset.deckPane = "study";
+    pane.setAttribute("role", "tabpanel");
+    deckBody.appendChild(pane);
+  }
+}
+
 function initApp() {
+  loadStudyProgress();
+  ensureStudyGuideScaffold();
+
   if (isMobileViewport()) {
     state.orientation = "VERTICAL";
   }
@@ -2116,12 +2638,14 @@ function initApp() {
       const droneBtn = document.getElementById("btn-drone");
       if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
       syncCommandBarSummaries();
+      renderStudyGuidePane();
       return;
     }
 
     if (target.closest("#btn-zen-iqa, #btn-mob-iqa")) {
       e.preventDefault();
       toggleIqaPlayback();
+      renderStudyGuidePane();
       return;
     }
 
@@ -2141,8 +2665,7 @@ function initApp() {
     const deckTabBtn = /** @type {HTMLElement | null} */ (target.closest(".deck-tab-btn"));
     if (deckTabBtn) {
       e.preventDefault();
-      const tab = deckTabBtn.dataset.deckTab === "modulation" ? "modulation" : "theory";
-      setActiveDeckTab(tab);
+      setActiveDeckTab(normalizeDeckTab(deckTabBtn.dataset.deckTab));
       return;
     }
 
@@ -2347,6 +2870,7 @@ function initApp() {
 
   document.getElementById("btn-toggle-iqa")?.addEventListener("click", () => {
     toggleIqaPlayback();
+    renderStudyGuidePane();
   });
 
   document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -2509,6 +3033,7 @@ function initApp() {
   btnDrone?.addEventListener("click", () => {
     state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, btnDrone);
     syncCommandBarSummaries();
+    renderStudyGuidePane();
   });
 
   const btnShare = document.getElementById("btn-share");

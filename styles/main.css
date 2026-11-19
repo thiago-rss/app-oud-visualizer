@@ -1,6 +1,6 @@
 /* ==========================================================================
-   App Oud Visualizer — v2.8.2 Design System
-   Cabeçalho Ultralimpo (Cápsula de Áudio + Menu ⋯) + Barra Única + Deck Horizontal
+   App Oud Visualizer — v3.0 Design System
+   Guia de Estudos Interativo + Cabeçalho Ultralimpo + Barra Única + Deck Horizontal
    Contenção Cromática (Ébano/Pergaminho, Latão & Ameixa — Zero Ciano).
    ========================================================================== */
 
@@ -345,7 +345,6 @@ input[type="range"] {
   flex-shrink: 0;
 }
 
-/* Cápsula de Áudio (Split Button) */
 .audio-split-capsule {
   position: relative;
   display: inline-flex;
@@ -368,7 +367,6 @@ input[type="range"] {
   font-size: 0.78rem;
 }
 
-/* Botão Menu (⋯) */
 .header-menu-shell {
   position: relative;
 }
@@ -409,7 +407,6 @@ input[type="range"] {
   box-shadow: 0 0 0 2px var(--bg-surface);
 }
 
-/* Popovers Flutuantes do Cabeçalho (Áudio & Menu ⋯) */
 .header-dropdown-popover {
   display: none;
   position: absolute;
@@ -1131,7 +1128,6 @@ body[data-orientation="VERTICAL"] #oud-neck {
   transition: fill-opacity 0.16s ease, stroke-opacity 0.16s ease;
 }
 
-
 .inlay-dock-bottom {
   display: flex;
   align-items: center;
@@ -1178,7 +1174,7 @@ body[data-orientation="VERTICAL"] #oud-neck {
 }
 
 /* ==========================================================================
-   6. Deck Horizontal Único com Abas (Teoria & Sayr | Radar de Modulação)
+   6. Deck Horizontal Único com Abas (Guia | Teoria & Sayr | Modulação)
    ========================================================================== */
 .studio-deck {
   width: 100%;
@@ -1216,6 +1212,7 @@ body[data-sidebar="collapsed"] .deck-body {
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
+  flex-wrap: wrap;
 }
 
 .deck-tab-btn {
@@ -1274,6 +1271,324 @@ body[data-sidebar="collapsed"] .deck-body {
   display: block;
 }
 
+/* ---------- Aba 1: Guia de Estudos Progressivo (v3.0) ---------- */
+.guide-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.guide-heading-group {
+  flex: 1 1 360px;
+}
+
+.guide-heading-group h2 {
+  margin: 0 0 4px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.guide-progress-box {
+  min-width: 240px;
+  max-width: 320px;
+  flex: 0 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+}
+
+.guide-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.guide-progress-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.guide-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--plum));
+  transition: width 0.25s ease;
+}
+
+.guide-modules-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.guide-module-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+}
+
+.guide-module-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-warm);
+  color: var(--text-main);
+}
+
+.guide-module-btn.active-module {
+  background: var(--accent-soft);
+  border-color: var(--border-strong);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.guide-mod-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.guide-mod-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.guide-module-btn.active-module .guide-mod-count {
+  background: var(--plum-soft);
+  color: var(--plum);
+  border-color: var(--plum-border);
+}
+
+.study-lessons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.study-lesson-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 13px;
+  border-radius: 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+  text-align: left;
+}
+
+.study-lesson-card:hover {
+  border-color: var(--border-warm);
+  background: var(--bg-hover);
+}
+
+.study-lesson-card.selected-lesson {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border-warm);
+}
+
+.study-lesson-card.completed-lesson {
+  border-color: var(--plum-border);
+}
+
+.lesson-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lesson-num-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--accent);
+  border: 1px solid var(--border-warm);
+}
+
+.lesson-status-tag {
+  font-size: 0.69rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.lesson-status-tag.is-done {
+  color: var(--plum);
+}
+
+.lesson-card-title {
+  font-size: 0.87rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.lesson-card-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.42;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Painel de Missão Ativa da Lição Selecionada */
+.study-active-spotlight {
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: var(--bg-dock);
+  border: 1px solid var(--border-warm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spotlight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.spotlight-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.spotlight-badge {
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-warm);
+}
+
+.spotlight-applied-badge {
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--plum-soft);
+  color: var(--plum);
+  border: 1px solid var(--plum-border);
+}
+
+.spotlight-header h3 {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.32rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.spotlight-summary {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.spotlight-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.spotlight-box {
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.spotlight-box.tip-box {
+  border-left-color: var(--plum);
+  background: var(--plum-soft);
+  border-color: var(--plum-border);
+}
+
+.spotlight-box-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.spotlight-box.tip-box .spotlight-box-title {
+  color: var(--plum);
+}
+
+.spotlight-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.spotlight-actions-left,
+.spotlight-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Aba 2: Teoria & Sayr ---------- */
 .deck-theory-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
@@ -1342,6 +1657,7 @@ body[data-sidebar="collapsed"] .deck-body {
   border-left: 3px solid var(--plum);
 }
 
+/* ---------- Aba 3: Radar de Modulação ---------- */
 .deck-mod-top {
   display: flex;
   align-items: center;
@@ -1521,248 +1837,3 @@ body[data-sidebar="collapsed"] .deck-body {
 
 .glossary-search-box input:focus {
   border-color: var(--plum-border);
-}
-
-.glossary-categories {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.gloss-cat-btn {
-  padding: 4px 9px;
-  font-size: 0.72rem;
-}
-
-.glossary-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.glossary-item {
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-}
-
-.glossary-item.highlighted {
-  border-color: var(--plum);
-  background: var(--plum-soft);
-}
-
-.glossary-item-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.glossary-term-title {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--accent);
-}
-
-.glossary-arabic {
-  font-size: 1rem;
-  color: var(--text-main);
-}
-
-.glossary-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  margin: 4px 0 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.glossary-cat-tag {
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--plum-soft);
-  color: var(--plum);
-  font-weight: 600;
-}
-
-.glossary-def {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.glossary-app-note {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  padding-top: 6px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-/* ==========================================================================
-   8. Mobile Dock & Lupa Flutuante
-   ========================================================================== */
-.mobile-thumb-dock {
-  display: none;
-}
-
-.touch-loupe-badge {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-16px);
-  opacity: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: var(--bg-popover);
-  border: 1px solid var(--plum-border);
-  box-shadow: var(--shadow-popover);
-  font-size: 0.8rem;
-  font-weight: 700;
-  z-index: 120;
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.touch-loupe-badge.visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* ==========================================================================
-   9. Responsividade (Tablet & Mobile <= 768px)
-   ========================================================================== */
-@media (max-width: 900px) {
-  .deck-theory-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .deck-mini-status {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  body {
-    padding: 8px 10px 84px;
-  }
-
-  .desktop-only-btn {
-    display: none !important;
-  }
-
-  .studio-header {
-    padding: 9px 12px;
-    gap: 8px;
-  }
-
-  .brand-rosette {
-    width: 32px;
-    height: 32px;
-  }
-
-  .brand-titles h1 {
-    font-size: 1.18rem;
-  }
-
-  .brand-subtitle span[data-i18n="appSubtitle"] {
-    display: none;
-  }
-
-  /* No mobile o transporte de áudio fica na barra fixa inferior; o menu ⋯ permanece no topo */
-  .audio-split-capsule {
-    display: none !important;
-  }
-
-  .unified-command-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    padding: 5px;
-  }
-
-  .cmd-trigger {
-    padding: 7px 10px;
-    background: var(--bg-input);
-    border-color: var(--border-subtle);
-  }
-
-  .popover-backdrop.open {
-    background: rgba(0, 0, 0, 0.56);
-  }
-
-  .cmd-popover,
-  .cmd-popover.cmd-popover-wide {
-    position: fixed;
-    top: auto;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0;
-    width: 100%;
-    max-width: 100%;
-    max-height: 82vh;
-    border-radius: 18px 18px 0 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    z-index: 80;
-  }
-
-  .cmd-popover.open {
-    animation: sheetSlideUp 0.2s ease-out;
-  }
-
-  @keyframes sheetSlideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-  }
-
-  .popover-body {
-    overflow-y: auto;
-  }
-
-  .popover-grid-2col {
-    grid-template-columns: 1fr;
-  }
-
-  .popover-mobile-footer {
-    display: block;
-  }
-
-  .dome-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .stage-selection-ribbon {
-    display: flex;
-  }
-
-  .mobile-thumb-dock {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border-warm);
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.32);
-    z-index: 65;
-  }
-
-  .mobile-thumb-dock button {
-    padding: 8px 4px;
-    font-size: 0.72rem;
-    border-radius: 8px;
-  }
-}
