@@ -1,445 +1,568 @@
 // @ts-check
-import { DB, PITCH_CLASSES_24 } from "../core/database.js";
+import { PITCH_CLASSES_24 } from "../core/database.js";
 import { getActiveStructure } from "../core/modalEngine.js";
-import { t } from "../core/i18n.js";
 import { playPluckedNote } from "../audio/synthEngine.js";
 
-/** @type {Record<number, { step: number, acc: "" | "b" | "#" | "hb" | "hs" }>} */
-const PITCH_CLASS_TO_STAFF = {
-  0:  { step: 0, acc: ""   },
-  1:  { step: 1, acc: "hb" },
-  2:  { step: 1, acc: "b"  },
-  3:  { step: 2, acc: "hb" },
-  4:  { step: 2, acc: ""   },
-  5:  { step: 3, acc: "hb" },
-  6:  { step: 3, acc: "b"  },
-  7:  { step: 4, acc: "hb" },
-  8:  { step: 4, acc: ""   },
-  9:  { step: 5, acc: "hb" },
-  10: { step: 5, acc: ""   },
-  11: { step: 6, acc: "hb" },
-  12: { step: 5, acc: "#"  },
-  13: { step: 6, acc: "hb" },
-  14: { step: 6, acc: ""   },
-  15: { step: 7, acc: "hb" },
-  16: { step: 7, acc: "b"  },
-  17: { step: 8, acc: "hb" },
-  18: { step: 8, acc: ""   },
-  19: { step: 9, acc: "hb" },
-  20: { step: 9, acc: "b"  },
-  21: { step: 10, acc: "hb" },
-  22: { step: 10, acc: ""  },
-  23: { step: 11, acc: "hb" }
-};
+/**
+ * Mapeamento de cada uma das 24 classes de altura para degrau diatônico (0=C..6=B)
+ * e tipo de acidente na pauta 24-TET.
+ */
+const STAFF_PITCH_MAP_24 = [
+  { step: 0, acc: "" },           // 0: C
+  { step: 0, acc: "half-sharp" }, // 1: C+
+  { step: 1, acc: "flat" },       // 2: Db
+  { step: 1, acc: "half-flat" },  // 3: D-
+  { step: 1, acc: "" },           // 4: D
+  { step: 1, acc: "half-sharp" }, // 5: D+
+  { step: 2, acc: "flat" },       // 6: Eb
+  { step: 2, acc: "half-flat" },  // 7: E-
+  { step: 2, acc: "" },           // 8: E
+  { step: 3, acc: "half-flat" },  // 9: F-
+  { step: 3, acc: "" },           // 10: F
+  { step: 3, acc: "half-sharp" }, // 11: F+
+  { step: 3, acc: "sharp" },      // 12: F#
+  { step: 4, acc: "half-flat" },  // 13: G-
+  { step: 4, acc: "" },           // 14: G
+  { step: 4, acc: "half-sharp" }, // 15: G+
+  { step: 5, acc: "flat" },       // 16: Ab
+  { step: 5, acc: "half-flat" },  // 17: A-
+  { step: 5, acc: "" },           // 18: A
+  { step: 5, acc: "half-sharp" }, // 19: A+
+  { step: 6, acc: "flat" },       // 20: Bb
+  { step: 6, acc: "half-flat" },  // 21: B-
+  { step: 6, acc: "" },           // 22: B
+  { step: 6, acc: "half-sharp" }  // 23: B+
+];
 
-function absQToStaffGeometry(absQ, topLineY, halfStepPx) {
-  const octaveOffset = Math.floor(absQ / 24);
-  const pcQ = ((absQ % 24) + 24) % 24;
-  const mapping = PITCH_CLASS_TO_STAFF[pcQ];
-  const diatonicStepFromC2 = octaveOffset * 12 + mapping.step;
-  const f3DiatonicStep = 23;
-  const stepsBelowF3 = f3DiatonicStep - diatonicStepFromC2;
-  const y = topLineY + stepsBelowF3 * halfStepPx;
-  return { y, diatonicStep: diatonicStepFromC2, acc: mapping.acc, pcQ };
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * Converte absQ (onde 0 = C2 soando, escrito C3 na Clave de Sol 8vb) em índice diatônico.
+ * Written E4 (1ª linha inferior da clave de sol) = diatonicIndex 30 (sounding E3, absQ = 32).
+ *
+ * @param {number} absQ
+ */
+function getWrittenDiatonicIndex(absQ) {
+  const safeAbsQ = Math.max(0, absQ);
+  const soundingOct = Math.floor(safeAbsQ / 24) + 2;
+  const writtenOct = soundingOct + 1; // Clave de Sol 8vb (padrão Oud)
+  const pcQ = ((safeAbsQ % 24) + 24) % 24;
+  const info = STAFF_PITCH_MAP_24[pcQ] || STAFF_PITCH_MAP_24[0];
+  return {
+    diatIndex: writtenOct * 7 + info.step,
+    acc: info.acc,
+    pcQ,
+    soundingOct
+  };
 }
 
-function drawMicrotonalAccidental(svg, x, y, acc, color) {
-  if (!acc) return;
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.setAttribute("stroke", color);
-  g.setAttribute("fill", "none");
-  g.setAttribute("stroke-linecap", "round");
+/**
+ * Calcula coordenada Y na pauta.
+ * 5 linhas: F5 (38)=36, D5 (36)=46.5, B4 (34)=57, G4 (32)=67.5, E4 (30)=78.
+ *
+ * @param {number} diatIndex
+ */
+function diatonicToY(diatIndex) {
+  const bottomLineDiat = 30; // E4 escrito
+  const bottomLineY = 78;
+  const halfStepPx = 5.25;
+  return bottomLineY - (diatIndex - bottomLineDiat) * halfStepPx;
+}
 
-  if (acc === "b") {
-    const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    txt.setAttribute("x", String(x - 16));
-    txt.setAttribute("y", String(y + 4));
+/**
+ * Desenha o acidente vetorial (bemol, sustenido, meio-bemol ou meio-sustenido) à esquerda da cabeça da nota.
+ */
+function drawAccidental(parent, x, y, accType, color) {
+  if (!accType) return;
+
+  if (accType === "flat") {
+    const txt = document.createElementNS(SVG_NS, "text");
+    txt.setAttribute("x", String(x));
+    txt.setAttribute("y", String(y + 4.5));
+    txt.setAttribute("text-anchor", "middle");
     txt.setAttribute("fill", color);
-    txt.setAttribute("stroke", "none");
     txt.setAttribute("font-size", "14");
     txt.setAttribute("font-weight", "700");
     txt.textContent = "♭";
-    g.appendChild(txt);
-  } else if (acc === "#") {
-    const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    txt.setAttribute("x", String(x - 16));
-    txt.setAttribute("y", String(y + 4));
+    parent.appendChild(txt);
+    return;
+  }
+
+  if (accType === "sharp") {
+    const txt = document.createElementNS(SVG_NS, "text");
+    txt.setAttribute("x", String(x));
+    txt.setAttribute("y", String(y + 4.5));
+    txt.setAttribute("text-anchor", "middle");
     txt.setAttribute("fill", color);
-    txt.setAttribute("stroke", "none");
     txt.setAttribute("font-size", "13");
     txt.setAttribute("font-weight", "700");
     txt.textContent = "♯";
-    g.appendChild(txt);
-  } else if (acc === "hb") {
-    const stem = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    stem.setAttribute("x1", String(x - 12));
+    parent.appendChild(txt);
+    return;
+  }
+
+  // Meio-bemol (bemol cortado / d estilizado em vetor — 100% legível em qualquer OS)
+  if (accType === "half-flat") {
+    const g = document.createElementNS(SVG_NS, "g");
+    g.setAttribute("stroke", color);
+    g.setAttribute("fill", "none");
+    g.setAttribute("stroke-linecap", "round");
+
+    const stem = document.createElementNS(SVG_NS, "line");
+    stem.setAttribute("x1", String(x + 2));
     stem.setAttribute("y1", String(y - 10));
-    stem.setAttribute("x2", String(x - 12));
+    stem.setAttribute("x2", String(x + 2));
     stem.setAttribute("y2", String(y + 4));
     stem.setAttribute("stroke-width", "1.4");
     g.appendChild(stem);
 
-    const bowl = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    bowl.setAttribute("d", `M ${x - 12},${y - 1} C ${x - 18},${y - 3} ${x - 18},${y + 4} ${x - 12},${y + 4}`);
-    bowl.setAttribute("stroke-width", "1.4");
-    g.appendChild(bowl);
+    const belly = document.createElementNS(SVG_NS, "path");
+    belly.setAttribute("d", `M ${x + 2},${y - 1.5} C ${x - 4.5},${y - 2} ${x - 4.5},${y + 4.5} ${x + 2},${y + 3.5}`);
+    belly.setAttribute("stroke-width", "1.4");
+    g.appendChild(belly);
+
+    const slash = document.createElementNS(SVG_NS, "line");
+    slash.setAttribute("x1", String(x - 1.5));
+    slash.setAttribute("y1", String(y - 5.5));
+    slash.setAttribute("x2", String(x + 5));
+    slash.setAttribute("y2", String(y - 8));
+    slash.setAttribute("stroke-width", "1.2");
+    g.appendChild(slash);
+
+    parent.appendChild(g);
+    return;
   }
 
-  svg.appendChild(g);
+  // Meio-sustenido (haste vertical única cortada por duas barras)
+  if (accType === "half-sharp") {
+    const g = document.createElementNS(SVG_NS, "g");
+    g.setAttribute("stroke", color);
+    g.setAttribute("stroke-width", "1.3");
+    g.setAttribute("stroke-linecap", "round");
+
+    const v = document.createElementNS(SVG_NS, "line");
+    v.setAttribute("x1", String(x));
+    v.setAttribute("y1", String(y - 7.5));
+    v.setAttribute("x2", String(x));
+    v.setAttribute("y2", String(y + 7.5));
+    g.appendChild(v);
+
+    [-2.5, 2.5].forEach(dy => {
+      const h = document.createElementNS(SVG_NS, "line");
+      h.setAttribute("x1", String(x - 3.8));
+      h.setAttribute("y1", String(y + dy + 1));
+      h.setAttribute("x2", String(x + 3.8));
+      h.setAttribute("y2", String(y + dy - 1));
+      g.appendChild(h);
+    });
+
+    parent.appendChild(g);
+  }
 }
 
-function drawLedgerLines(svg, x, diatonicStep, topLineY, halfStepPx, ledgerStroke) {
-  const f3Step = 23;
-  const e2Step = 14;
-
-  if (diatonicStep < e2Step) {
-    for (let s = e2Step - 2; s >= diatonicStep; s -= 2) {
-      const ly = topLineY + (f3Step - s) * halfStepPx;
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", String(x - 13));
-      line.setAttribute("y1", String(ly));
-      line.setAttribute("x2", String(x + 13));
-      line.setAttribute("y2", String(ly));
-      line.setAttribute("stroke", ledgerStroke);
-      line.setAttribute("stroke-width", "1.2");
-      svg.appendChild(line);
+/**
+ * Desenha linhas suplementares superiores ou inferiores para notas fora das 5 linhas.
+ */
+function drawLedgerLines(parent, cx, diatIndex, lineColor) {
+  // Abaixo da 1ª linha (E4 = 30): C4 (28), A3 (26), F3 (24), D3 (22)
+  if (diatIndex <= 28) {
+    for (let d = 28; d >= diatIndex; d -= 2) {
+      const ly = diatonicToY(d);
+      const ln = document.createElementNS(SVG_NS, "line");
+      ln.setAttribute("x1", String(cx - 11));
+      ln.setAttribute("y1", String(ly));
+      ln.setAttribute("x2", String(cx + 11));
+      ln.setAttribute("y2", String(ly));
+      ln.setAttribute("stroke", lineColor);
+      ln.setAttribute("stroke-width", "1.2");
+      parent.appendChild(ln);
     }
-  } else if (diatonicStep > f3Step) {
-    for (let s = f3Step + 2; s <= diatonicStep; s += 2) {
-      const ly = topLineY + (f3Step - s) * halfStepPx;
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", String(x - 13));
-      line.setAttribute("y1", String(ly));
-      line.setAttribute("x2", String(x + 13));
-      line.setAttribute("y2", String(ly));
-      line.setAttribute("stroke", ledgerStroke);
-      line.setAttribute("stroke-width", "1.2");
-      svg.appendChild(line);
+  }
+  // Acima da 5ª linha (F5 = 38): A5 (40), C6 (42)
+  if (diatIndex >= 40) {
+    for (let d = 40; d <= diatIndex; d += 2) {
+      const ly = diatonicToY(d);
+      const ln = document.createElementNS(SVG_NS, "line");
+      ln.setAttribute("x1", String(cx - 11));
+      ln.setAttribute("y1", String(ly));
+      ln.setAttribute("x2", String(cx + 11));
+      ln.setAttribute("y2", String(ly));
+      ln.setAttribute("stroke", lineColor);
+      ln.setAttribute("stroke-width", "1.2");
+      parent.appendChild(ln);
     }
   }
 }
 
 /**
- * Renderiza a Pauta Interativa 24-TET (Clave de Sol 8vb) com paleta adaptativa para Modo Escuro e Modo Claro (Pergaminho).
+ * Renderiza a Pauta Interativa 24-TET (Clave de Sol 8vb) + Compasso Inspetor.
  *
  * @param {import("../core/urlState.js").OudAppState} state
- * @param {{ absQ: number | null, pitchClassQ: number | null, course?: number, finger?: string | number, freq?: number } | null} selectedPitch
+ * @param {{ absQ: number | null, pitchClassQ: number | null, course?: number, finger?: string | number, qFromNut?: number } | null} selectedPitch
  * @param {number} highlightedStep
- * @param {(selection: { absQ: number | null, pitchClassQ: number | null } | null) => void} onStaffNoteSelect
+ * @param {(selection: { absQ: number, pitchClassQ: number, freq: number } | null) => void} onStaffNoteSelect
  * @param {ReturnType<import("../core/modalEngine.js").computeAnchoredOctavePath>} [octavePathNodes=[]]
  */
 export function renderMusicalStaffSVG(state, selectedPitch, highlightedStep, onStaffNoteSelect, octavePathNodes = []) {
   const svg = /** @type {SVGElement | null} */ (/** @type {unknown} */ (document.getElementById("oud-staff")));
   if (!svg) return;
   svg.innerHTML = "";
+  svg.setAttribute("viewBox", "0 0 1120 158");
 
   const isLight = state.theme === "light";
-  const staffColors = {
-    bgFill: isLight ? "#faf3e3" : "rgba(15, 9, 6, 0.88)",
-    bgStroke: isLight ? "rgba(138, 90, 25, 0.45)" : "rgba(212, 175, 55, 0.35)",
-    lineStroke: isLight ? "rgba(75, 54, 33, 0.48)" : "rgba(254, 243, 199, 0.36)",
-    ledgerStroke: isLight ? "rgba(75, 54, 33, 0.68)" : "rgba(254, 243, 199, 0.55)",
-    clefFill: isLight ? "#7c4d12" : "#d4af37",
-    sub8Fill: isLight ? "#9a5b13" : "#fde68a",
-    noteTextMain: isLight ? "#23160c" : "#fef3c7",
-    noteTextHighlight: isLight ? "#0e7490" : "#67e8f9",
-    degreeText: isLight ? "#654d38" : "#a89882",
-    inspectorAccent: isLight ? "#0e7490" : "#67e8f9",
-    inspectorSub: isLight ? "#9a5b13" : "#fde047"
+  const isEn = state.lang === "en";
+
+  // Paleta v2.8 — Contenção cromática: Ébano/Pergaminho, Latão e Ameixa (zero ciano)
+  const theme = {
+    bg: isLight ? "#faf5ec" : "#15100d",
+    border: isLight ? "rgba(143, 94, 28, 0.34)" : "rgba(201, 154, 73, 0.28)",
+    staffLine: isLight ? "rgba(82, 60, 38, 0.42)" : "rgba(226, 217, 200, 0.32)",
+    clef: isLight ? "#8f5e1c" : "#d4a84f",
+    textMain: isLight ? "#2b1e14" : "#efe6d8",
+    textMuted: isLight ? "#6b5540" : "#b5a694",
+    gold: isLight ? "#8f5e1c" : "#d4a84f",
+    plum: isLight ? "#6b3f8c" : "#c49be0",
+    plumSoft: isLight ? "rgba(107, 63, 140, 0.11)" : "rgba(196, 155, 224, 0.14)",
+    plumSolid: isLight ? "#6b3f8c" : "#7e4ca3",
+    rootFill: "#c53030",
+    ghammazFill: "#c6831c",
+    fixedFill: isLight ? "#3b5984" : "#7692b8",
+    microFill: isLight ? "#6b3f8c" : "#b278db",
+    stemColor: isLight ? "rgba(43, 30, 20, 0.65)" : "rgba(239, 230, 216, 0.68)",
+    inspBg: isLight ? "#f3ebdd" : "#1d1612"
   };
 
-  const W = 1120;
-  const H = 158;
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  // Fundo principal da partitura
+  const bgRect = document.createElementNS(SVG_NS, "rect");
+  bgRect.setAttribute("x", "2");
+  bgRect.setAttribute("y", "2");
+  bgRect.setAttribute("width", "1116");
+  bgRect.setAttribute("height", "154");
+  bgRect.setAttribute("rx", "10");
+  bgRect.setAttribute("fill", theme.bg);
+  bgRect.setAttribute("stroke", theme.border);
+  bgRect.setAttribute("stroke-width", "1.4");
+  svg.appendChild(bgRect);
 
-  const topLineY = 44;
-  const lineGap = 11;
-  const halfStepPx = lineGap / 2;
-  const bottomLineY = topLineY + 4 * lineGap;
   const staffLeftX = 24;
-  const inspectorX = 875;
-  const staffRightX = inspectorX - 16;
+  const staffRightX = 852;
 
-  const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  bg.setAttribute("x", "8");
-  bg.setAttribute("y", "6");
-  bg.setAttribute("width", String(W - 16));
-  bg.setAttribute("height", String(H - 12));
-  bg.setAttribute("rx", "10");
-  bg.setAttribute("fill", staffColors.bgFill);
-  bg.setAttribute("stroke", staffColors.bgStroke);
-  bg.setAttribute("stroke-width", "1.2");
-  svg.appendChild(bg);
-
+  // 5 linhas do pentagrama
   for (let i = 0; i < 5; i++) {
-    const y = topLineY + i * lineGap;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(staffLeftX));
-    line.setAttribute("y1", String(y));
-    line.setAttribute("x2", String(staffRightX));
-    line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", staffColors.lineStroke);
-    line.setAttribute("stroke-width", "1.1");
-    svg.appendChild(line);
+    const ly = 36 + i * 10.5;
+    const ln = document.createElementNS(SVG_NS, "line");
+    ln.setAttribute("x1", String(staffLeftX));
+    ln.setAttribute("y1", String(ly));
+    ln.setAttribute("x2", String(staffRightX));
+    ln.setAttribute("y2", String(ly));
+    ln.setAttribute("stroke", theme.staffLine);
+    ln.setAttribute("stroke-width", "1.1");
+    svg.appendChild(ln);
   }
 
-  const clef = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  clef.setAttribute("x", String(staffLeftX + 6));
-  clef.setAttribute("y", String(bottomLineY - 5));
-  clef.setAttribute("fill", staffColors.clefFill);
-  clef.setAttribute("font-size", "46");
-  clef.setAttribute("font-family", "serif");
-  clef.textContent = "𝄞";
-  svg.appendChild(clef);
+  // Barra inicial e barra dupla de separação
+  [staffLeftX, staffRightX - 5, staffRightX].forEach((bx, idx) => {
+    const bar = document.createElementNS(SVG_NS, "line");
+    bar.setAttribute("x1", String(bx));
+    bar.setAttribute("y1", "36");
+    bar.setAttribute("x2", String(bx));
+    bar.setAttribute("y2", "78");
+    bar.setAttribute("stroke", idx === 2 ? theme.gold : theme.staffLine);
+    bar.setAttribute("stroke-width", idx === 2 ? "2.4" : "1.2");
+    svg.appendChild(bar);
+  });
 
-  const sub8 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  sub8.setAttribute("x", String(staffLeftX + 22));
-  sub8.setAttribute("y", String(bottomLineY + 13));
-  sub8.setAttribute("fill", staffColors.sub8Fill);
-  sub8.setAttribute("font-size", "10");
-  sub8.setAttribute("font-weight", "800");
-  sub8.textContent = "8vb";
-  svg.appendChild(sub8);
+  // Clave de Sol 8vb
+  const clefTxt = document.createElementNS(SVG_NS, "text");
+  clefTxt.setAttribute("x", "44");
+  clefTxt.setAttribute("y", "75");
+  clefTxt.setAttribute("text-anchor", "middle");
+  clefTxt.setAttribute("fill", theme.clef);
+  clefTxt.setAttribute("font-size", "48");
+  clefTxt.setAttribute("font-family", "serif");
+  clefTxt.textContent = "𝄞";
+  svg.appendChild(clefTxt);
 
+  const oct8 = document.createElementNS(SVG_NS, "text");
+  oct8.setAttribute("x", "44");
+  oct8.setAttribute("y", "93");
+  oct8.setAttribute("text-anchor", "middle");
+  oct8.setAttribute("fill", theme.gold);
+  oct8.setAttribute("font-size", "10");
+  oct8.setAttribute("font-weight", "800");
+  oct8.textContent = "8vb";
+  svg.appendChild(oct8);
+
+  // Monta a lista de notas a exibir na pauta
   const activeStruct = getActiveStructure(state);
-  const baseOctaveQ = state.rootQ < 12 ? 24 : 12;
+  const effRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
+  const baseRootAbsQ = 24 + effRootQ; // Oitava central do Oud (C3..B3 soando)
 
-  /** @type {{ absQ: number, degree: string, centsDev: number, isGhammaz: boolean, isRoot: boolean, stepIdx: number, sublabel?: string }[]} */
-  const sequenceToDraw = [];
+  /** @type {{ absQ: number, pcQ: number, degree: string, isRoot: boolean, isGhammaz: boolean, centsDev: number, stepIdx: number, showStepBadge: boolean }[]} */
+  let notesToRender = [];
 
-  const isOctaveFilterActive = state.octavePathOnly && state.anchorAbsQ !== null && octavePathNodes.length > 0;
+  const isOctaveMode = state.octavePathOnly && state.anchorAbsQ !== null && octavePathNodes.length > 0;
+  const entityAny = /** @type {any} */ (activeStruct.entity);
+  const isSayrMode = !isOctaveMode && state.mode === "MAQAM" && state.staffMode === "SAYR" && entityAny.sayr_phrases?.[state.sayrPhraseIndex];
 
-  if (isOctaveFilterActive) {
-    octavePathNodes.forEach((n, idx) => {
-      const modOffset = ((n.pitchClassQ - activeStruct.effectiveRootQ) % 24 + 24) % 24;
-      sequenceToDraw.push({
+  if (isOctaveMode) {
+    notesToRender = octavePathNodes.map((n, idx) => {
+      const modOffset = ((n.pitchClassQ - effRootQ) % 24 + 24) % 24;
+      return {
         absQ: n.absQ,
+        pcQ: n.pitchClassQ,
         degree: n.degree,
-        centsDev: activeStruct.centsMap[n.intervalQ] || 0,
-        isGhammaz: activeStruct.ghammazOffsets.includes(modOffset),
         isRoot: modOffset === 0,
+        isGhammaz: activeStruct.ghammazOffsets.includes(modOffset),
+        centsDev: activeStruct.centsMap[modOffset] || 0,
         stepIdx: idx,
-        sublabel: `C${n.course}·${n.qFromNut === 0 ? "0" : "D" + n.finger}`
-      });
+        showStepBadge: true
+      };
     });
-  } else if (state.mode === "MAQAM" && state.staffMode === "SAYR") {
-    const entity = /** @type {any} */ (activeStruct.entity);
-    const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
-    if (phrase) {
-      phrase.steps.forEach((/** @type {any} */ st, /** @type {number} */ idx) => {
-        const modQ = ((st.interval_q % 24) + 24) % 24;
-        const degIdx = activeStruct.intervals.indexOf(modQ);
-        sequenceToDraw.push({
-          absQ: baseOctaveQ + state.rootQ + st.interval_q,
-          degree: degIdx >= 0 ? activeStruct.degrees[degIdx] : "",
-          centsDev: activeStruct.centsMap[modQ] || 0,
-          isGhammaz: activeStruct.ghammazOffsets.includes(modQ),
-          isRoot: modQ === 0,
-          stepIdx: idx
-        });
-      });
-    }
+  } else if (isSayrMode) {
+    const phrase = entityAny.sayr_phrases[state.sayrPhraseIndex];
+    notesToRender = phrase.steps.map((/** @type {any} */ st, /** @type {number} */ idx) => {
+      const absQ = baseRootAbsQ + st.interval_q;
+      const modOffset = ((st.interval_q % 24) + 24) % 24;
+      const degIdx = activeStruct.intervals.findIndex(iq => ((iq % 24) + 24) % 24 === modOffset);
+      return {
+        absQ,
+        pcQ: ((absQ % 24) + 24) % 24,
+        degree: degIdx >= 0 ? activeStruct.degrees[degIdx] : "",
+        isRoot: modOffset === 0,
+        isGhammaz: activeStruct.ghammazOffsets.includes(modOffset),
+        centsDev: activeStruct.centsMap[modOffset] || 0,
+        stepIdx: idx,
+        showStepBadge: true
+      };
+    });
   } else {
-    activeStruct.intervals.forEach((intQ, idx) => {
-      sequenceToDraw.push({
-        absQ: baseOctaveQ + activeStruct.effectiveRootQ + intQ,
+    notesToRender = activeStruct.intervals.map((intQ, idx) => {
+      const absQ = baseRootAbsQ + intQ;
+      const modOffset = ((intQ % 24) + 24) % 24;
+      return {
+        absQ,
+        pcQ: ((absQ % 24) + 24) % 24,
         degree: activeStruct.degrees[idx] || "",
+        isRoot: modOffset === 0,
+        isGhammaz: activeStruct.ghammazOffsets.includes(modOffset),
         centsDev: activeStruct.centsMap[intQ] || 0,
-        isGhammaz: activeStruct.ghammazOffsets.includes(intQ % 24),
-        isRoot: (intQ % 24) === 0,
-        stepIdx: idx
-      });
+        stepIdx: idx,
+        showStepBadge: false
+      };
     });
   }
 
-  const startX = staffLeftX + 74;
-  const usableW = staffRightX - startX - 24;
-  const count = Math.max(1, sequenceToDraw.length);
-  const stepX = count > 1 ? Math.min(82, usableW / (count - 1)) : 0;
+  // Distribui horizontalmente as notas na pauta
+  const usableStartX = 112;
+  const usableEndX = 812;
+  const count = notesToRender.length;
+  const spacing = count > 1 ? Math.min(82, (usableEndX - usableStartX) / (count - 1)) : 0;
+  const totalSpan = spacing * Math.max(0, count - 1);
+  const offsetStartX = usableStartX + Math.max(0, (usableEndX - usableStartX - totalSpan) / 2);
 
-  sequenceToDraw.forEach((item, idx) => {
-    const nx = startX + idx * stepX;
-    const geom = absQToStaffGeometry(item.absQ, topLineY, halfStepPx);
-    const pcData = PITCH_CLASSES_24[geom.pcQ];
+  notesToRender.forEach((nObj, idx) => {
+    const cx = count === 1 ? (usableStartX + usableEndX) / 2 : offsetStartX + idx * spacing;
+    const pitchInfo = getWrittenDiatonicIndex(nObj.absQ);
+    const cy = Math.max(18, Math.min(130, diatonicToY(pitchInfo.diatIndex)));
+    const pcData = PITCH_CLASSES_24[nObj.pcQ] || PITCH_CLASSES_24[0];
+    const freq = 65.40639 * Math.pow(2, (nObj.absQ * 50 + nObj.centsDev) / 1200);
 
-    drawLedgerLines(svg, nx, geom.diatonicStep, topLineY, halfStepPx, staffColors.ledgerStroke);
+    const isPlaybackHit = (isSayrMode || isOctaveMode) && highlightedStep === nObj.stepIdx;
+    const isExactSelected = selectedPitch !== null && selectedPitch.absQ === nObj.absQ;
+    const isClassSelected = selectedPitch !== null && !isExactSelected && selectedPitch.pitchClassQ === nObj.pcQ;
 
-    let fillColor = isLight ? "#1d4ed8" : "#3b82f6";
-    let strokeColor = isLight ? "#1e3a8a" : "#bfdbfe";
-    if (item.isRoot) {
-      fillColor = "#dc2626";
-      strokeColor = isLight ? "#7f1d1d" : "#fde68a";
-    } else if (item.isGhammaz) {
-      fillColor = "#d97706";
-      strokeColor = isLight ? "#78350f" : "#fef08a";
-    } else if (pcData.micro) {
-      fillColor = "#7e22ce";
-      strokeColor = isLight ? "#0e7490" : "#67e8f9";
-    }
-
-    const isHighlighted = (highlightedStep === item.stepIdx) ||
-      (selectedPitch !== null && (selectedPitch.absQ === item.absQ || selectedPitch.pitchClassQ === geom.pcQ));
-
-    if (isHighlighted) {
-      const aura = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      aura.setAttribute("cx", String(nx));
-      aura.setAttribute("cy", String(geom.y));
-      aura.setAttribute("r", "14");
-      aura.setAttribute("fill", isLight ? "rgba(14, 116, 144, 0.18)" : "rgba(103, 232, 249, 0.24)");
-      aura.setAttribute("stroke", staffColors.inspectorAccent);
-      aura.setAttribute("stroke-width", "1.6");
-      svg.appendChild(aura);
-    }
-
-    drawMicrotonalAccidental(svg, nx, geom.y, geom.acc, isHighlighted ? staffColors.inspectorAccent : strokeColor);
-
-    const noteGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const noteGroup = document.createElementNS(SVG_NS, "g");
     noteGroup.style.cursor = "pointer";
 
-    const head = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    head.setAttribute("cx", String(nx));
-    head.setAttribute("cy", String(geom.y));
-    head.setAttribute("rx", "6.8");
-    head.setAttribute("ry", "4.8");
-    head.setAttribute("transform", `rotate(-18 ${nx} ${geom.y})`);
-    head.setAttribute("fill", fillColor);
-    head.setAttribute("stroke", isHighlighted ? (isLight ? "#0e7490" : "#ffffff") : strokeColor);
-    head.setAttribute("stroke-width", isHighlighted ? "2.2" : "1.3");
-    noteGroup.appendChild(head);
+    noteGroup.addEventListener("click", () => {
+      playPluckedNote(freq, 1.35);
+      if (onStaffNoteSelect) {
+        if (isExactSelected) {
+          onStaffNoteSelect(null);
+        } else {
+          onStaffNoteSelect({ absQ: nObj.absQ, pitchClassQ: nObj.pcQ, freq });
+        }
+      }
+    });
 
-    const stemUp = geom.diatonicStep < 19;
-    const stem = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    stem.setAttribute("x1", String(stemUp ? nx + 6 : nx - 6));
-    stem.setAttribute("y1", String(geom.y));
-    stem.setAttribute("x2", String(stemUp ? nx + 6 : nx - 6));
-    stem.setAttribute("y2", String(stemUp ? geom.y - 24 : geom.y + 24));
-    stem.setAttribute("stroke", isHighlighted ? staffColors.inspectorAccent : strokeColor);
-    stem.setAttribute("stroke-width", "1.3");
+    // Linhas suplementares
+    drawLedgerLines(noteGroup, cx, pitchInfo.diatIndex, theme.staffLine);
+
+    // Halo de seleção ou reprodução (Ameixa / Latão)
+    if (isExactSelected || isPlaybackHit || isClassSelected) {
+      const halo = document.createElementNS(SVG_NS, "circle");
+      halo.setAttribute("cx", String(cx));
+      halo.setAttribute("cy", String(cy));
+      halo.setAttribute("r", isExactSelected || isPlaybackHit ? "14" : "12");
+      halo.setAttribute("fill", isExactSelected || isPlaybackHit ? theme.plumSoft : "rgba(212, 168, 79, 0.14)");
+      halo.setAttribute("stroke", isExactSelected || isPlaybackHit ? theme.plum : theme.gold);
+      halo.setAttribute("stroke-width", isExactSelected || isPlaybackHit ? "2" : "1.4");
+      if (isClassSelected) halo.setAttribute("stroke-dasharray", "3,2");
+      noteGroup.appendChild(halo);
+    }
+
+    // Cor da cabeça da nota
+    let headFill = theme.fixedFill;
+    if (nObj.isRoot) headFill = theme.rootFill;
+    else if (nObj.isGhammaz) headFill = theme.ghammazFill;
+    else if (pcData.micro) headFill = theme.microFill;
+
+    // Acidente vetorial à esquerda
+    drawAccidental(noteGroup, cx - 15, cy, pitchInfo.acc, pcData.micro ? theme.plum : theme.textMain);
+
+    // Haste (para cima se abaixo da linha central B4=34, para baixo se acima)
+    const stemUp = pitchInfo.diatIndex < 34;
+    const stem = document.createElementNS(SVG_NS, "line");
+    const stemX = stemUp ? cx + 5.8 : cx - 5.8;
+    stem.setAttribute("x1", String(stemX));
+    stem.setAttribute("y1", String(cy));
+    stem.setAttribute("x2", String(stemX));
+    stem.setAttribute("y2", String(stemUp ? cy - 26 : cy + 26));
+    stem.setAttribute("stroke", isPlaybackHit || isExactSelected ? theme.plum : theme.stemColor);
+    stem.setAttribute("stroke-width", "1.4");
     noteGroup.appendChild(stem);
 
-    const nameLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    nameLbl.setAttribute("x", String(nx));
-    nameLbl.setAttribute("y", String(H - 22));
-    nameLbl.setAttribute("text-anchor", "middle");
-    nameLbl.setAttribute("fill", isHighlighted ? staffColors.noteTextHighlight : staffColors.noteTextMain);
-    nameLbl.setAttribute("font-size", "9.5");
-    nameLbl.setAttribute("font-weight", "700");
-    nameLbl.textContent = pcData.flat;
-    noteGroup.appendChild(nameLbl);
+    // Cabeça elíptica inclinada da nota
+    const head = document.createElementNS(SVG_NS, "ellipse");
+    head.setAttribute("cx", String(cx));
+    head.setAttribute("cy", String(cy));
+    head.setAttribute("rx", "6.4");
+    head.setAttribute("ry", "4.6");
+    head.setAttribute("transform", `rotate(-18 ${cx} ${cy})`);
+    head.setAttribute("fill", headFill);
+    head.setAttribute("stroke", isExactSelected || isPlaybackHit ? "#ffffff" : "rgba(0,0,0,0.28)");
+    head.setAttribute("stroke-width", isExactSelected || isPlaybackHit ? "1.6" : "0.9");
+    noteGroup.appendChild(head);
 
-    const degLbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    degLbl.setAttribute("x", String(nx));
-    degLbl.setAttribute("y", String(H - 10));
-    degLbl.setAttribute("text-anchor", "middle");
-    degLbl.setAttribute("fill", item.sublabel ? staffColors.inspectorAccent : staffColors.degreeText);
-    degLbl.setAttribute("font-size", "8.2");
-    degLbl.setAttribute("font-weight", item.sublabel ? "700" : "600");
-    degLbl.textContent = item.sublabel || item.degree;
-    noteGroup.appendChild(degLbl);
+    // Grau ou número do passo no topo da pauta
+    const topLbl = document.createElementNS(SVG_NS, "text");
+    topLbl.setAttribute("x", String(cx));
+    topLbl.setAttribute("y", "19");
+    topLbl.setAttribute("text-anchor", "middle");
+    topLbl.setAttribute("fill", nObj.isRoot ? theme.rootFill : (nObj.showStepBadge ? theme.plum : theme.gold));
+    topLbl.setAttribute("font-size", "9.5");
+    topLbl.setAttribute("font-weight", "800");
+    topLbl.textContent = nObj.showStepBadge ? `${idx + 1}·${nObj.degree}` : nObj.degree;
+    noteGroup.appendChild(topLbl);
 
-    noteGroup.addEventListener("click", () => {
-      const freq = 65.41 * Math.pow(2, (item.absQ * 50 + item.centsDev) / 1200);
-      playPluckedNote(freq, 1.3);
-      const alreadySelected = selectedPitch && selectedPitch.pitchClassQ === geom.pcQ;
-      onStaffNoteSelect(alreadySelected ? null : { absQ: item.absQ, pitchClassQ: geom.pcQ });
-    });
+    // Cifra da nota na base
+    const noteLbl = document.createElementNS(SVG_NS, "text");
+    noteLbl.setAttribute("x", String(cx));
+    noteLbl.setAttribute("y", "145");
+    noteLbl.setAttribute("text-anchor", "middle");
+    noteLbl.setAttribute("fill", isExactSelected || isPlaybackHit ? theme.plum : (pcData.micro ? theme.plum : theme.textMain));
+    noteLbl.setAttribute("font-size", "10.5");
+    noteLbl.setAttribute("font-weight", isExactSelected || nObj.isRoot ? "800" : "700");
+    noteLbl.textContent = pcData.flat;
+    noteGroup.appendChild(noteLbl);
 
     svg.appendChild(noteGroup);
   });
 
-  // Compasso Inspetor (Espelho -> Pauta)
-  const sep = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  sep.setAttribute("x1", String(inspectorX - 6));
-  sep.setAttribute("y1", "18");
-  sep.setAttribute("x2", String(inspectorX - 6));
-  sep.setAttribute("y2", String(H - 18));
-  sep.setAttribute("stroke", staffColors.bgStroke);
-  sep.setAttribute("stroke-width", "1.5");
-  sep.setAttribute("stroke-dasharray", "4,3");
-  svg.appendChild(sep);
+  // =========================================================================
+  // COMPASSO INSPETOR (Direita: x = 868..1106) — Paleta Ameixa & Latão
+  // =========================================================================
+  const inspBox = document.createElementNS(SVG_NS, "rect");
+  inspBox.setAttribute("x", "868");
+  inspBox.setAttribute("y", "10");
+  inspBox.setAttribute("width", "238");
+  inspBox.setAttribute("height", "138");
+  inspBox.setAttribute("rx", "8");
+  inspBox.setAttribute("fill", theme.inspBg);
+  inspBox.setAttribute("stroke", selectedPitch ? theme.plum : theme.border);
+  inspBox.setAttribute("stroke-width", selectedPitch ? "1.6" : "1.1");
+  svg.appendChild(inspBox);
 
-  const inspTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  inspTitle.setAttribute("x", String(inspectorX + 112));
-  inspTitle.setAttribute("y", "22");
-  inspTitle.setAttribute("text-anchor", "middle");
-  inspTitle.setAttribute("fill", staffColors.inspectorAccent);
-  inspTitle.setAttribute("font-size", "9.5");
-  inspTitle.setAttribute("font-weight", "800");
-  inspTitle.textContent = t(state.lang, "staffInspectorTitle");
-  svg.appendChild(inspTitle);
+  const inspHeader = document.createElementNS(SVG_NS, "text");
+  inspHeader.setAttribute("x", "987");
+  inspHeader.setAttribute("y", "28");
+  inspHeader.setAttribute("text-anchor", "middle");
+  inspHeader.setAttribute("fill", theme.gold);
+  inspHeader.setAttribute("font-size", "9.5");
+  inspHeader.setAttribute("font-weight", "800");
+  inspHeader.setAttribute("letter-spacing", "0.6");
+  inspHeader.textContent = isEn ? "NOTE INSPECTOR (24-TET)" : "COMPASSO INSPETOR (24-TET)";
+  svg.appendChild(inspHeader);
 
-  for (let i = 0; i < 5; i++) {
-    const y = topLineY + i * lineGap;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(inspectorX + 10));
-    line.setAttribute("y1", String(y));
-    line.setAttribute("x2", String(W - 22));
-    line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", staffColors.lineStroke);
-    line.setAttribute("stroke-width", "1");
-    svg.appendChild(line);
-  }
+  if (selectedPitch && (typeof selectedPitch.pitchClassQ === "number" || typeof selectedPitch.absQ === "number")) {
+    const selPcQ = typeof selectedPitch.pitchClassQ === "number"
+      ? ((selectedPitch.pitchClassQ % 24) + 24) % 24
+      : ((/** @type {number} */ (selectedPitch.absQ) % 24) + 24) % 24;
+    const selAbsQ = typeof selectedPitch.absQ === "number" ? selectedPitch.absQ : (24 + selPcQ);
+    const pcData = PITCH_CLASSES_24[selPcQ] || PITCH_CLASSES_24[0];
+    const octNum = Math.floor(selAbsQ / 24) + 2;
+    const modOffset = ((selPcQ - effRootQ) % 24 + 24) % 24;
+    const degIdx = activeStruct.intervals.findIndex(iq => ((iq % 24) + 24) % 24 === modOffset);
+    const degTxt = degIdx >= 0 ? activeStruct.degrees[degIdx] : "—";
 
-  if (selectedPitch && selectedPitch.absQ !== null) {
-    const geom = absQToStaffGeometry(selectedPitch.absQ, topLineY, halfStepPx);
-    const pcData = PITCH_CLASSES_24[geom.pcQ];
-    const inspNoteX = inspectorX + 76;
+    const pitchBig = document.createElementNS(SVG_NS, "text");
+    pitchBig.setAttribute("x", "987");
+    pitchBig.setAttribute("y", "66");
+    pitchBig.setAttribute("text-anchor", "middle");
+    pitchBig.setAttribute("fill", pcData.micro ? theme.plum : theme.textMain);
+    pitchBig.setAttribute("font-size", "26");
+    pitchBig.setAttribute("font-weight", "800");
+    pitchBig.textContent = `${pcData.flat}${octNum}`;
+    svg.appendChild(pitchBig);
 
-    drawLedgerLines(svg, inspNoteX, geom.diatonicStep, topLineY, halfStepPx, staffColors.ledgerStroke);
-    drawMicrotonalAccidental(svg, inspNoteX, geom.y, geom.acc, staffColors.inspectorAccent);
+    const arabicLbl = document.createElementNS(SVG_NS, "text");
+    arabicLbl.setAttribute("x", "987");
+    arabicLbl.setAttribute("y", "88");
+    arabicLbl.setAttribute("text-anchor", "middle");
+    arabicLbl.setAttribute("fill", theme.plum);
+    arabicLbl.setAttribute("font-size", "12");
+    arabicLbl.setAttribute("font-weight", "700");
+    arabicLbl.textContent = `${pcData.arabic} • ${isEn ? "Deg" : "Grau"} ${degTxt}`;
+    svg.appendChild(arabicLbl);
 
-    const head = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
-    head.setAttribute("cx", String(inspNoteX));
-    head.setAttribute("cy", String(geom.y));
-    head.setAttribute("rx", "7.2");
-    head.setAttribute("ry", "5");
-    head.setAttribute("transform", `rotate(-18 ${inspNoteX} ${geom.y})`);
-    head.setAttribute("fill", "#0891b2");
-    head.setAttribute("stroke", isLight ? "#164e63" : "#ffffff");
-    head.setAttribute("stroke-width", "1.8");
-    svg.appendChild(head);
-
-    const octaveNum = Math.floor(selectedPitch.absQ / 24) + 2;
-    const infoTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    infoTxt.setAttribute("x", String(inspectorX + 155));
-    infoTxt.setAttribute("y", String(topLineY + 14));
-    infoTxt.setAttribute("text-anchor", "middle");
-    infoTxt.setAttribute("fill", staffColors.noteTextMain);
-    infoTxt.setAttribute("font-size", "12");
-    infoTxt.setAttribute("font-weight", "800");
-    infoTxt.textContent = `${pcData.flat}${octaveNum}`;
-    svg.appendChild(infoTxt);
-
-    const subTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    subTxt.setAttribute("x", String(inspectorX + 155));
-    subTxt.setAttribute("y", String(topLineY + 28));
-    subTxt.setAttribute("text-anchor", "middle");
-    subTxt.setAttribute("fill", staffColors.inspectorSub);
-    subTxt.setAttribute("font-size", "9");
-    subTxt.setAttribute("font-weight", "700");
-    subTxt.textContent = selectedPitch.course
-      ? `${selectedPitch.course}ª (${pcData.arabic})`
-      : pcData.arabic;
-    svg.appendChild(subTxt);
-
-    if (selectedPitch.freq) {
-      const hzTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      hzTxt.setAttribute("x", String(inspectorX + 155));
-      hzTxt.setAttribute("y", String(topLineY + 41));
-      hzTxt.setAttribute("text-anchor", "middle");
-      hzTxt.setAttribute("fill", staffColors.degreeText);
-      hzTxt.setAttribute("font-size", "8.5");
-      hzTxt.textContent = `${selectedPitch.freq.toFixed(1)} Hz`;
-      svg.appendChild(hzTxt);
+    const detailLine = document.createElementNS(SVG_NS, "text");
+    detailLine.setAttribute("x", "987");
+    detailLine.setAttribute("y", "112");
+    detailLine.setAttribute("text-anchor", "middle");
+    detailLine.setAttribute("fill", theme.textMuted);
+    detailLine.setAttribute("font-size", "10.2");
+    detailLine.setAttribute("font-weight", "600");
+    if (selectedPitch.course) {
+      const fTxt = selectedPitch.qFromNut === 0
+        ? (isEn ? "Open" : "Solta")
+        : `${isEn ? "Finger" : "Dedo"} ${selectedPitch.finger ?? ""}`;
+      detailLine.textContent = `${selectedPitch.course}ª ${isEn ? "Course" : "Ordem"} • ${fTxt}`;
+    } else {
+      detailLine.textContent = pcData.micro
+        ? (isEn ? "Quarter-tone (Microtonal 24-TET)" : "Quarto de Tom (Microtonal 24-TET)")
+        : (isEn ? "Fixed pitch (12-TET)" : "Altura Fixa (12-TET)");
     }
+    svg.appendChild(detailLine);
+
+    const hintLine = document.createElementNS(SVG_NS, "text");
+    hintLine.setAttribute("x", "987");
+    hintLine.setAttribute("y", "134");
+    hintLine.setAttribute("text-anchor", "middle");
+    hintLine.setAttribute("fill", theme.gold);
+    hintLine.setAttribute("font-size", "9");
+    hintLine.setAttribute("font-weight", "700");
+    hintLine.textContent = isEn ? "Double-click neck jewel to set Tonic" : "Duplo clique no braço define Tônica";
+    svg.appendChild(hintLine);
   } else {
-    const emptyTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    emptyTxt.setAttribute("x", String(inspectorX + 112));
-    emptyTxt.setAttribute("y", String(topLineY + 25));
-    emptyTxt.setAttribute("text-anchor", "middle");
-    emptyTxt.setAttribute("fill", staffColors.degreeText);
-    emptyTxt.setAttribute("font-size", "9");
-    emptyTxt.textContent = t(state.lang, "staffInspectorEmpty");
-    svg.appendChild(emptyTxt);
+    const empty1 = document.createElementNS(SVG_NS, "text");
+    empty1.setAttribute("x", "987");
+    empty1.setAttribute("y", "72");
+    empty1.setAttribute("text-anchor", "middle");
+    empty1.setAttribute("fill", theme.textMuted);
+    empty1.setAttribute("font-size", "11");
+    empty1.setAttribute("font-weight", "600");
+    empty1.textContent = isEn ? "Click a note on the staff" : "Toque uma nota na pauta";
+    svg.appendChild(empty1);
+
+    const empty2 = document.createElementNS(SVG_NS, "text");
+    empty2.setAttribute("x", "987");
+    empty2.setAttribute("y", "92");
+    empty2.setAttribute("text-anchor", "middle");
+    empty2.setAttribute("fill", theme.textMuted);
+    empty2.setAttribute("font-size", "11");
+    empty2.setAttribute("font-weight", "600");
+    empty2.textContent = isEn ? "or on the Oud fingerboard" : "ou no espelho do Oud";
+    svg.appendChild(empty2);
   }
 }

@@ -68,7 +68,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   pearlRing.setAttribute("cy", String(cy));
   pearlRing.setAttribute("r", String(radius + 3));
   pearlRing.setAttribute("fill", "none");
-  pearlRing.setAttribute("stroke", palette.inlayStripe);
+  pearlRing.setAttribute("stroke", "#e2d9c8");
   pearlRing.setAttribute("stroke-width", "1.2");
   pearlRing.setAttribute("stroke-dasharray", "3,2");
   g.appendChild(pearlRing);
@@ -77,7 +77,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
   hole.setAttribute("cx", String(cx));
   hole.setAttribute("cy", String(cy));
   hole.setAttribute("r", String(radius));
-  hole.setAttribute("fill", "#090604");
+  hole.setAttribute("fill", "#0b0806");
   hole.setAttribute("stroke", palette.rosetteRing);
   hole.setAttribute("stroke-width", "1.4");
   g.appendChild(hole);
@@ -100,8 +100,8 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
 
   const innerStar = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   innerStar.setAttribute("points", createOctagramStarPath(cx, cy, radius * 0.52, radius * 0.28));
-  innerStar.setAttribute("fill", "rgba(212, 175, 55, 0.18)");
-  innerStar.setAttribute("stroke", palette.sadaf);
+  innerStar.setAttribute("fill", "rgba(201, 154, 73, 0.18)");
+  innerStar.setAttribute("stroke", "#e2d9c8");
   innerStar.setAttribute("stroke-width", "1");
   g.appendChild(innerStar);
 
@@ -110,7 +110,7 @@ function renderShamsiyyaRosette(svg, cx, cy, radius, palette, onRosetteClick) {
 
 /**
  * Desenha os Colchetes de Região Anatômica (I · 1ª Pos, II · 2ª Pos, III · Tampo),
- * a linha divisória da Junta do Corpo (10q) e o indicador do Polegar (Ibham) com cápsulas legíveis.
+ * a linha divisória da Junta do Corpo (10q) e o indicador do Polegar (Ibham) com paleta contida.
  */
 function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeStart, edgeEnd, isVert, isLight) {
   if (!state.showPositionsMap) return;
@@ -121,14 +121,15 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
 
   const isEn = state.lang === "en";
   const posBounds = getPositionBounds(state.shapeMode, state.boxAnchorQ);
-  const pillBg = isLight ? "#fffdf8" : "#140c08";
+  const pillBg = isLight ? "#fcfaf6" : "#17120f";
 
+  // Escala cromática contida: Madrepérola/Sépia -> Latão/Ocre -> Ameixa
   const regions = [
     {
       id: "OPEN_FIRST_POS",
       q1: 1,
       q2: 7,
-      color: isLight ? "#0e7490" : "#67e8f9",
+      color: isLight ? "#5c4e3c" : "#e2d9c8",
       labelHoriz: isEn ? "I · 1st Pos (Nut)" : "I · 1ª Pos (Pestana)",
       labelVert: isEn ? "I · 1st Pos" : "I · 1ª Pos"
     },
@@ -136,7 +137,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       id: "POS_SECOND",
       q1: 4,
       q2: 10,
-      color: isLight ? "#9a6515" : "#fbbf24",
+      color: isLight ? "#9a6515" : "#d4a84f",
       labelHoriz: isEn ? "II · 2nd Pos (Mid)" : "II · 2ª Pos (Média)",
       labelVert: isEn ? "II · 2nd Pos" : "II · 2ª Pos"
     },
@@ -144,7 +145,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       id: "POS_THIRD_BODY",
       q1: 9,
       q2: 16,
-      color: isLight ? "#7e22ce" : "#e879f9",
+      color: isLight ? "#6b3f8c" : "#c49be0",
       labelHoriz: isEn ? "III · 3rd Pos (Body)" : "III · 3ª Pos (Tampo)",
       labelVert: isEn ? "III · Body" : "III · Tampo"
     }
@@ -164,13 +165,12 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
     jointLine.setAttribute("x2", String(jointCoord));
     jointLine.setAttribute("y2", String(edgeEnd + 16));
   }
-  jointLine.setAttribute("stroke", isLight ? "#b45309" : "#f59e0b");
-  jointLine.setAttribute("stroke-width", "1.8");
+  jointLine.setAttribute("stroke", isLight ? "#8f5e1c" : "#c99a49");
+  jointLine.setAttribute("stroke-width", "1.6");
   jointLine.setAttribute("stroke-dasharray", "5,3");
-  jointLine.setAttribute("opacity", "0.85");
+  jointLine.setAttribute("opacity", "0.8");
   g.appendChild(jointLine);
 
-  // Desenha os colchetes e cápsulas em faixas dedicadas sem colisão
   regions.forEach((reg, idx) => {
     const isFocusedRegion = state.shapeMode === reg.id;
     const c1 = getPhysicalX(reg.q1, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
@@ -180,7 +180,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
     const midC = (minC + maxC) / 2;
 
     if (isVert) {
-      // Trilhas verticais na margem direita com cápsulas HORIZONTAIS (leitura direta sem girar o celular)
       const railX = idx === 1 ? edgeEnd + 46 : edgeEnd + 34;
       const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
       bracket.setAttribute(
@@ -193,7 +192,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
       bracket.setAttribute("opacity", isFocusedRegion ? "1" : "0.78");
       g.appendChild(bracket);
 
-      // Posições Y livres de cruzamento para cada cápsula
       const pillY = idx === 0
         ? minC + (maxC - minC) * 0.28
         : (idx === 1 ? minC + (maxC - minC) * 0.66 : midC);
@@ -222,7 +220,6 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
         21
       );
     } else {
-      // Modo Horizontal: duas faixas limpas acima do instrumento (Track 1: I & III em y=20; Track 2: II em y=48)
       const railY = idx === 1 ? 52 : 24;
       const bracket = document.createElementNS("http://www.w3.org/2000/svg", "path");
       bracket.setAttribute(
@@ -250,14 +247,13 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
     }
   });
 
-  // Indicador de Apoio do Polegar Esquerdo (Ibham) quando uma posição específica está selecionada
+  // Indicador de Apoio do Polegar Esquerdo (Ibham) em Ameixa
   if (state.shapeMode !== "FULL_NECK") {
     const thumbCoord = getPhysicalX(posBounds.thumbQ, nutCoord, neckLengthPx, isVert ? false : state.leftHanded);
-    const thumbColor = isLight ? "#0e7490" : "#67e8f9";
+    const thumbColor = isLight ? "#6b3f8c" : "#c49be0";
     const thumbText = isEn ? `▲ Thumb (${posBounds.thumbQ}q)` : `▲ Polegar (${posBounds.thumbQ}q)`;
 
     if (isVert) {
-      // Ponteiro triangular na borda esquerda do braço + cápsula de legenda limpa acima das regiões
       const tx = edgeStart - 22;
       const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       poly.setAttribute("points", `${tx - 5},${thumbCoord - 5.5} ${tx + 5},${thumbCoord} ${tx - 5},${thumbCoord + 5.5}`);
@@ -295,7 +291,7 @@ function renderPositionRegionsOverlay(svg, state, nutCoord, neckLengthPx, edgeSt
   svg.appendChild(g);
 }
 
-function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#fde047") {
+function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#e2b963") {
   if (orderedPoints.length < 2) return;
 
   const trailGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -321,9 +317,9 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", `M ${p1.x.toFixed(1)},${p1.y.toFixed(1)} Q ${ctrlX.toFixed(1)},${ctrlY.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke", isCurrentSegment ? "#67e8f9" : baseColor);
+    path.setAttribute("stroke", isCurrentSegment ? "#c49be0" : baseColor);
     path.setAttribute("stroke-width", isCurrentSegment ? "3.2" : "2.2");
-    path.setAttribute("stroke-opacity", isCurrentSegment ? "0.96" : "0.82");
+    path.setAttribute("stroke-opacity", isCurrentSegment ? "0.98" : "0.84");
     path.setAttribute("marker-end", isCurrentSegment ? "url(#sayrArrowActive)" : "url(#sayrArrow)");
     trailGroup.appendChild(path);
   }
@@ -337,8 +333,8 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
     circle.setAttribute("cx", String(badgeX));
     circle.setAttribute("cy", String(badgeY));
     circle.setAttribute("r", isHighlighted ? "9.5" : "7.5");
-    circle.setAttribute("fill", isHighlighted ? "#06b6d4" : "#140c08");
-    circle.setAttribute("stroke", isHighlighted ? "#ffffff" : baseColor);
+    circle.setAttribute("fill", isHighlighted ? "#7e4ca3" : "#17120f");
+    circle.setAttribute("stroke", isHighlighted ? "#f5ebfc" : baseColor);
     circle.setAttribute("stroke-width", "1.4");
     trailGroup.appendChild(circle);
 
@@ -384,7 +380,7 @@ function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedS
     resolvedPathNodes.push({ x: chosen.x, y: chosen.y, absQ: chosen.absQ, stepIdx });
   });
 
-  renderConnectedVectorTrail(svg, resolvedPathNodes, highlightedStepIdx, "#fde047");
+  renderConnectedVectorTrail(svg, resolvedPathNodes, highlightedStepIdx, "#e2b963");
 }
 
 function appendNoteJewel(
@@ -412,16 +408,16 @@ function appendNoteJewel(
   onNeckJewelSelect
 ) {
   let fillGrad = "url(#fixedGem)";
-  let strokeColor = "#bfdbfe";
+  let strokeColor = "#cbd5e1";
   if (isRoot) {
     fillGrad = "url(#rootGem)";
-    strokeColor = "#fde68a";
+    strokeColor = "#f5deb3";
   } else if (isGhammaz) {
     fillGrad = "url(#ghammazGem)";
-    strokeColor = "#fef08a";
+    strokeColor = "#fde68a";
   } else if (isMicroNote) {
     fillGrad = "url(#microGem)";
-    strokeColor = palette.inlayStripe;
+    strokeColor = "#e9d5ff";
   }
 
   const isExactStaffMatch = (selectedPitch !== null && selectedPitch.absQ === absQ) || isPlaybackStepHit;
@@ -468,15 +464,15 @@ function appendNoteJewel(
     }
   });
 
-  // Halo da Nota-Pivô / Uníssono de Ordem (atrás da joia)
+  // Halo da Nota-Pivô / Uníssono de Ordem (Ameixa para uníssono, Latão para mudança de posição)
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const pivotRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     pivotRing.setAttribute("cx", String(nx));
     pivotRing.setAttribute("cy", String(ny));
     pivotRing.setAttribute("r", "16.2");
-    pivotRing.setAttribute("fill", isUnisonBridge ? "rgba(103, 232, 249, 0.14)" : "rgba(251, 191, 36, 0.14)");
-    pivotRing.setAttribute("stroke", isUnisonBridge ? "#67e8f9" : "#fbbf24");
+    pivotRing.setAttribute("fill", isUnisonBridge ? "rgba(196, 155, 224, 0.16)" : "rgba(212, 168, 79, 0.14)");
+    pivotRing.setAttribute("stroke", isUnisonBridge ? "#c49be0" : "#d4a84f");
     pivotRing.setAttribute("stroke-width", "1.6");
     pivotRing.setAttribute("stroke-dasharray", isUnisonBridge ? "4,2" : "2,2");
     group.appendChild(pivotRing);
@@ -487,8 +483,8 @@ function appendNoteJewel(
     halo.setAttribute("cx", String(nx));
     halo.setAttribute("cy", String(ny));
     halo.setAttribute("r", isExactStaffMatch ? "20" : "18");
-    halo.setAttribute("fill", isExactStaffMatch ? "rgba(103, 232, 249, 0.28)" : "rgba(253, 224, 71, 0.14)");
-    halo.setAttribute("stroke", isExactStaffMatch ? "#67e8f9" : "#fde047");
+    halo.setAttribute("fill", isExactStaffMatch ? "rgba(196, 155, 224, 0.28)" : "rgba(212, 168, 79, 0.14)");
+    halo.setAttribute("stroke", isExactStaffMatch ? (isLight ? "#6b3f8c" : "#c49be0") : "#d4a84f");
     halo.setAttribute("stroke-width", isExactStaffMatch ? "2.6" : "1.8");
     if (isOctaveStaffMatch) halo.setAttribute("stroke-dasharray", "3,2");
     group.appendChild(halo);
@@ -500,7 +496,7 @@ function appendNoteJewel(
     openHalo.setAttribute("cy", String(ny));
     openHalo.setAttribute("r", "15.5");
     openHalo.setAttribute("fill", "none");
-    openHalo.setAttribute("stroke", "#fef3c7");
+    openHalo.setAttribute("stroke", "#e2d9c8");
     openHalo.setAttribute("stroke-width", "1.1");
     openHalo.setAttribute("stroke-dasharray", "2,2");
     openHalo.setAttribute("opacity", "0.75");
@@ -533,7 +529,7 @@ function appendNoteJewel(
       innerRing.setAttribute("cy", String(ny));
       innerRing.setAttribute("r", String(radius - 3));
       innerRing.setAttribute("fill", "none");
-      innerRing.setAttribute("stroke", "rgba(255,255,255,0.45)");
+      innerRing.setAttribute("stroke", "rgba(255,255,255,0.42)");
       innerRing.setAttribute("stroke-width", "0.8");
       group.appendChild(innerRing);
     }
@@ -550,7 +546,7 @@ function appendNoteJewel(
   textEl.textContent = displayText;
   group.appendChild(textEl);
 
-  // Microcápsula legível do Pivô/Uníssono no canto superior esquerdo (oposto ao número do Sayr)
+  // Microcápsula legível do Pivô/Uníssono no canto superior esquerdo
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const bx = nx - 14;
@@ -559,11 +555,11 @@ function appendNoteJewel(
     const bh = 13;
 
     const pillBg = isLight
-      ? (isUnisonBridge ? "#ecfeff" : "#fffbeb")
-      : (isUnisonBridge ? "#082f49" : "#271806");
+      ? (isUnisonBridge ? "#f5eefb" : "#fbf5e6")
+      : (isUnisonBridge ? "#24172e" : "#261b0e");
     const pillStroke = isLight
-      ? (isUnisonBridge ? "#0e7490" : "#b45309")
-      : (isUnisonBridge ? "#67e8f9" : "#fbbf24");
+      ? (isUnisonBridge ? "#6b3f8c" : "#9a6515")
+      : (isUnisonBridge ? "#c49be0" : "#d4a84f");
 
     const pRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     pRect.setAttribute("x", String(bx - bw / 2));
@@ -614,15 +610,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const isLight = state.theme === "light";
 
   const extColors = {
-    courseLabel: isLight ? "#2c1d11" : "#fef3c7",
-    semiLabel: isLight ? "#78350f" : "#fde68a",
-    microLabel: isLight ? "#6b21a8" : "#d8b4fe",
-    nutTag: isLight ? "#9a6515" : "#d4af37",
-    inlayFixed: isLight ? "#0e7490" : undefined,
-    inlayMicro: isLight ? "#7e22ce" : "#d8b4fe"
+    courseLabel: isLight ? "#2b1e14" : "#efe6d8",
+    semiLabel: isLight ? "#7a5320" : "#d4a84f",
+    microLabel: isLight ? "#6b3f8c" : "#c49be0",
+    nutTag: isLight ? "#8f5e1c" : "#c99a49",
+    inlayFixed: isLight ? "#5c4e3c" : "#e2d9c8",
+    inlayMicro: isLight ? "#6b3f8c" : "#c49be0"
   };
 
-  // ViewBoxes ampliados e simétricos para abrigar as faixas de Posições sem desalinhar o instrumento
   svg.setAttribute("viewBox", isVert ? "0 0 460 1085" : "0 0 1120 430");
 
   const palette = TRADITION_PALETTES[/** @type {"damascus"|"cairo"|"istanbul"} */ (state.tradition)] || TRADITION_PALETTES.damascus;
@@ -650,30 +645,30 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       <stop offset="100%" stop-color="#0b0908" />
     </linearGradient>
     <radialGradient id="rootGem" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#f87171" />
-      <stop offset="60%" stop-color="#dc2626" />
-      <stop offset="100%" stop-color="#7f1d1d" />
+      <stop offset="0%" stop-color="#ef6b6b" />
+      <stop offset="60%" stop-color="#b92b2b" />
+      <stop offset="100%" stop-color="#6e1616" />
     </radialGradient>
     <radialGradient id="ghammazGem" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#fde047" />
-      <stop offset="60%" stop-color="#d97706" />
-      <stop offset="100%" stop-color="#78350f" />
+      <stop offset="0%" stop-color="#f3c969" />
+      <stop offset="60%" stop-color="#c6831c" />
+      <stop offset="100%" stop-color="#6d4309" />
     </radialGradient>
     <radialGradient id="fixedGem" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#60a5fa" />
-      <stop offset="60%" stop-color="#2563eb" />
-      <stop offset="100%" stop-color="#1e3a8a" />
+      <stop offset="0%" stop-color="#7692b8" />
+      <stop offset="60%" stop-color="#3b5984" />
+      <stop offset="100%" stop-color="#1e3250" />
     </radialGradient>
     <radialGradient id="microGem" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#f0abfc" />
-      <stop offset="55%" stop-color="#9333ea" />
-      <stop offset="100%" stop-color="#4c1d95" />
+      <stop offset="0%" stop-color="#d8b4f8" />
+      <stop offset="55%" stop-color="#8b4db8" />
+      <stop offset="100%" stop-color="#481e6b" />
     </radialGradient>
     <marker id="sayrArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#fde047" />
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#e2b963" />
     </marker>
     <marker id="sayrArrowActive" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#67e8f9" />
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#c49be0" />
     </marker>
   `;
   svg.appendChild(defs);
@@ -700,7 +695,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const posBounds = getPositionBounds(state.shapeMode, state.boxAnchorQ);
 
   // =========================================================================
-  // MODO VERTICAL (460 x 1085) — Com margem direita limpa para cápsulas horizontais
+  // MODO VERTICAL (460 x 1085)
   // =========================================================================
   if (isVert) {
     const nutY = 148;
@@ -741,7 +736,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
 
     const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     pegbox.setAttribute("points", `${leftX - 14},${nutY} ${leftX + 4},34 ${rightX - 4},34 ${rightX + 14},${nutY}`);
-    pegbox.setAttribute("fill", "#1a110b");
+    pegbox.setAttribute("fill", "#1a1310");
     pegbox.setAttribute("stroke", palette.rosetteRing);
     pegbox.setAttribute("stroke-width", "1.5");
     svg.appendChild(pegbox);
@@ -753,8 +748,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     openZoneRect.setAttribute("width", String((rightX - leftX) + 24));
     openZoneRect.setAttribute("height", "34");
     openZoneRect.setAttribute("rx", "6");
-    openZoneRect.setAttribute("fill", "rgba(254, 243, 199, 0.06)");
-    openZoneRect.setAttribute("stroke", "rgba(254, 243, 199, 0.22)");
+    openZoneRect.setAttribute("fill", "rgba(226, 217, 200, 0.06)");
+    openZoneRect.setAttribute("stroke", "rgba(226, 217, 200, 0.24)");
     openZoneRect.setAttribute("stroke-dasharray", "3,3");
     svg.appendChild(openZoneRect);
 
@@ -784,10 +779,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       line.setAttribute("y1", String(nutY));
       line.setAttribute("x2", String(strip.x2));
       line.setAttribute("y2", String(neckEndY));
-      line.setAttribute("stroke", palette.inlayStripe);
-      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke", "#e2d9c8");
+      line.setAttribute("stroke-width", "1.8");
       line.setAttribute("stroke-dasharray", "8,4,2,4");
-      line.setAttribute("opacity", "0.75");
+      line.setAttribute("opacity", "0.65");
       svg.appendChild(line);
     });
 
@@ -801,7 +796,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       boxRect.setAttribute("width", String((rightX - leftX) + 30));
       boxRect.setAttribute("height", String((y2 - y1) + 32));
       boxRect.setAttribute("rx", "8");
-      boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.11)");
+      boxRect.setAttribute("fill", "rgba(201, 154, 73, 0.11)");
       boxRect.setAttribute("stroke", palette.rosetteRing);
       boxRect.setAttribute("stroke-width", "1.8");
       boxRect.setAttribute("stroke-dasharray", "6,4");
@@ -813,7 +808,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     nutLine.setAttribute("y1", String(nutY));
     nutLine.setAttribute("x2", String(rightX + 15));
     nutLine.setAttribute("y2", String(nutY));
-    nutLine.setAttribute("stroke", "#fef3c7");
+    nutLine.setAttribute("stroke", "#f5ebd8");
     nutLine.setAttribute("stroke-width", "9");
     svg.appendChild(nutLine);
 
@@ -847,7 +842,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       gLine.setAttribute("y1", String(gy));
       gLine.setAttribute("x2", String(rightX + 12));
       gLine.setAttribute("y2", String(gy));
-      gLine.setAttribute("stroke", isMicro ? "rgba(192, 132, 252, 0.22)" : "rgba(212, 175, 55, 0.24)");
+      gLine.setAttribute("stroke", isMicro ? "rgba(196, 155, 224, 0.24)" : "rgba(212, 168, 79, 0.24)");
       gLine.setAttribute("stroke-width", isMicro ? "1" : "1.4");
       if (isMicro) gLine.setAttribute("stroke-dasharray", "3,4");
       svg.appendChild(gLine);
@@ -856,7 +851,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         const ix = rightX + 23;
         inlayDiamond.setAttribute("points", `${ix},${gy - 4} ${ix + 4},${gy} ${ix},${gy + 4} ${ix - 4},${gy}`);
-        inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
+        inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : extColors.inlayFixed);
         svg.appendChild(inlayDiamond);
       }
 
@@ -898,7 +893,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         mText.setAttribute("x", String(cx));
         mText.setAttribute("y", String(openRailY + 5));
         mText.setAttribute("text-anchor", "middle");
-        mText.setAttribute("fill", "#f87171");
+        mText.setAttribute("fill", "#ef6b6b");
         mText.setAttribute("font-size", "14");
         mText.setAttribute("font-weight", "800");
         mText.textContent = "✕";
@@ -922,7 +917,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         sLine.setAttribute("y1", String(nutY));
         sLine.setAttribute("x2", String(cx + offsetX));
         sLine.setAttribute("y2", String(soundboardFarY));
-        sLine.setAttribute("stroke", isWoundBass ? "#d97706" : "#e2e8f0");
+        sLine.setAttribute("stroke", isWoundBass ? "#c98b3c" : "#e2e8f0");
         sLine.setAttribute("stroke-width", isWoundBass ? "1.6" : "1.1");
         sLine.setAttribute("opacity", isWoundBass ? "0.85" : "0.72");
         svg.appendChild(sLine);
@@ -1003,7 +998,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
           return pt ? { x: pt.x, y: pt.y, stepIdx: n.stepIndex } : null;
         })
         .filter(Boolean);
-      renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#67e8f9");
+      renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#c49be0");
     } else if (state.mode === "MAQAM" && state.showSayr) {
       const entity = /** @type {any} */ (activeStruct.entity);
       const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
@@ -1015,14 +1010,14 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   }
 
   // =========================================================================
-  // MODO HORIZONTAL (1120 x 430) — Centralizado com faixas dedicadas no topo e base
+  // MODO HORIZONTAL (1120 x 430) — Centralizado (centerY = 220)
   // =========================================================================
   const nutX = state.leftHanded ? 945 : 175;
   const neckEndX = state.leftHanded ? 155 : 965;
   const neckLengthPx = Math.abs(neckEndX - nutX);
   const topY = 106;
   const bottomY = 334;
-  const centerY = (topY + bottomY) / 2; // 220 (centro exato dentro de 430)
+  const centerY = (topY + bottomY) / 2;
 
   const bodyJointX = getPhysicalX(10, nutX, neckLengthPx, state.leftHanded);
   const soundboardFarX = state.leftHanded ? 15 : 1105;
@@ -1048,10 +1043,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     `M ${bodyJointX + dir * 5},${topY - 18} Q ${curveCtrlX + dir * 4},${sbTopY + 6} ${bodyJointX + dir * 160},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbTopY + 6} L ${soundboardFarX - dir * 6},${sbBotY - 6} L ${bodyJointX + dir * 160},${sbBotY - 6} Q ${curveCtrlX + dir * 4},${sbBotY - 6} ${bodyJointX + dir * 5},${bottomY + 18}`
   );
   sbInlay.setAttribute("fill", "none");
-  sbInlay.setAttribute("stroke", palette.sadaf);
+  sbInlay.setAttribute("stroke", "#e2d9c8");
   sbInlay.setAttribute("stroke-width", "1.4");
   sbInlay.setAttribute("stroke-dasharray", "6,3");
-  sbInlay.setAttribute("opacity", "0.75");
+  sbInlay.setAttribute("opacity", "0.7");
   svg.appendChild(sbInlay);
 
   const rosetteCenterX = state.leftHanded ? 75 : 1045;
@@ -1081,7 +1076,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   const pegboxEndX = state.leftHanded ? 1105 : 15;
   const pegbox = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   pegbox.setAttribute("points", `${nutX},${nutTopY} ${pegboxEndX},${topY + 4} ${pegboxEndX},${bottomY - 4} ${nutX},${nutBotY}`);
-  pegbox.setAttribute("fill", "#1a110b");
+  pegbox.setAttribute("fill", "#1a1310");
   pegbox.setAttribute("stroke", palette.rosetteRing);
   pegbox.setAttribute("stroke-width", "1.5");
   svg.appendChild(pegbox);
@@ -1093,8 +1088,8 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   openZoneRect.setAttribute("width", "34");
   openZoneRect.setAttribute("height", String(nutBotY - nutTopY - 4));
   openZoneRect.setAttribute("rx", "6");
-  openZoneRect.setAttribute("fill", "rgba(254, 243, 199, 0.06)");
-  openZoneRect.setAttribute("stroke", "rgba(254, 243, 199, 0.24)");
+  openZoneRect.setAttribute("fill", "rgba(226, 217, 200, 0.06)");
+  openZoneRect.setAttribute("stroke", "rgba(226, 217, 200, 0.24)");
   openZoneRect.setAttribute("stroke-dasharray", "3,3");
   svg.appendChild(openZoneRect);
 
@@ -1124,10 +1119,10 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     line.setAttribute("y1", String(strip.y1));
     line.setAttribute("x2", String(neckEndX));
     line.setAttribute("y2", String(strip.y2));
-    line.setAttribute("stroke", palette.inlayStripe);
-    line.setAttribute("stroke-width", "2.2");
+    line.setAttribute("stroke", "#e2d9c8");
+    line.setAttribute("stroke-width", "1.8");
     line.setAttribute("stroke-dasharray", "8,4,2,4");
-    line.setAttribute("opacity", "0.75");
+    line.setAttribute("opacity", "0.65");
     svg.appendChild(line);
   });
 
@@ -1143,7 +1138,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     boxRect.setAttribute("width", String(rectW));
     boxRect.setAttribute("height", String(bodyBotY - bodyTopY - 10));
     boxRect.setAttribute("rx", "8");
-    boxRect.setAttribute("fill", "rgba(212, 175, 55, 0.11)");
+    boxRect.setAttribute("fill", "rgba(201, 154, 73, 0.11)");
     boxRect.setAttribute("stroke", palette.rosetteRing);
     boxRect.setAttribute("stroke-width", "1.8");
     boxRect.setAttribute("stroke-dasharray", "6,4");
@@ -1155,7 +1150,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
   nutLine.setAttribute("y1", String(nutTopY - 2));
   nutLine.setAttribute("x2", String(nutX));
   nutLine.setAttribute("y2", String(nutBotY + 2));
-  nutLine.setAttribute("stroke", "#fef3c7");
+  nutLine.setAttribute("stroke", "#f5ebd8");
   nutLine.setAttribute("stroke-width", "9");
   svg.appendChild(nutLine);
 
@@ -1189,7 +1184,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
     gLine.setAttribute("y1", String(nutTopY + 6));
     gLine.setAttribute("x2", String(gx));
     gLine.setAttribute("y2", String(nutBotY - 6));
-    gLine.setAttribute("stroke", isMicro ? "rgba(192, 132, 252, 0.22)" : "rgba(212, 175, 55, 0.24)");
+    gLine.setAttribute("stroke", isMicro ? "rgba(196, 155, 224, 0.24)" : "rgba(212, 168, 79, 0.24)");
     gLine.setAttribute("stroke-width", isMicro ? "1" : "1.4");
     if (isMicro) gLine.setAttribute("stroke-dasharray", "3,4");
     svg.appendChild(gLine);
@@ -1198,7 +1193,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       const inlayDiamond = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       const iy = bodyTopY - 5;
       inlayDiamond.setAttribute("points", `${gx},${iy - 4} ${gx + 4},${iy} ${gx},${iy + 4} ${gx - 4},${iy}`);
-      inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : (extColors.inlayFixed || palette.sadaf));
+      inlayDiamond.setAttribute("fill", isMicro ? extColors.inlayMicro : extColors.inlayFixed);
       svg.appendChild(inlayDiamond);
     }
 
@@ -1240,7 +1235,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       mText.setAttribute("x", String(openRailX));
       mText.setAttribute("y", String(cy + 5));
       mText.setAttribute("text-anchor", "middle");
-      mText.setAttribute("fill", "#f87171");
+      mText.setAttribute("fill", "#ef6b6b");
       mText.setAttribute("font-size", "14");
       mText.setAttribute("font-weight", "800");
       mText.textContent = "✕";
@@ -1264,7 +1259,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
       sLine.setAttribute("y1", String(cy + offsetY));
       sLine.setAttribute("x2", String(soundboardFarX));
       sLine.setAttribute("y2", String(cy + offsetY));
-      sLine.setAttribute("stroke", isWoundBass ? "#d97706" : "#e2e8f0");
+      sLine.setAttribute("stroke", isWoundBass ? "#c98b3c" : "#e2e8f0");
       sLine.setAttribute("stroke-width", isWoundBass ? "1.6" : "1.1");
       sLine.setAttribute("opacity", isWoundBass ? "0.85" : "0.72");
       svg.appendChild(sLine);
@@ -1345,7 +1340,7 @@ export function renderOudNeckSVG(state, onRosetteClick, highlightedStep = -1, se
         return pt ? { x: pt.x, y: pt.y, stepIdx: n.stepIndex } : null;
       })
       .filter(Boolean);
-    renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#67e8f9");
+    renderConnectedVectorTrail(svg, /** @type {any} */ (octPoints), highlightedStep, "#c49be0");
   } else if (state.mode === "MAQAM" && state.showSayr) {
     const entity = /** @type {any} */ (activeStruct.entity);
     const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];

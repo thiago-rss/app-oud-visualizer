@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>App Oud Visualizer — v2.7 Interactive 24-TET Staff, Studio & PWA</title>
+  <title>App Oud Visualizer — v2.8 Studio & PWA</title>
   <meta name="description" content="Método interativo 24-TET para Oud: Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at, Radar de Modulação e Luthieria." />
-  <meta name="theme-color" content="#180f0a" />
-    <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#100d0b" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Oud Visualizer" />
@@ -19,264 +18,348 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles/main.css" />
 </head>
-<body data-tradition="damascus" data-orientation="HORIZONTAL">
+<body data-theme="dark" data-tradition="damascus" data-orientation="HORIZONTAL" data-zen="false" data-sidebar="expanded">
 
-  <header class="astrolabe-header khatem-border">
+  <!-- Cabeçalho Enxuto: Identidade, Ação Principal e Utilitários Neutros -->
+  <header class="studio-header">
     <div class="brand">
-      <svg class="brand-rosette" viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="30" fill="#140c08" stroke="#d4af37" stroke-width="2"/>
-        <circle cx="32" cy="32" r="25" fill="none" stroke="#67e8f9" stroke-width="0.8" stroke-dasharray="2,2"/>
-        <g stroke="#d4af37" stroke-width="1.2" fill="rgba(212, 175, 55, 0.14)">
+      <svg class="brand-rosette" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="30" fill="#17120f" stroke="#c99a49" stroke-width="2"/>
+        <circle cx="32" cy="32" r="25" fill="none" stroke="#c49be0" stroke-width="0.9" stroke-dasharray="2.5,2.5"/>
+        <g stroke="#c99a49" stroke-width="1.2" fill="rgba(201, 154, 73, 0.14)">
           <rect x="16" y="16" width="32" height="32" />
           <rect x="16" y="16" width="32" height="32" transform="rotate(45 32 32)" />
         </g>
-        <circle cx="32" cy="32" r="8" fill="none" stroke="#e0f2fe" stroke-width="1.2"/>
-        <circle cx="32" cy="32" r="3" fill="#d4af37"/>
+        <circle cx="32" cy="32" r="8" fill="none" stroke="#e2d9c8" stroke-width="1.2"/>
+        <circle cx="32" cy="32" r="3" fill="#c99a49"/>
       </svg>
       <div class="brand-titles">
         <h1>App Oud Visualizer</h1>
         <div class="brand-subtitle">
           <span data-i18n="appSubtitle">Método Interativo 24-TET, Partitura, Sayr, Iqa'at & Luthieria</span>
-          <span class="badge">v2.7 Studio & PWA</span>
+          <span class="badge">v2.8 Studio & PWA</span>
         </div>
       </div>
     </div>
 
-    <div class="header-console">
-      <div class="tradition-pill">
-        <span class="ornament-icon">🏺</span>
-        <select id="select-tradition">
-          <option value="damascus" data-i18n="traditionDamascus">Damasco (Nogueira & Sadaf)</option>
-          <option value="cairo" data-i18n="traditionCairo">Cairo / Bagdá (Cedro & Raqma)</option>
-          <option value="istanbul" data-i18n="traditionIstanbul">Istambul (Abeto & Ébano)</option>
-        </select>
-        <button type="button" class="term-help-btn" data-term="sadaf_khatem">ⓘ</button>
-      </div>
-
+    <div class="header-actions">
       <div class="action-medallions">
-        <button class="primary" id="btn-play-scale">
-          ▶ Tocar Escala / Maqam
-        </button>
-        <button id="btn-play-taqsim" class="sadaf-btn" data-i18n="btnPlayTaqsim">
-          🎶 Ouvir Taqsim
-        </button>
-        <button id="btn-arp-chord" style="display:none;" data-i18n="btnArp">
-          🎵 Arpejar
-        </button>
-        <button id="btn-drone">
-          🔊 Drone: OFF
-        </button>
-        <button id="btn-orientation" class="sadaf-btn">
-          ⇅ Modo: Horizontal
-        </button>
-        <button id="btn-hand">
-          ⇄ Destro
-        </button>
-        <button id="btn-open-glossary" class="sadaf-btn" data-i18n="btnGlossary">
-          📖 Glossário
-        </button>
-        <button id="btn-lang" class="sadaf-btn" title="Alternar Idioma / Switch Language (PT / EN)">
-          🌐 PT | EN
-        </button>
-        <button id="btn-share" data-i18n="btnShare">
-          🔗 Compartilhar
-        </button>
+        <button class="primary" id="btn-play-scale" type="button">▶ Tocar Escala / Maqam</button>
+        <button id="btn-play-taqsim" class="ghost-btn" type="button" data-i18n="btnPlayTaqsim">🎶 Ouvir Taqsim</button>
+        <button id="btn-arp-chord" class="ghost-btn" type="button" style="display:none;" data-i18n="btnArp">🎵 Arpejar</button>
+        <button id="btn-drone" class="ghost-btn" type="button">🔊 Drone: OFF</button>
+        <span class="header-divider" aria-hidden="true"></span>
+        <button id="btn-zen-mode" class="ghost-btn desktop-only-btn" type="button" title="Atalho: Tecla F">🪷 Imersivo</button>
+        <button id="btn-theme" class="ghost-btn" type="button">☀️ Claro</button>
+        <button id="btn-open-glossary" class="ghost-btn" type="button" data-i18n="btnGlossary">📖 Glossário</button>
+        <button id="btn-lang" class="ghost-btn" type="button" title="Alternar Idioma / Switch Language (PT / EN)">🌐 PT | EN</button>
+        <button id="btn-share" class="ghost-btn" type="button" data-i18n="btnShare">🔗 Compartilhar</button>
       </div>
     </div>
   </header>
 
-  <section class="diwan-console-3col">
-    <div class="mihrab-card khatem-border">
-      <div class="card-arch-header">
-        <span class="arch-ornament">۞</span>
-        <h3 data-i18n="card1Title">Mizan — Afinação & Qarar</h3>
+  <!-- Barra Única de Comando + Popovers Flutuantes (Desktop) / Bottom Sheets (Mobile) -->
+  <section class="command-bar-shell" aria-label="Controles do Instrumento">
+    <nav class="unified-command-bar">
+      <button type="button" class="cmd-trigger" data-panel="0" aria-expanded="false">
+        <span class="cmd-trigger-text">
+          <span class="cmd-kicker">🪕 <span data-i18n="cmdKickerMizan">Afinação & Qarar</span></span>
+          <span class="cmd-val" id="cmd-val-0">Síria • C</span>
+        </span>
+        <span class="cmd-chevron" aria-hidden="true">▾</span>
+      </button>
+
+      <button type="button" class="cmd-trigger" data-panel="1" aria-expanded="false">
+        <span class="cmd-trigger-text">
+          <span class="cmd-kicker">☪ <span data-i18n="cmdKickerMode">Modalidade</span></span>
+          <span class="cmd-val" id="cmd-val-1">Maqam Rast (C)</span>
+        </span>
+        <span class="cmd-chevron" aria-hidden="true">▾</span>
+      </button>
+
+      <button type="button" class="cmd-trigger" data-panel="2" aria-expanded="false">
+        <span class="cmd-trigger-text">
+          <span class="cmd-kicker">🖐 <span data-i18n="cmdKickerNeck">Espelho & Guias</span></span>
+          <span class="cmd-val" id="cmd-val-2">Completo • Cifra</span>
+        </span>
+        <span class="cmd-chevron" aria-hidden="true">▾</span>
+      </button>
+
+      <button type="button" class="cmd-trigger" data-panel="3" aria-expanded="false">
+        <span class="cmd-trigger-text">
+          <span class="cmd-kicker">🥁 <span data-i18n="cmdKickerIqa">Ritmo (Iqa')</span></span>
+          <span class="cmd-val" id="cmd-val-3">Maqsum • 96 BPM</span>
+        </span>
+        <span class="cmd-chevron" aria-hidden="true">▾</span>
+      </button>
+    </nav>
+
+    <div id="popover-backdrop" class="popover-backdrop"></div>
+
+    <!-- Popover 0: Mizan (Afinação & Qarar) -->
+    <div class="cmd-popover popover-align-0" id="panel-0" data-panel-id="0" role="dialog" aria-hidden="true">
+      <div class="popover-header">
+        <div class="popover-title-wrap">
+          <span class="arch-ornament">۞</span>
+          <h3 data-i18n="card1Title">Mizan — Afinação & Qarar</h3>
+        </div>
+        <button type="button" class="popover-close-btn" aria-label="Fechar">✕</button>
       </div>
-      <div class="mihrab-body">
+      <div class="popover-body">
         <div class="field-block">
           <label for="select-tuning">
             <span><span data-i18n="lblCourses">Ordens do Oud (6ª → 1ª)</span> <button type="button" class="term-help-btn" data-term="anf_bajak">ⓘ</button></span>
           </label>
-          <div class="select-ornament-wrap">
-            <select id="select-tuning"></select>
-          </div>
+          <select id="select-tuning"></select>
         </div>
         <div class="field-block">
           <label for="select-root">
             <span><span data-i18n="lblQarar">Qarar (Tônica)</span> <button type="button" class="term-help-btn" data-term="qarar">ⓘ</button></span>
-            <a href="#" id="btn-trad-root" class="sadaf-link" data-i18n="btnTradRoot">↺ Tradicional</a>
+            <a href="#" id="btn-trad-root" class="subtle-link" data-i18n="btnTradRoot">↺ Tradicional</a>
           </label>
-          <div class="select-ornament-wrap root-highlight">
-            <select id="select-root"></select>
-          </div>
+          <select id="select-root"></select>
         </div>
+      </div>
+      <div class="popover-mobile-footer">
+        <button type="button" class="primary btn-close-popover">✓ Concluir</button>
       </div>
     </div>
 
-    <div class="sanctuary-card khatem-border">
-      <div class="card-arch-header">
-        <span class="arch-ornament">☪</span>
-        <h3>
-          <span data-i18n="card2Title">Dairat al-Maqam — Modalidade, Sayr & Qafla</span>
-          <button type="button" class="term-help-btn" data-term="maqam">ⓘ</button>
-        </h3>
+    <!-- Popover 1: Dairat al-Maqam (Modalidade, Sayr & Ajnas) -->
+    <div class="cmd-popover cmd-popover-wide popover-align-1" id="panel-1" data-panel-id="1" role="dialog" aria-hidden="true">
+      <div class="popover-header">
+        <div class="popover-title-wrap">
+          <span class="arch-ornament">☪</span>
+          <h3>
+            <span data-i18n="card2Title">Dairat al-Maqam — Modalidade, Sayr & Qafla</span>
+            <button type="button" class="term-help-btn" data-term="maqam">ⓘ</button>
+          </h3>
+        </div>
+        <button type="button" class="popover-close-btn" aria-label="Fechar">✕</button>
       </div>
+      <div class="popover-body">
+        <div class="dome-tabs">
+          <button type="button" class="tab-btn active" data-mode="MAQAM"><span data-i18n="tabMaqamat">Maqamat</span></button>
+          <button type="button" class="tab-btn" data-mode="JINS"><span data-i18n="tabAjnas">Ajnas</span></button>
+          <button type="button" class="tab-btn" data-mode="SCALE"><span data-i18n="tabModes">Modos</span></button>
+          <button type="button" class="tab-btn" data-mode="CHORD"><span data-i18n="tabChords">Acordes</span></button>
+          <button type="button" class="tab-btn" data-mode="CADENCE"><span data-i18n="tabCadences">Cadências</span></button>
+        </div>
 
-      <div class="dome-tabs">
-        <button class="tab-btn active" data-mode="MAQAM"><span class="tab-icon">◈</span> <span data-i18n="tabMaqamat">Maqamat</span></button>
-        <button class="tab-btn" data-mode="JINS"><span class="tab-icon">◇</span> <span data-i18n="tabAjnas">Ajnas</span></button>
-        <button class="tab-btn" data-mode="SCALE"><span class="tab-icon">△</span> <span data-i18n="tabModes">Modos</span></button>
-        <button class="tab-btn" data-mode="CHORD"><span class="tab-icon">❖</span> <span data-i18n="tabChords">Acordes</span></button>
-        <button class="tab-btn" data-mode="CADENCE"><span class="tab-icon">☪</span> <span data-i18n="tabCadences">Cadências</span></button>
-      </div>
-
-      <div class="sanctuary-controls-row">
-        <div class="entity-selector-box">
-          <div class="select-ornament-wrap main-entity-select">
+        <div class="popover-row">
+          <div class="entity-selector-box">
             <select id="select-entity"></select>
           </div>
+
+          <div id="maqam-subcontrols" class="segmented-pills">
+            <button type="button" id="btn-dir-asc" class="selected" data-i18n="btnAsc">↑ Subida</button>
+            <button type="button" id="btn-dir-desc" data-i18n="btnDesc">↓ Descida</button>
+            <button type="button" id="btn-toggle-sayr" class="selected" data-i18n="btnSayr">✨ Sayr</button>
+            <button type="button" class="term-help-btn" data-term="sayr">ⓘ</button>
+          </div>
+
+          <div id="chord-subcontrols" class="segmented-pills" style="display:none;">
+            <button type="button" id="btn-chord-voicing" class="selected" data-i18n="btnVoicing">1 Nota/Ordem</button>
+            <button type="button" id="btn-chord-all" data-i18n="btnArpeggioAll">Arpejo Completo</button>
+          </div>
         </div>
 
-        <div id="maqam-subcontrols" class="brass-pills">
-          <button id="btn-dir-asc" class="selected" data-i18n="btnAsc">↑ Subida</button>
-          <button id="btn-dir-desc" data-i18n="btnDesc">↓ Descida</button>
-          <button id="btn-toggle-sayr" class="selected" data-i18n="btnSayr">✨ Sayr</button>
-          <button type="button" class="term-help-btn" data-term="sayr">ⓘ</button>
+        <div id="sayr-phrase-bar" class="popover-ribbon">
+          <span class="ribbon-label">
+            <span data-i18n="lblTaqsimPhrase">Frase Taqsim</span> <button type="button" class="term-help-btn" data-term="taqsim">ⓘ</button>:
+          </span>
+          <div class="segmented-pills" id="sayr-phrases-pills">
+            <button type="button" class="sayr-phrase-btn selected" data-phrase="0" data-i18n="phrase1">1. Istihlal</button>
+            <button type="button" class="sayr-phrase-btn" data-phrase="1" data-i18n="phrase2">2. Ghammaz</button>
+            <button type="button" class="sayr-phrase-btn" data-phrase="2" data-i18n="phrase3">3. Qafla</button>
+          </div>
         </div>
 
-        <div id="chord-subcontrols" class="brass-pills" style="display:none;">
-          <button id="btn-chord-voicing" class="selected" data-i18n="btnVoicing">1 Nota/Ordem</button>
-          <button id="btn-chord-all" data-i18n="btnArpeggioAll">Arpejo Completo</button>
+        <div id="jins-filter-group" class="popover-ribbon">
+          <span class="ribbon-label">
+            <span data-i18n="lblTetrachords">Tetracordes (Ajnas)</span> <button type="button" class="term-help-btn" data-term="jins">ⓘ</button>:
+          </span>
+          <div class="segmented-pills">
+            <button type="button" class="jins-filter selected" data-filter="ALL" data-i18n="filterAll">Completo</button>
+            <button type="button" class="jins-filter" data-filter="LOWER" data-i18n="filterLower">1º Jins</button>
+            <button type="button" class="jins-filter" data-filter="UPPER" data-i18n="filterUpper">2º Jins</button>
+          </div>
         </div>
       </div>
-
-      <div id="sayr-phrase-bar" class="jins-ribbon">
-        <span class="ribbon-label">
-          <span data-i18n="lblTaqsimPhrase">Frase Taqsim</span> <button type="button" class="term-help-btn" data-term="taqsim">ⓘ</button>:
-        </span>
-        <div class="brass-pills" id="sayr-phrases-pills">
-          <button class="sayr-phrase-btn selected" data-phrase="0" data-i18n="phrase1">1. Istihlal</button>
-          <button class="sayr-phrase-btn" data-phrase="1" data-i18n="phrase2">2. Ghammaz</button>
-          <button class="sayr-phrase-btn" data-phrase="2" data-i18n="phrase3">3. Qafla</button>
-        </div>
-      </div>
-
-      <div id="jins-filter-group" class="jins-ribbon">
-        <span class="ribbon-label">
-          <span data-i18n="lblTetrachords">Tetracordes (Ajnas)</span> <button type="button" class="term-help-btn" data-term="jins">ⓘ</button>:
-        </span>
-        <div class="brass-pills">
-          <button class="jins-filter selected" data-filter="ALL" data-i18n="filterAll">Completo</button>
-          <button class="jins-filter" data-filter="LOWER" data-i18n="filterLower">1º Jins</button>
-          <button class="jins-filter" data-filter="UPPER" data-i18n="filterUpper">2º Jins</button>
-        </div>
+      <div class="popover-mobile-footer">
+        <button type="button" class="primary btn-close-popover">✓ Concluir</button>
       </div>
     </div>
 
-    <div class="iqa-card khatem-border">
-      <div class="card-arch-header">
-        <span class="arch-ornament">🥁</span>
-        <h3>
-          <span data-i18n="card3Title">Mizan al-Iqa' — Ritmos</span>
-          <button type="button" class="term-help-btn" data-term="iqa">ⓘ</button>
-        </h3>
+    <!-- Popover 2: Espelho, Posições, Guias & Luthieria -->
+    <div class="cmd-popover cmd-popover-wide popover-align-2" id="panel-2" data-panel-id="2" role="dialog" aria-hidden="true">
+      <div class="popover-header">
+        <div class="popover-title-wrap">
+          <span class="arch-ornament">🖐</span>
+          <h3 data-i18n="popoverNeckTitle">Espelho, Posições & Visualização</h3>
+        </div>
+        <button type="button" class="popover-close-btn" aria-label="Fechar">✕</button>
       </div>
+      <div class="popover-body">
+        <div class="popover-grid-2col">
+          <div class="field-block">
+            <label for="select-shape" data-i18n="lblMechMap">Mapeamento Mecânico (Posição)</label>
+            <select id="select-shape">
+              <option value="FULL_NECK" data-i18n="shapeFull">Espelho Completo (0q a 16q)</option>
+              <option value="OPEN_FIRST_POS" data-i18n="shapeOpen">I • 1ª Posição Clássica (0q a 8q)</option>
+              <option value="POS_SECOND" data-i18n="shapePos2">II • 2ª Posição Média (4q a 10q)</option>
+              <option value="POS_THIRD_BODY" data-i18n="shapePos3">III • 3ª Posição / Tampo (8q a 16q)</option>
+              <option value="CLOSED_BOX" data-i18n="shapeClosed">Shape Móvel Customizado (Sem Soltas)</option>
+            </select>
+          </div>
 
-      <div class="mihrab-body">
+          <div class="field-block">
+            <label for="select-label">
+              <span><span data-i18n="lblInscription">Inscrição nas Joias</span> <button type="button" class="term-help-btn" data-term="arabic_degrees">ⓘ</button></span>
+            </label>
+            <select id="select-label">
+              <option value="NOTE_NAME" data-i18n="labelNoteName">Cifra (C, Eb-, F#)</option>
+              <option value="DEGREE" data-i18n="labelDegree">Grau (1, 3-, 5, b7)</option>
+              <option value="FINGER" data-i18n="labelFinger">Dedos (0, 1, 2, 3, 4)</option>
+              <option value="ARABIC" data-i18n="labelArabic">Nome Árabe (Rast...)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="box-slider-group" class="field-block slider-field" style="display:none;">
+          <label for="slider-box">
+            <span data-i18n="lblFinger1">Âncora do Dedo 1:</span>
+            <strong id="label-box-pos" class="accent-val">S1 (q=2)</strong>
+          </label>
+          <input type="range" id="slider-box" min="1" max="10" step="1" value="2" />
+        </div>
+
+        <div class="field-block">
+          <label for="select-tradition">
+            <span>🏺 <span data-i18n="lblTradition">Escola de Luthieria</span> <button type="button" class="term-help-btn" data-term="sadaf_khatem">ⓘ</button></span>
+          </label>
+          <select id="select-tradition">
+            <option value="damascus" data-i18n="traditionDamascus">Damasco (Nogueira & Madrepérola)</option>
+            <option value="cairo" data-i18n="traditionCairo">Cairo / Bagdá (Cedro & Raqma)</option>
+            <option value="istanbul" data-i18n="traditionIstanbul">Istambul (Abeto & Ébano)</option>
+          </select>
+        </div>
+
+        <div class="popover-section-label" data-i18n="lblVisualLayers">Camadas & Ergonomia</div>
+        <div class="segmented-pills wrap-pills">
+          <button type="button" id="btn-toggle-staff" class="selected" data-i18n="btnToggleStaff">🎼 Partitura 24-TET</button>
+          <button type="button" id="btn-pos-map" class="selected" data-i18n="btnPosMap">📐 Regiões & Pivôs</button>
+          <button type="button" id="btn-guide-semi" class="selected" data-i18n="btnGuide12">Guias 12-TET</button>
+          <button type="button" id="btn-guide-micro" class="selected" data-i18n="btnGuide24">Guias 1/4 Tom</button>
+          <button type="button" id="btn-ghost-notes" class="selected" data-i18n="btnGhost">Ghost Notes</button>
+          <button type="button" id="btn-orientation" class="desktop-only-btn">⇅ Modo: Horizontal</button>
+          <button type="button" id="btn-hand">⇄ Destro</button>
+          <button type="button" id="btn-toggle-sidebar">◧ Ocultar Teoria</button>
+        </div>
+      </div>
+      <div class="popover-mobile-footer">
+        <button type="button" class="primary btn-close-popover">✓ Concluir</button>
+      </div>
+    </div>
+
+    <!-- Popover 3: Mizan al-Iqa' (Motor Rítmico) -->
+    <div class="cmd-popover popover-align-3" id="panel-3" data-panel-id="3" role="dialog" aria-hidden="true">
+      <div class="popover-header">
+        <div class="popover-title-wrap">
+          <span class="arch-ornament">🥁</span>
+          <h3>
+            <span data-i18n="card3Title">Mizan al-Iqa' — Ritmos</span>
+            <button type="button" class="term-help-btn" data-term="iqa">ⓘ</button>
+          </h3>
+        </div>
+        <button type="button" class="popover-close-btn" aria-label="Fechar">✕</button>
+      </div>
+      <div class="popover-body">
         <div class="field-block">
           <label for="select-iqa">
-            <span data-i18n="lblRhythmCycle">Ciclo Rítmico (Darbuka & Riq):</span>
+            <span data-i18n="lblRhythmCycle">Ciclo Rítmico (Darbuka & Riq)</span>
             <button type="button" class="term-help-btn" data-term="dum_tak">ⓘ Dum/Tak</button>
           </label>
-          <div class="select-ornament-wrap">
-            <select id="select-iqa"></select>
-          </div>
+          <select id="select-iqa"></select>
         </div>
 
         <div class="iqa-transport-row">
-          <button id="btn-toggle-iqa" class="sadaf-btn" style="flex:1; justify-content:center;">
-            ▶ Iniciar Iqa'
-          </button>
+          <button type="button" id="btn-toggle-iqa" class="plum-btn" style="flex:1; justify-content:center;">▶ Iniciar Iqa'</button>
           <div class="bpm-box">
-            <span style="font-size:0.72rem; color:var(--text-muted);">BPM: <strong id="label-bpm" style="color:var(--accent);">96</strong></span>
+            <span class="bpm-readout">BPM: <strong id="label-bpm" class="accent-val">96</strong></span>
             <input type="range" id="slider-bpm" min="50" max="175" step="1" value="96" />
           </div>
         </div>
 
         <div class="iqa-beat-grid" id="iqa-beat-grid"></div>
       </div>
+      <div class="popover-mobile-footer">
+        <button type="button" class="primary btn-close-popover">✓ Concluir</button>
+      </div>
     </div>
   </section>
 
-  <section class="cadence-bar khatem-border" id="cadence-bar">
+  <!-- HUD Flutuante do Modo Imersivo (Zen Stage) -->
+  <section id="zen-floating-hud" class="zen-floating-hud">
+    <div class="zen-telemetry-group">
+      <span aria-hidden="true">🪷</span>
+      <span id="zen-badge-entity" class="zen-telemetry-badge">Maqam Rast (C)</span>
+      <span id="zen-badge-tuning" class="zen-telemetry-badge zen-plum-badge">Síria C–c</span>
+      <span id="zen-badge-iqa" class="zen-telemetry-badge">Maqsum • 96 BPM</span>
+    </div>
+    <div class="segmented-pills">
+      <button type="button" id="btn-zen-play" class="primary">▶ Tocar</button>
+      <button type="button" id="btn-zen-taqsim">🎶 Taqsim</button>
+      <button type="button" id="btn-zen-drone">🔊 Drone</button>
+      <button type="button" id="btn-zen-iqa">🥁 Iqa'</button>
+      <button type="button" id="btn-zen-theme">☀️/🌙</button>
+      <button type="button" id="btn-zen-exit" class="danger-ghost">✕ Sair Imersivo (Esc)</button>
+    </div>
+  </section>
+
+  <!-- Barra de Cadência Modal (exibida apenas no modo Cadências / Qafla) -->
+  <section class="cadence-bar" id="cadence-bar">
     <div class="cadence-header">
       <div class="cadence-header-title">
-        <span>☪ <span data-i18n="cadenceBarTitle">Sequenciador de Cadência Modal (Qafla)</span> <button type="button" class="term-help-btn" data-term="qafla">ⓘ</button>:</span>
+        <span>☪ <span data-i18n="cadenceBarTitle">Sequenciador de Cadência Modal (Qafla)</span> <button type="button" class="term-help-btn" data-term="qafla">ⓘ</button></span>
         <span class="cadence-hint" data-i18n="cadenceBarHint">Toque nos arcos abaixo para inspecionar cada acorde no espelho</span>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button id="btn-strum-step" style="padding:5px 10px; font-size:0.78rem;" data-i18n="btnStrumStep">🔊 Rasguear Passo Atual</button>
-        <button class="primary" id="btn-play-cadence-seq" style="padding:5px 12px; font-size:0.78rem;" data-i18n="btnPlayFullQafla">▶ Executar Qafla Completa</button>
+      <div class="cadence-actions">
+        <button type="button" id="btn-strum-step" class="ghost-btn" data-i18n="btnStrumStep">🔊 Rasguear Passo Atual</button>
+        <button type="button" class="primary" id="btn-play-cadence-seq" data-i18n="btnPlayFullQafla">▶ Executar Qafla Completa</button>
       </div>
     </div>
     <div class="cadence-steps" id="cadence-steps-container"></div>
   </section>
 
+  <!-- Palco Principal: Espelho + Pauta 24-TET + Painel Lateral Teórico -->
   <main class="studio-stage">
-    <section class="neck-showcase khatem-border">
-      <div class="inlay-dock-top">
-        <div class="dock-cluster">
-          <span class="dock-title" data-i18n="lblMechMap">🖐 Mapeamento Mecânico:</span>
-          <select id="select-shape" class="compact-select">
-            <option value="FULL_NECK" data-i18n="shapeFull">Espelho Completo (0q a 16q)</option>
-            <option value="OPEN_FIRST_POS" data-i18n="shapeOpen">1ª Posição Clássica (Cordas Soltas)</option>
-            <option value="CLOSED_BOX" data-i18n="shapeClosed">Shape Móvel Fechado (Sem Soltas)</option>
-          </select>
+    <section class="neck-showcase">
+      <!-- Barra Contextual Rápida (Mobile pauta + Definir Tônica quando uma nota é selecionada) -->
+      <div id="stage-selection-ribbon" class="stage-selection-ribbon">
+        <div class="ribbon-left">
+          <button type="button" id="btn-inline-toggle-staff" class="ghost-btn compact-btn">🎼 Ocultar Pauta</button>
+          <span id="selection-ribbon-status" class="selection-ribbon-status"></span>
         </div>
-
-        <div id="box-slider-group" class="dock-cluster slider-cluster" style="display:none;">
-          <span class="dock-title"><span data-i18n="lblFinger1">Dedo 1:</span> <strong id="label-box-pos" style="color:var(--accent);">S1 (q=2)</strong></span>
-          <input type="range" id="slider-box" min="1" max="10" step="1" value="2" />
-        </div>
-
-        <div class="dock-cluster">
-          <span class="dock-title">
-            <span data-i18n="lblInscription">🔤 Inscrição</span> <button type="button" class="term-help-btn" data-term="arabic_degrees">ⓘ</button>:
-          </span>
-          <select id="select-label" class="compact-select">
-            <option value="NOTE_NAME" data-i18n="labelNoteName">Cifra (C, Eb-, F#)</option>
-            <option value="DEGREE" data-i18n="labelDegree">Grau (1, 3-, 5, b7)</option>
-            <option value="FINGER" data-i18n="labelFinger">Dedos (0, 1, 2, 3, 4)</option>
-            <option value="ARABIC" data-i18n="labelArabic">Nome Árabe (Rast...)</option>
-          </select>
-        </div>
-
-        <div class="dock-cluster brass-pills compact-pills">
-          <button id="btn-toggle-staff" class="selected" data-i18n="btnToggleStaff">🎼 Partitura 24-TET</button>
-          <button id="btn-guide-semi" class="selected" data-i18n="btnGuide12">Guias 12-TET</button>
-          <button id="btn-guide-micro" class="selected" data-i18n="btnGuide24">Guias 1/4 Tom</button>
-          <button id="btn-ghost-notes" class="selected" data-i18n="btnGhost">Ghost Notes</button>
+        <div class="ribbon-right">
+          <button type="button" id="btn-dock-set-tonic" class="primary compact-btn" style="display:none;">🎯 Definir Tônica</button>
+          <button type="button" id="btn-dock-clear-note" class="ghost-btn compact-btn" style="display:none;">✕</button>
         </div>
       </div>
 
+      <!-- Pauta Interativa 24-TET -->
       <div id="staff-stage-box" class="staff-stage-box">
         <div class="staff-toolbar">
           <div class="staff-title-group">
-            <strong style="color:var(--accent); font-size:0.82rem;" data-i18n="staffHeaderTitle">
-              🎼 Pauta Interativa 24-TET (Clave de Sol 8vb — Padrão Oud)
-            </strong>
-            <span class="staff-subhint" data-i18n="staffHint">
-              Clique em uma nota na pauta para localizar todas as digitações no espelho, ou clique no espelho para inspecionar na pauta
-            </span>
+            <strong class="staff-title" data-i18n="staffHeaderTitle">🎼 Pauta Interativa 24-TET (Clave de Sol 8vb — Padrão Oud)</strong>
+            <span class="staff-subhint" data-i18n="staffHint">Clique em uma nota na pauta ou no espelho para inspecionar • Duplo clique define Tônica</span>
           </div>
-          <div class="brass-pills compact-pills">
-            <button id="btn-staff-mode-scale" class="selected" data-i18n="btnStaffScale">Exibir: Escala / Voicing</button>
-            <button id="btn-staff-mode-sayr" data-i18n="btnStaffSayr">Exibir: Frase Taqsim (Sayr)</button>
-            <button id="btn-set-root-from-selection" class="primary" style="display:none;" title="Transpor Maqam, Jins, Escala ou Acorde atual para esta nota">
-              🎯 Definir Tônica
-            </button>
-            <button id="btn-clear-staff-filter" style="display:none; border-color:#67e8f9; color:#67e8f9;" data-i18n="btnClearStaffFilter">
-              ✕ Limpar Filtro de Nota
-            </button>
+          <div class="segmented-pills">
+            <button type="button" id="btn-staff-mode-scale" class="selected" data-i18n="btnStaffScale">Escala / Voicing</button>
+            <button type="button" id="btn-staff-mode-sayr" data-i18n="btnStaffSayr">Frase Taqsim (Sayr)</button>
+            <button type="button" id="btn-set-root-from-selection" class="primary" style="display:none;">🎯 Definir Tônica</button>
+            <button type="button" id="btn-clear-staff-filter" class="plum-btn" style="display:none;" data-i18n="btnClearStaffFilter">✕ Limpar Filtro</button>
+            <button type="button" id="btn-hide-staff-inline">— Ocultar Pauta</button>
           </div>
         </div>
         <div class="staff-svg-wrap">
@@ -284,73 +367,107 @@
         </div>
       </div>
 
-      <div class="svg-stage-container">
-        <svg id="oud-neck" viewBox="0 0 1120 365"></svg>
+      <!-- Barra de Caminho de 1 Oitava Ancorado (visível ao definir tônica em uma nota física) -->
+      <div id="octave-path-bar" class="octave-path-bar" style="display:none;">
+        <div class="octave-bar-group">
+          <strong id="octave-bar-label" class="octave-bar-title">📍 Caminho da Tônica</strong>
+          <div class="segmented-pills">
+            <button type="button" id="btn-oct-mode-all">🌐 Todas as Oitavas</button>
+            <button type="button" id="btn-oct-mode-single" class="selected">🎯 Caminho 1 Oitava</button>
+          </div>
+        </div>
+        <div class="octave-bar-group">
+          <div class="segmented-pills">
+            <button type="button" id="btn-oct-dir-asc" class="selected">↑ Ascendente (+8ª)</button>
+            <button type="button" id="btn-oct-dir-desc">↓ Descendente (-8ª)</button>
+          </div>
+          <button type="button" id="btn-play-octave-path" class="plum-btn compact-btn">▶ Ouvir Caminho</button>
+          <button type="button" id="btn-close-octave-bar" class="ghost-btn compact-btn">✕</button>
+        </div>
       </div>
 
+      <!-- Espelho do Oud (SVG) -->
+      <div class="svg-stage-container">
+        <svg id="oud-neck" viewBox="0 0 1120 430"></svg>
+      </div>
+
+      <!-- Legenda Contida -->
       <div class="inlay-dock-bottom">
         <div class="legend">
-          <span class="legend-item"><span class="dot" style="background:var(--root-color); border:2px solid #fde68a;"></span> <span data-i18n="legRoot">Qarar / Tônica (1)</span></span>
+          <span class="legend-item"><span class="dot dot-root"></span> <span data-i18n="legRoot">Qarar / Tônica (1)</span></span>
           <span class="legend-item">
-            <span class="dot" style="background:var(--ghammaz-color); border:1.5px solid #fef08a;"></span> <span data-i18n="legGhammaz">Ghammaz</span>
+            <span class="dot dot-ghammaz"></span> <span data-i18n="legGhammaz">Ghammaz</span>
             <button type="button" class="term-help-btn" data-term="ghammaz">ⓘ</button>
           </span>
-          <span class="legend-item"><span class="dot" style="background:var(--fixed-color); border:1.5px solid #bfdbfe;"></span> <span data-i18n="legFixed">Nota Fixa (12-TET)</span></span>
+          <span class="legend-item"><span class="dot dot-fixed"></span> <span data-i18n="legFixed">Nota Fixa (12-TET)</span></span>
           <span class="legend-item">
-            <span class="star-icon">۞</span> <span data-i18n="legMicro">1/4 Tom (Sadaf)</span>
+            <span class="star-icon">۞</span> <span data-i18n="legMicro">1/4 Tom</span>
             <button type="button" class="term-help-btn" data-term="sikah_interval">ⓘ</button>
           </span>
-          <span class="legend-item"><span style="color:#fde047; font-weight:700;" data-i18n="legSayr">➔ ①②③ Trajeto Melódico (Sayr)</span></span>
+          <span class="legend-item"><span class="legend-sayr" data-i18n="legSayr">➔ ①②③ Trajeto (Sayr)</span></span>
+          <span class="legend-item" id="legend-pivot-item"><span class="legend-pivot">⇄</span> <span data-i18n="legPivot">Nota-Pivô / Uníssono</span></span>
         </div>
         <span class="touch-hint">
-          <span data-i18n="touchHintPrefix">✨ Toque nas joias ou na roseta (Shamsiyya</span> <button type="button" class="term-help-btn" data-term="shamsiyya">ⓘ</button><span data-i18n="touchHintSuffix">) para ouvir • Duplo clique define Tônica</span>
+          <span data-i18n="touchHintPrefix">Toque nas joias ou na roseta (Shamsiyya</span> <button type="button" class="term-help-btn" data-term="shamsiyya">ⓘ</button><span data-i18n="touchHintSuffix">) • Duplo clique define Tônica</span>
         </span>
       </div>
     </section>
 
+    <!-- Painel Lateral de Teoria & Modulação -->
     <aside class="info-panel">
-      <div class="info-card khatem-border">
-        <div class="ornamental-corner">❖</div>
+      <div class="info-card">
         <h2 id="info-title">Maqam Rast</h2>
         <p id="info-desc" class="info-description"></p>
         <div class="info-meta" id="info-pills"></div>
-        <div id="sayr-detail-box" class="bridge-box" style="display:none; background:rgba(103,232,249,0.06); border-left-color:var(--sadaf-cyan);"></div>
+        <div id="sayr-detail-box" class="bridge-box sayr-highlight-box" style="display:none;"></div>
         <div id="bridge-container"></div>
       </div>
 
-      <div class="info-card khatem-border">
-        <div class="ornamental-corner">۞</div>
-        <h2 style="font-size:1.15rem;" data-i18n="symmetryCardTitle">🧭 Radar de Modulação & Ajnas (Intiqal)</h2>
+      <div class="info-card">
+        <h2 class="info-subhead" data-i18n="symmetryCardTitle">🧭 Radar de Modulação & Ajnas (Intiqal)</h2>
         <p id="tuning-desc" class="tuning-description"></p>
         <div id="tuning-intervals-list" class="intervals-stack"></div>
       </div>
     </aside>
   </main>
 
+  <!-- Gaveta do Glossário (Al-Mu'jam al-Musiqi) -->
   <div id="glossary-backdrop" class="glossary-backdrop"></div>
-  <aside id="glossary-drawer" class="glossary-drawer khatem-border" aria-hidden="true">
+  <aside id="glossary-drawer" class="glossary-drawer" aria-hidden="true">
     <div class="glossary-header">
       <div>
-        <span style="color:var(--sadaf-cyan); font-size:0.75rem; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Al-Mu'jam al-Musiqi</span>
+        <span class="glossary-kicker">Al-Mu'jam al-Musiqi</span>
         <h2 data-i18n="glossaryTitle">Glossário Modal & Luthieria</h2>
       </div>
-      <button id="btn-close-glossary" data-i18n="btnCloseGlossary">✕ Fechar</button>
+      <button type="button" id="btn-close-glossary" class="ghost-btn" data-i18n="btnCloseGlossary">✕ Fechar</button>
     </div>
 
     <div class="glossary-search-box">
       <input type="search" id="glossary-search-input" placeholder="Buscar termo (ex: Qarar, Ghammaz, Sayr, Qafla, Risha...)" autocomplete="off" />
       <div class="glossary-categories" id="glossary-categories">
-        <button class="gloss-cat-btn selected" data-cat="ALL" data-i18n="catAll">Todos</button>
-        <button class="gloss-cat-btn" data-cat="Teoria Modal" data-i18n="catModal">Teoria Modal</button>
-        <button class="gloss-cat-btn" data-cat="Fraseado & Forma" data-i18n="catPhrasing">Fraseado</button>
-        <button class="gloss-cat-btn" data-cat="Ritmo (Iqa'at)" data-i18n="catRhythm">Ritmos</button>
-        <button class="gloss-cat-btn" data-cat="Anatomia & Luthieria" data-i18n="catLuthierie">Luthieria</button>
-        <button class="gloss-cat-btn" data-cat="Graus Históricos" data-i18n="catDegrees">Notas</button>
+        <button type="button" class="gloss-cat-btn selected" data-cat="ALL" data-i18n="catAll">Todos</button>
+        <button type="button" class="gloss-cat-btn" data-cat="Teoria Modal" data-i18n="catModal">Teoria Modal</button>
+        <button type="button" class="gloss-cat-btn" data-cat="Fraseado & Forma" data-i18n="catPhrasing">Fraseado</button>
+        <button type="button" class="gloss-cat-btn" data-cat="Ritmo (Iqa'at)" data-i18n="catRhythm">Ritmos</button>
+        <button type="button" class="gloss-cat-btn" data-cat="Anatomia & Luthieria" data-i18n="catLuthierie">Luthieria</button>
+        <button type="button" class="gloss-cat-btn" data-cat="Graus Históricos" data-i18n="catDegrees">Notas</button>
       </div>
     </div>
 
     <div class="glossary-list" id="glossary-list"></div>
   </aside>
+
+  <!-- Barra de Transporte Inferior Fixa (Mobile) -->
+  <nav id="mobile-thumb-dock" class="mobile-thumb-dock" aria-label="Transporte rápido">
+    <button type="button" id="btn-mob-play" class="primary">▶ Tocar</button>
+    <button type="button" id="btn-mob-taqsim" class="ghost-btn">🎶 Taqsim</button>
+    <button type="button" id="btn-mob-drone" class="ghost-btn">🔊 Drone</button>
+    <button type="button" id="btn-mob-iqa" class="ghost-btn">🥁 Iqa'</button>
+    <button type="button" id="btn-mob-theory" class="ghost-btn">📖 Teoria</button>
+  </nav>
+
+  <!-- Lupa Flutuante de Precisão Microtonal (Mobile) -->
+  <div id="touch-loupe-badge" class="touch-loupe-badge" role="status" aria-live="polite"></div>
 
   <script type="module" src="./js/main.js"></script>
 </body>

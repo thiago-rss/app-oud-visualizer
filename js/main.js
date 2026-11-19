@@ -28,14 +28,12 @@ import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 const state = getInitialStateFromUrl();
 
 let userOverrodeSidebar = false;
-/** Armazena a orientação escolhida no Desktop caso o usuário redimensione entre Desktop e Mobile */
 let desktopPreferredOrientation = state.orientation;
 
 function isMobileViewport() {
   return typeof window !== "undefined" && window.innerWidth <= 768;
 }
 
-// Em dispositivos móveis (<= 768px), o espelho opera exclusivamente na vertical
 if (isMobileViewport()) {
   state.orientation = "VERTICAL";
 }
@@ -48,30 +46,15 @@ try {
 } catch {
   // Ignora se localStorage estiver bloqueado
 }
-if (state.theme !== "light" && state.theme !== "dark") {
-  state.theme = "dark";
-}
-if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) {
-  state.rootQ = 0;
-}
-if (typeof state.anchorAbsQ !== "number" || Number.isNaN(state.anchorAbsQ)) {
-  state.anchorAbsQ = null;
-}
-if (typeof state.octavePathOnly !== "boolean") {
-  state.octavePathOnly = false;
-}
-if (state.octavePathDir !== "ASC" && state.octavePathDir !== "DESC") {
-  state.octavePathDir = "ASC";
-}
-if (typeof state.showStaff !== "boolean") {
-  state.showStaff = true;
-}
-if (state.staffMode !== "SCALE" && state.staffMode !== "SAYR") {
-  state.staffMode = "SCALE";
-}
-if (typeof state.showPositionsMap !== "boolean") {
-  state.showPositionsMap = true;
-}
+
+if (state.theme !== "light" && state.theme !== "dark") state.theme = "dark";
+if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) state.rootQ = 0;
+if (typeof state.anchorAbsQ !== "number" || Number.isNaN(state.anchorAbsQ)) state.anchorAbsQ = null;
+if (typeof state.octavePathOnly !== "boolean") state.octavePathOnly = false;
+if (state.octavePathDir !== "ASC" && state.octavePathDir !== "DESC") state.octavePathDir = "ASC";
+if (typeof state.showStaff !== "boolean") state.showStaff = true;
+if (state.staffMode !== "SCALE" && state.staffMode !== "SAYR") state.staffMode = "SCALE";
+if (typeof state.showPositionsMap !== "boolean") state.showPositionsMap = true;
 
 /** @type {{ course: number, freq: number }[]} */
 let currentChordVoicingFreqs = [];
@@ -86,7 +69,7 @@ let glossaryQuery = "";
 let isZenMode = false;
 let isSidebarCollapsed = isMobileViewport();
 /** @type {number | null} */
-let activeMobileSheetIdx = null;
+let activePopoverIdx = null;
 /** @type {number | undefined} */
 let loupeHideTimer;
 
@@ -94,7 +77,7 @@ let loupeHideTimer;
 let modulationOrigin = null;
 
 /**
- * Busca chave de tradução com fallback seguro para chaves recém-adicionadas.
+ * Busca chave de tradução com fallback seguro em PT/EN.
  * @param {string} key
  * @param {string} fallbackPt
  * @param {string} fallbackEn
@@ -554,133 +537,6 @@ function getModulationRoutesForCurrentState() {
   return fallbackRoutes;
 }
 
-function ensureThemeStyleEngine() {
-  if (document.getElementById("oud-theme-engine")) return;
-  const styleEl = document.createElement("style");
-  styleEl.id = "oud-theme-engine";
-  styleEl.textContent = `
-    html[data-theme="light"],
-    body[data-theme="light"] {
-      --bg-deep: #f3ead8 !important;
-      --bg-card: #fcf8ef !important;
-      --bg-card-elevated: #efe4ce !important;
-      --bg-stage: radial-gradient(circle at 50% 35%, #fffdf9 0%, #e5d6b8 92%) !important;
-      --bg-dock: #ebe0c9 !important;
-      --bg-input: #f7efe0 !important;
-      --text-main: #23160c !important;
-      --text-muted: #5e4630 !important;
-      --accent: #8c5811 !important;
-      --accent-soft: rgba(140, 88, 17, 0.15) !important;
-      --sadaf-cyan: #0e7490 !important;
-      --sadaf-bg: rgba(14, 116, 144, 0.12) !important;
-      --border-gold: rgba(140, 88, 17, 0.42) !important;
-      --shadow-card: 0 8px 24px rgba(58, 36, 14, 0.12) !important;
-      background: linear-gradient(180deg, #f6efe0 0%, #e8d8b9 100%) !important;
-      color: #23160c !important;
-    }
-    body[data-theme="light"][data-tradition="cairo"] {
-      --bg-deep: #f6ebd4 !important;
-      --bg-card: #fdf8ec !important;
-      --accent: #9a3412 !important;
-      --sadaf-cyan: #b45309 !important;
-    }
-    body[data-theme="light"][data-tradition="istanbul"] {
-      --bg-deep: #edf1f5 !important;
-      --bg-card: #fbfcfe !important;
-      --bg-stage: radial-gradient(circle at 50% 35%, #ffffff 0%, #dbe3ec 92%) !important;
-      --bg-dock: #e4eaf1 !important;
-      --bg-input: #f1f5f9 !important;
-      --accent: #7c5816 !important;
-      --sadaf-cyan: #1d4ed8 !important;
-      background: linear-gradient(180deg, #f3f6f9 0%, #dfe6ef 100%) !important;
-    }
-    body[data-theme="light"] .khatem-border,
-    body[data-theme="light"] .astrolabe-header,
-    body[data-theme="light"] .mihrab-card,
-    body[data-theme="light"] .sanctuary-card,
-    body[data-theme="light"] .iqa-card,
-    body[data-theme="light"] .neck-showcase,
-    body[data-theme="light"] .info-card,
-    body[data-theme="light"] .cadence-bar,
-    body[data-theme="light"] .glossary-drawer,
-    body[data-theme="light"] .zen-floating-hud,
-    body[data-theme="light"] .mobile-status-pill,
-    body[data-theme="light"] .mobile-thumb-dock,
-    body[data-theme="light"] .touch-loupe-badge {
-      background: var(--bg-card) !important;
-      border-color: var(--border-gold) !important;
-      box-shadow: var(--shadow-card) !important;
-      color: var(--text-main) !important;
-    }
-    body[data-theme="light"] .inlay-dock-top,
-    body[data-theme="light"] .inlay-dock-bottom,
-    body[data-theme="light"] .staff-stage-box,
-    body[data-theme="light"] .mobile-floating-tonic-bar {
-      background: var(--bg-dock) !important;
-      border-color: var(--border-gold) !important;
-      color: var(--text-main) !important;
-    }
-    body[data-theme="light"] .svg-stage-container {
-      background: var(--bg-stage) !important;
-    }
-    body[data-theme="light"] button,
-    body[data-theme="light"] select,
-    body[data-theme="light"] .tradition-pill,
-    body[data-theme="light"] .meta-pill,
-    body[data-theme="light"] .iqa-beat-cell,
-    body[data-theme="light"] .cadence-step-card,
-    body[data-theme="light"] .glossary-item,
-    body[data-theme="light"] .glossary-search-box input,
-    body[data-theme="light"] .mod-route-card {
-      background-color: var(--bg-input) !important;
-      color: var(--text-main) !important;
-      border-color: var(--border-gold) !important;
-    }
-    body[data-theme="light"] .tradition-pill select {
-      background: transparent !important;
-      border: none !important;
-    }
-    body[data-theme="light"] button.primary {
-      background: linear-gradient(135deg, #9a6515, #6c4309) !important;
-      color: #ffffff !important;
-      border-color: #6c4309 !important;
-    }
-    body[data-theme="light"] button.sadaf-btn,
-    body[data-theme="light"] .term-help-btn {
-      background: var(--sadaf-bg) !important;
-      color: var(--sadaf-cyan) !important;
-      border-color: var(--sadaf-cyan) !important;
-    }
-    body[data-theme="light"] button.selected,
-    body[data-theme="light"] .tab-btn.active,
-    body[data-theme="light"] button.active-toggle,
-    body[data-theme="light"] .cadence-step-card.active-step {
-      background: var(--accent-soft) !important;
-      color: var(--accent) !important;
-      border-color: var(--accent) !important;
-      font-weight: 700 !important;
-    }
-    body[data-theme="light"] h1,
-    body[data-theme="light"] h2,
-    body[data-theme="light"] h3,
-    body[data-theme="light"] .staff-title-group strong {
-      color: var(--accent) !important;
-    }
-    body[data-theme="light"] .brand-subtitle,
-    body[data-theme="light"] .info-description,
-    body[data-theme="light"] .tuning-description,
-    body[data-theme="light"] .staff-subhint,
-    body[data-theme="light"] .dock-title,
-    body[data-theme="light"] .ribbon-label,
-    body[data-theme="light"] .touch-hint,
-    body[data-theme="light"] .field-block label,
-    body[data-theme="light"] .mod-route-desc {
-      color: var(--text-muted) !important;
-    }
-  `;
-  document.head.appendChild(styleEl);
-}
-
 function hasValidAnchor() {
   return typeof state.anchorAbsQ === "number" && !Number.isNaN(state.anchorAbsQ) && state.anchorAbsQ >= 0;
 }
@@ -696,6 +552,33 @@ function resolvePitchClassQ(targetPitch) {
   return null;
 }
 
+/**
+ * Abre ou fecha um dos 4 painéis da Barra Única (Popover no Desktop / Bottom Sheet no Mobile).
+ * @param {number | null} idx
+ */
+function setActivePopover(idx) {
+  activePopoverIdx = idx;
+  const backdrop = document.getElementById("popover-backdrop");
+
+  document.querySelectorAll(".cmd-popover").forEach(el => {
+    const panel = /** @type {HTMLElement} */ (el);
+    const isOpen = idx !== null && Number(panel.dataset.panelId) === idx;
+    panel.classList.toggle("open", isOpen);
+    panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+  });
+
+  document.querySelectorAll(".cmd-trigger").forEach(el => {
+    const btn = /** @type {HTMLElement} */ (el);
+    const isActive = idx !== null && Number(btn.dataset.panel) === idx;
+    btn.classList.toggle("active-trigger", isActive);
+    btn.setAttribute("aria-expanded", isActive ? "true" : "false");
+  });
+
+  if (backdrop) {
+    backdrop.classList.toggle("open", idx !== null);
+  }
+}
+
 function toggleAppTheme() {
   state.theme = state.theme === "light" ? "dark" : "light";
   try {
@@ -703,11 +586,16 @@ function toggleAppTheme() {
   } catch {
     // Ignora
   }
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.setAttribute("content", state.theme === "light" ? "#f4eee4" : "#100d0b");
+  }
   syncControlsWithState();
   refreshAll();
 }
 
 function toggleZenMode(forceVal) {
+  setActivePopover(null);
   isZenMode = typeof forceVal === "boolean" ? forceVal : !isZenMode;
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   syncControlsWithState();
@@ -728,43 +616,19 @@ function toggleIqaPlayback() {
     isIqaPlaying = false;
     activeIqaBeatIdx = -1;
     if (btnToggleIqa) {
-      btnToggleIqa.textContent = t(state.lang, "btnStartIqa");
+      btnToggleIqa.textContent = safeT("btnStartIqa", "▶ Iniciar Iqa'", "▶ Start Iqa'");
       btnToggleIqa.classList.remove("active-toggle");
     }
     renderIqaBeatGrid();
   } else {
     isIqaPlaying = true;
     if (btnToggleIqa) {
-      btnToggleIqa.textContent = t(state.lang, "btnStopIqa");
+      btnToggleIqa.textContent = safeT("btnStopIqa", "⏹ Parar Iqa'", "⏹ Stop Iqa'");
       btnToggleIqa.classList.add("active-toggle");
     }
     restartIqaIfPlaying();
   }
-  syncWorkspaceTelemetry();
-}
-
-function setMobileSheetOpen(idx) {
-  activeMobileSheetIdx = idx;
-  const diwanCards = document.querySelectorAll(".diwan-console-3col > div");
-  const neckDock = document.querySelector(".inlay-dock-top");
-  const backdrop = document.getElementById("mobile-sheet-backdrop");
-
-  diwanCards.forEach((card, i) => {
-    card.classList.toggle("mobile-sheet-open", idx !== null && i === idx);
-  });
-
-  if (neckDock) {
-    neckDock.classList.toggle("mobile-sheet-open", idx === 3);
-  }
-
-  document.querySelectorAll(".mobile-status-pill").forEach((pill) => {
-    const pIdx = Number(/** @type {HTMLElement} */ (pill).dataset.sheetIdx);
-    pill.classList.toggle("active-sheet-pill", idx !== null && pIdx === idx);
-  });
-
-  if (backdrop) {
-    backdrop.classList.toggle("open", idx !== null);
-  }
+  syncCommandBarSummaries();
 }
 
 function showTouchLoupeFeedback(noteInfo) {
@@ -784,7 +648,7 @@ function showTouchLoupeFeedback(noteInfo) {
 
   loupe.innerHTML = `
     <span style="color:var(--accent);">${pc.flat} (${pc.arabic})</span>
-    ${courseTxt ? `<span style="color:var(--sadaf-cyan);">• ${courseTxt}</span>` : ""}
+    ${courseTxt ? `<span style="color:var(--plum);">• ${courseTxt}</span>` : ""}
     ${fingerTxt ? `<span style="color:var(--text-muted); font-size:0.74rem;">• ${fingerTxt}</span>` : ""}
   `;
   loupe.classList.add("visible");
@@ -825,9 +689,7 @@ function applySelectedPitchAsRoot(targetPitch) {
   }
 
   const selRoot = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-root"));
-  if (selRoot) {
-    selRoot.value = String(state.rootQ);
-  }
+  if (selRoot) selRoot.value = String(state.rootQ);
 
   if (state.shapeMode === "CLOSED_BOX" && targetPitch && typeof targetPitch.qFromNut === "number" && targetPitch.qFromNut >= 1) {
     state.boxAnchorQ = Math.max(1, Math.min(10, targetPitch.qFromNut));
@@ -875,299 +737,7 @@ function handlePlayAnchoredOctavePath() {
   });
 }
 
-function ensureDynamicTonicControlsExist() {
-  ensureThemeStyleEngine();
-
-  const medallions = document.querySelector(".action-medallions");
-  let themeBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById("btn-theme"));
-  if (medallions && !themeBtn) {
-    themeBtn = document.createElement("button");
-    themeBtn.id = "btn-theme";
-    themeBtn.type = "button";
-    themeBtn.className = "sadaf-btn";
-    const langBtn = document.getElementById("btn-lang");
-    if (langBtn) {
-      medallions.insertBefore(themeBtn, langBtn);
-    } else {
-      medallions.appendChild(themeBtn);
-    }
-  }
-  if (themeBtn && !themeBtn.dataset.boundTheme) {
-    themeBtn.dataset.boundTheme = "1";
-    themeBtn.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      toggleAppTheme();
-    });
-  }
-
-  if (medallions && !document.getElementById("btn-zen-mode")) {
-    const zenBtn = document.createElement("button");
-    zenBtn.id = "btn-zen-mode";
-    zenBtn.type = "button";
-    zenBtn.className = "sadaf-btn";
-    zenBtn.title = "Atalho: Tecla F";
-    if (themeBtn) {
-      medallions.insertBefore(zenBtn, themeBtn);
-    } else {
-      medallions.appendChild(zenBtn);
-    }
-  }
-
-  const studioStage = document.querySelector(".studio-stage");
-  if (studioStage && !document.getElementById("zen-floating-hud")) {
-    const hud = document.createElement("section");
-    hud.id = "zen-floating-hud";
-    hud.className = "zen-floating-hud khatem-border";
-    hud.innerHTML = `
-      <div class="zen-telemetry-group">
-        <span style="font-size:1.05rem;">🪷</span>
-        <span id="zen-badge-entity" class="zen-telemetry-badge">Maqam Rast (C)</span>
-        <span id="zen-badge-tuning" class="zen-telemetry-badge" style="color:var(--sadaf-cyan);">Síria C–c</span>
-        <span id="zen-badge-iqa" class="zen-telemetry-badge">Maqsum • 96 BPM</span>
-      </div>
-      <div class="brass-pills compact-pills">
-        <button type="button" id="btn-zen-play" class="primary">▶ Tocar</button>
-        <button type="button" id="btn-zen-taqsim" class="sadaf-btn">🎶 Taqsim</button>
-        <button type="button" id="btn-zen-drone">🔊 Drone</button>
-        <button type="button" id="btn-zen-iqa">🥁 Iqa'</button>
-        <button type="button" id="btn-zen-theme" class="sadaf-btn">☀️/🌙</button>
-        <button type="button" id="btn-zen-exit" style="border-color:#f87171; color:#f87171;">✕ Sair Imersivo (Esc)</button>
-      </div>
-    `;
-    studioStage.parentNode?.insertBefore(hud, studioStage);
-  }
-
-  const diwanGrid = document.querySelector(".diwan-console-3col");
-  if (diwanGrid && !document.getElementById("mobile-pill-strip")) {
-    const strip = document.createElement("div");
-    strip.id = "mobile-pill-strip";
-    strip.className = "mobile-pill-strip";
-    strip.innerHTML = `
-      <button type="button" class="mobile-status-pill" data-sheet-idx="0">
-        <span class="m-pill-kicker">🪕 Mizan</span>
-        <span class="m-pill-val" id="m-pill-val-0">Síria • C</span>
-      </button>
-      <button type="button" class="mobile-status-pill" data-sheet-idx="1">
-        <span class="m-pill-kicker">☪ Maqam / Modo</span>
-        <span class="m-pill-val" id="m-pill-val-1">Rast ↑</span>
-      </button>
-      <button type="button" class="mobile-status-pill" data-sheet-idx="2">
-        <span class="m-pill-kicker">🥁 Iqa'</span>
-        <span class="m-pill-val" id="m-pill-val-2">Maqsum 96</span>
-      </button>
-      <button type="button" class="mobile-status-pill" data-sheet-idx="3">
-        <span class="m-pill-kicker">🎛️ Braço & Guias</span>
-        <span class="m-pill-val" id="m-pill-val-3">Completo • Cifra</span>
-      </button>
-    `;
-    diwanGrid.parentNode?.insertBefore(strip, diwanGrid);
-  }
-
-  if (!document.getElementById("mobile-sheet-backdrop")) {
-    const sheetBackdrop = document.createElement("div");
-    sheetBackdrop.id = "mobile-sheet-backdrop";
-    sheetBackdrop.className = "mobile-sheet-backdrop";
-    document.body.appendChild(sheetBackdrop);
-  }
-
-  const diwanCards = document.querySelectorAll(".diwan-console-3col > div");
-  diwanCards.forEach((cardEl, idx) => {
-    const headerEl = cardEl.querySelector(".card-arch-header");
-    if (headerEl && !headerEl.querySelector(".card-collapse-btn")) {
-      const cBtn = document.createElement("button");
-      cBtn.type = "button";
-      cBtn.className = "card-collapse-btn";
-      cBtn.dataset.cardIdx = String(idx);
-      cBtn.textContent = "—";
-      cBtn.title = "Minimizar / Expandir painel";
-      headerEl.appendChild(cBtn);
-    }
-    if (!cardEl.querySelector(".card-compact-summary")) {
-      const sumDiv = document.createElement("div");
-      sumDiv.className = "card-compact-summary";
-      sumDiv.id = `diwan-summary-${idx}`;
-      cardEl.appendChild(sumDiv);
-    }
-    if (!cardEl.querySelector(".mobile-sheet-close-bar")) {
-      const closeBar = document.createElement("div");
-      closeBar.className = "mobile-sheet-close-bar";
-      closeBar.innerHTML = `<button type="button" class="primary btn-close-mobile-sheet">${t(state.lang, "btnMobileDone")}</button>`;
-      cardEl.appendChild(closeBar);
-    }
-  });
-
-  const neckDock = document.querySelector(".inlay-dock-top");
-  if (neckDock && !neckDock.querySelector(".mobile-sheet-close-bar")) {
-    const closeBar = document.createElement("div");
-    closeBar.className = "mobile-sheet-close-bar";
-    closeBar.innerHTML = `<button type="button" class="primary btn-close-mobile-sheet">${t(state.lang, "btnMobileDone")}</button>`;
-    neckDock.appendChild(closeBar);
-  }
-
-  // Barra rápida no Mobile: Ocultar/Exibir Pauta + Definir Tônica em 1 toque
-  const neckShowcase = document.querySelector(".neck-showcase");
-  if (neckShowcase && !document.getElementById("mobile-floating-tonic-bar")) {
-    const mobBar = document.createElement("div");
-    mobBar.id = "mobile-floating-tonic-bar";
-    mobBar.className = "mobile-floating-tonic-bar";
-    mobBar.innerHTML = `
-      <button type="button" id="btn-mob-inline-staff" class="sadaf-btn" style="padding:4px 9px; font-size:0.73rem;">🎼 Ocultar Pauta</button>
-      <div style="display:flex; gap:5px; align-items:center;">
-        <button type="button" id="btn-mob-set-tonic" class="primary" style="display:none; padding:4px 9px; font-size:0.73rem;">🎯 Definir Tônica</button>
-        <button type="button" id="btn-mob-clear-note" style="display:none; padding:4px 7px; font-size:0.73rem;">✕</button>
-      </div>
-    `;
-    neckShowcase.insertBefore(mobBar, neckShowcase.firstChild);
-  }
-
-  // Barra de Transporte Inferior Fixa (Thumb-Zone Bottom Dock): Tocar, Taqsim, Drone, Iqa' e Teoria
-  if (!document.getElementById("mobile-thumb-dock")) {
-    const dock = document.createElement("nav");
-    dock.id = "mobile-thumb-dock";
-    dock.className = "mobile-thumb-dock";
-    dock.innerHTML = `
-      <button type="button" id="btn-mob-play" class="primary">${t(state.lang, "mobileDockPlay")}</button>
-      <button type="button" id="btn-mob-taqsim" class="sadaf-btn">${t(state.lang, "mobileDockTaqsim")}</button>
-      <button type="button" id="btn-mob-drone">${t(state.lang, "mobileDockDrone")}</button>
-      <button type="button" id="btn-mob-iqa">${t(state.lang, "mobileDockIqa")}</button>
-      <button type="button" id="btn-mob-theory" class="sadaf-btn">📖 Teoria</button>
-    `;
-    document.body.appendChild(dock);
-  }
-
-  if (!document.getElementById("touch-loupe-badge")) {
-    const loupe = document.createElement("div");
-    loupe.id = "touch-loupe-badge";
-    loupe.className = "touch-loupe-badge";
-    document.body.appendChild(loupe);
-  }
-
-  const staffPills = document.querySelector(".staff-toolbar .brass-pills");
-  if (staffPills && !document.getElementById("btn-set-root-from-selection")) {
-    const btn = document.createElement("button");
-    btn.id = "btn-set-root-from-selection";
-    btn.type = "button";
-    btn.className = "primary";
-    btn.style.display = "none";
-    btn.textContent = t(state.lang, "btnSetRootFromNote");
-    staffPills.insertBefore(btn, document.getElementById("btn-clear-staff-filter"));
-  }
-
-  if (staffPills && !document.getElementById("btn-hide-staff-inline")) {
-    const hideStaffBtn = document.createElement("button");
-    hideStaffBtn.id = "btn-hide-staff-inline";
-    hideStaffBtn.type = "button";
-    hideStaffBtn.title = "Ocultar sessão da partitura";
-    hideStaffBtn.textContent = state.lang === "en" ? "— Hide Staff" : "— Ocultar Pauta";
-    staffPills.appendChild(hideStaffBtn);
-  }
-
-  // Garante as opções de 2ª Posição e 3ª Posição no seletor de Mapeamento Mecânico (#select-shape)
-  const selShapeEl = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
-  if (selShapeEl && !selShapeEl.querySelector('option[value="POS_SECOND"]')) {
-    const optPos2 = document.createElement("option");
-    optPos2.value = "POS_SECOND";
-    optPos2.setAttribute("data-i18n", "shapePos2");
-    optPos2.textContent = safeT("shapePos2", "II • 2ª Posição Média (4q a 10q)", "II • 2nd Middle Position (4q to 10q)");
-
-    const optPos3 = document.createElement("option");
-    optPos3.value = "POS_THIRD_BODY";
-    optPos3.setAttribute("data-i18n", "shapePos3");
-    optPos3.textContent = safeT("shapePos3", "III • 3ª Posição / Tampo (8q a 16q)", "III • 3rd Body Position (8q to 16q)");
-
-    const closedOpt = selShapeEl.querySelector('option[value="CLOSED_BOX"]');
-    if (closedOpt) {
-      selShapeEl.insertBefore(optPos2, closedOpt);
-      selShapeEl.insertBefore(optPos3, closedOpt);
-    } else {
-      selShapeEl.appendChild(optPos2);
-      selShapeEl.appendChild(optPos3);
-    }
-  }
-
-  const dockPills = document.querySelector(".inlay-dock-top .brass-pills");
-  if (dockPills && !document.getElementById("btn-dock-set-tonic")) {
-    const dockBtn = document.createElement("button");
-    dockBtn.id = "btn-dock-set-tonic";
-    dockBtn.type = "button";
-    dockBtn.className = "primary";
-    dockBtn.style.display = "none";
-    dockBtn.textContent = t(state.lang, "btnSetRootFromNote");
-    dockPills.insertBefore(dockBtn, dockPills.firstChild);
-  }
-
-  // Botão "📐 Regiões & Pivôs" na doca do instrumento
-  if (dockPills && !document.getElementById("btn-pos-map")) {
-    const posMapBtn = document.createElement("button");
-    posMapBtn.id = "btn-pos-map";
-    posMapBtn.type = "button";
-    posMapBtn.className = state.showPositionsMap ? "selected" : "";
-    posMapBtn.setAttribute("data-i18n", "btnPosMap");
-    posMapBtn.textContent = safeT("btnPosMap", "📐 Regiões & Pivôs", "📐 Regions & Pivots");
-    const semiGuideBtn = document.getElementById("btn-guide-semi");
-    if (semiGuideBtn) {
-      dockPills.insertBefore(posMapBtn, semiGuideBtn);
-    } else {
-      dockPills.appendChild(posMapBtn);
-    }
-  }
-
-  if (dockPills && !document.getElementById("btn-toggle-sidebar")) {
-    const sideBtn = document.createElement("button");
-    sideBtn.id = "btn-toggle-sidebar";
-    sideBtn.type = "button";
-    sideBtn.className = "sadaf-btn";
-    dockPills.appendChild(sideBtn);
-  }
-
-  // Legenda para Nota-Pivô / Uníssono na base do espelho
-  const legendEl = document.querySelector(".inlay-dock-bottom .legend");
-  if (legendEl && !document.getElementById("legend-pivot-item")) {
-    const pivotItem = document.createElement("span");
-    pivotItem.id = "legend-pivot-item";
-    pivotItem.className = "legend-item";
-    pivotItem.innerHTML = `<span style="color:var(--sadaf-cyan); font-weight:800;">⇄</span> <span data-i18n="legPivot">${safeT("legPivot", "Nota-Pivô / Uníssono", "Shift / Unison Pivot")}</span>`;
-    legendEl.appendChild(pivotItem);
-  }
-
-  const svgContainer = document.querySelector(".svg-stage-container");
-  if (neckShowcase && svgContainer && !document.getElementById("octave-path-bar")) {
-    const bar = document.createElement("div");
-    bar.id = "octave-path-bar";
-    bar.style.cssText = [
-      "display:none",
-      "flex-wrap:wrap",
-      "align-items:center",
-      "justify-content:space-between",
-      "gap:8px",
-      "padding:8px 14px",
-      "background:linear-gradient(90deg, rgba(6,182,212,0.12), rgba(212,175,55,0.12))",
-      "border-bottom:1px solid rgba(103,232,249,0.35)"
-    ].join(";");
-
-    bar.innerHTML = `
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <strong id="octave-bar-label" style="color:var(--sadaf-cyan); font-size:0.82rem;">📍 Caminho da Tônica</strong>
-        <div class="brass-pills compact-pills">
-          <button type="button" id="btn-oct-mode-all">🌐 Todas as Oitavas</button>
-          <button type="button" id="btn-oct-mode-single" class="selected">🎯 Caminho 1 Oitava</button>
-        </div>
-      </div>
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <div class="brass-pills compact-pills">
-          <button type="button" id="btn-oct-dir-asc" class="selected">↑ Ascendente (+8ª)</button>
-          <button type="button" id="btn-oct-dir-desc">↓ Descendente (-8ª)</button>
-        </div>
-        <button type="button" id="btn-play-octave-path" class="sadaf-btn" style="padding:4px 12px; font-size:0.78rem;">▶ Ouvir Caminho</button>
-        <button type="button" id="btn-close-octave-bar" style="padding:4px 9px; font-size:0.78rem;">✕</button>
-      </div>
-    `;
-    neckShowcase.insertBefore(bar, svgContainer);
-  }
-}
-
-function syncWorkspaceTelemetry() {
+function syncCommandBarSummaries() {
   const activeStruct = getActiveStructure(state);
   const entity = localizeEntity(state.lang, activeStruct.entity);
   const safeRootQ = ((state.rootQ % 24) + 24) % 24;
@@ -1182,78 +752,72 @@ function syncWorkspaceTelemetry() {
 
   const shortTuning = tuning.name.split("(")[0].trim();
   const shortIqa = iqa.name.split("(")[0].split("—")[0].trim();
+  const dirArrow = state.mode === "MAQAM" ? (state.direction === "ASC" ? " ↑" : " ↓") : "";
 
-  const sum0 = document.getElementById("diwan-summary-0");
-  const sum1 = document.getElementById("diwan-summary-1");
-  const sum2 = document.getElementById("diwan-summary-2");
-  if (sum0) sum0.textContent = `🪕 ${shortTuning} • Qarar: ${rootName}`;
-  if (sum1) sum1.textContent = `☪ ${entity.name} (${effRootName}) • ${state.direction === "ASC" ? "↑" : "↓"}`;
-  if (sum2) sum2.textContent = `🥁 ${shortIqa} • ${state.bpm} BPM ${isIqaPlaying ? "(ON)" : ""}`;
+  const shapeShort = state.shapeMode === "FULL_NECK"
+    ? (state.lang === "en" ? "Full" : "Completo")
+    : (state.shapeMode === "OPEN_FIRST_POS"
+      ? (state.lang === "en" ? "I · 1st Pos" : "I · 1ª Pos")
+      : (state.shapeMode === "POS_SECOND"
+        ? (state.lang === "en" ? "II · 2nd Pos" : "II · 2ª Pos")
+        : (state.shapeMode === "POS_THIRD_BODY"
+          ? (state.lang === "en" ? "III · Body" : "III · Tampo")
+          : (state.lang === "en" ? "Box" : "Móvel"))));
 
-  const mVal0 = document.getElementById("m-pill-val-0");
-  const mVal1 = document.getElementById("m-pill-val-1");
-  const mVal2 = document.getElementById("m-pill-val-2");
-  const mVal3 = document.getElementById("m-pill-val-3");
-  if (mVal0) mVal0.textContent = `${shortTuning} • ${rootName}`;
-  if (mVal1) mVal1.textContent = `${entity.name.replace(/^\[.*?\]\s*/, "")} (${effRootName})`;
-  if (mVal2) mVal2.textContent = `${shortIqa} • ${state.bpm}`;
-  if (mVal3) {
-    const shapeShort = state.shapeMode === "FULL_NECK"
-      ? (state.lang === "en" ? "Full" : "Completo")
-      : (state.shapeMode === "OPEN_FIRST_POS"
-        ? (state.lang === "en" ? "I • 1st Pos" : "I • 1ª Pos")
-        : (state.shapeMode === "POS_SECOND"
-          ? (state.lang === "en" ? "II • 2nd Pos" : "II • 2ª Pos")
-          : (state.shapeMode === "POS_THIRD_BODY"
-            ? (state.lang === "en" ? "III • Body" : "III • Tampo")
-            : (state.lang === "en" ? "Box" : "Móvel"))));
-    const lblShort = state.labelMode === "NOTE_NAME"
-      ? (state.lang === "en" ? "Notes" : "Cifra")
-      : (state.labelMode === "DEGREE"
-        ? (state.lang === "en" ? "Deg" : "Grau")
-        : (state.labelMode === "FINGER"
-          ? (state.lang === "en" ? "Fing" : "Dedos")
-          : (state.lang === "en" ? "Arab" : "Árabe")));
-    mVal3.textContent = `${shapeShort} • ${lblShort}`;
-  }
+  const lblShort = state.labelMode === "NOTE_NAME"
+    ? (state.lang === "en" ? "Notes" : "Cifra")
+    : (state.labelMode === "DEGREE"
+      ? (state.lang === "en" ? "Deg" : "Grau")
+      : (state.labelMode === "FINGER"
+        ? (state.lang === "en" ? "Fingers" : "Dedos")
+        : (state.lang === "en" ? "Arabic" : "Árabe")));
 
-  const btnMobInlineStaff = document.getElementById("btn-mob-inline-staff");
-  if (btnMobInlineStaff) {
-    if (state.showStaff) {
-      btnMobInlineStaff.textContent = state.lang === "en" ? "🎼 Hide Staff" : "🎼 Ocultar Pauta";
-      btnMobInlineStaff.classList.add("selected");
-    } else {
-      btnMobInlineStaff.textContent = state.lang === "en" ? "🎼 Show Staff" : "🎼 Exibir Pauta";
-      btnMobInlineStaff.classList.remove("selected");
-    }
-  }
+  const v0 = document.getElementById("cmd-val-0");
+  const v1 = document.getElementById("cmd-val-1");
+  const v2 = document.getElementById("cmd-val-2");
+  const v3 = document.getElementById("cmd-val-3");
 
-  const btnHideStaffInline = document.getElementById("btn-hide-staff-inline");
-  if (btnHideStaffInline) {
-    btnHideStaffInline.textContent = state.lang === "en" ? "— Hide Staff" : "— Ocultar Pauta";
-  }
+  if (v0) v0.textContent = `${shortTuning} • ${rootName}`;
+  if (v1) v1.textContent = `${entity.name.replace(/^\[.*?\]\s*/, "")} (${effRootName})${dirArrow}`;
+  if (v2) v2.textContent = `${shapeShort} • ${lblShort}`;
+  if (v3) v3.textContent = `${shortIqa} • ${state.bpm} BPM${isIqaPlaying ? " ●" : ""}`;
 
-  document.querySelectorAll(".btn-close-mobile-sheet").forEach(btn => {
-    btn.textContent = t(state.lang, "btnMobileDone");
+  // Traduções dos kickers da Barra Única
+  const setKicker = (sel, pt, en) => {
+    const el = document.querySelector(sel);
+    if (el) el.textContent = state.lang === "en" ? en : pt;
+  };
+  setKicker('[data-i18n="cmdKickerMizan"]', "Afinação & Qarar", "Tuning & Qarar");
+  setKicker('[data-i18n="cmdKickerMode"]', "Modalidade", "Mode / Maqam");
+  setKicker('[data-i18n="cmdKickerNeck"]', "Espelho & Guias", "Fingerboard & Guides");
+  setKicker('[data-i18n="cmdKickerIqa"]', "Ritmo (Iqa')", "Rhythm (Iqa')");
+  setKicker('[data-i18n="popoverNeckTitle"]', "Espelho, Posições & Visualização", "Fingerboard, Positions & View");
+  setKicker('[data-i18n="lblTradition"]', "Escola de Luthieria", "Luthierie Tradition");
+  setKicker('[data-i18n="lblVisualLayers"]', "Camadas & Ergonomia", "Layers & Ergonomics");
+
+  document.querySelectorAll(".btn-close-popover").forEach(btn => {
+    btn.textContent = safeT("btnMobileDone", "✓ Concluir", "✓ Done");
   });
 
+  // Botões da barra mobile inferior
   const btnMobPlay = document.getElementById("btn-mob-play");
   const btnMobTaqsim = document.getElementById("btn-mob-taqsim");
   const btnMobDrone = document.getElementById("btn-mob-drone");
   const btnMobIqa = document.getElementById("btn-mob-iqa");
   const btnMobTheory = document.getElementById("btn-mob-theory");
-  if (btnMobPlay) btnMobPlay.textContent = t(state.lang, "mobileDockPlay");
+
+  if (btnMobPlay) btnMobPlay.textContent = safeT("mobileDockPlay", "▶ Tocar", "▶ Play");
   if (btnMobTaqsim) {
-    btnMobTaqsim.textContent = t(state.lang, "mobileDockTaqsim");
+    btnMobTaqsim.textContent = safeT("mobileDockTaqsim", "🎶 Taqsim", "🎶 Taqsim");
     btnMobTaqsim.style.opacity = state.mode === "MAQAM" ? "1" : "0.45";
   }
   if (btnMobDrone) {
     btnMobDrone.classList.toggle("active-toggle", state.droneActive);
-    btnMobDrone.textContent = state.droneActive ? `🔊 ${rootName}` : t(state.lang, "mobileDockDrone");
+    btnMobDrone.textContent = state.droneActive ? `🔊 ${rootName}` : safeT("mobileDockDrone", "🔊 Drone", "🔊 Drone");
   }
   if (btnMobIqa) {
     btnMobIqa.classList.toggle("active-toggle", isIqaPlaying);
-    btnMobIqa.textContent = isIqaPlaying ? "⏹ Iqa'" : t(state.lang, "mobileDockIqa");
+    btnMobIqa.textContent = isIqaPlaying ? "⏹ Iqa'" : safeT("mobileDockIqa", "🥁 Iqa'", "🥁 Iqa'");
   }
   if (btnMobTheory) {
     btnMobTheory.classList.toggle("active-toggle", !isSidebarCollapsed);
@@ -1262,6 +826,7 @@ function syncWorkspaceTelemetry() {
       : (state.lang === "en" ? "✕ Theory" : "✕ Teoria");
   }
 
+  // HUD do Modo Imersivo (Zen)
   const zenEntity = document.getElementById("zen-badge-entity");
   const zenTuning = document.getElementById("zen-badge-tuning");
   const zenIqa = document.getElementById("zen-badge-iqa");
@@ -1350,7 +915,7 @@ function renderGlossaryList(focusTermId) {
 }
 
 function openGlossary(termId) {
-  setMobileSheetOpen(null);
+  setActivePopover(null);
   const drawer = document.getElementById("glossary-drawer");
   const backdrop = document.getElementById("glossary-backdrop");
   if (!drawer || !backdrop) return;
@@ -1450,10 +1015,14 @@ function renderModulationRadarCard() {
 
   const isEn = state.lang === "en";
   if (radarHeaderEl) {
-    radarHeaderEl.textContent = t(state.lang, "symmetryCardTitle");
+    radarHeaderEl.textContent = safeT("symmetryCardTitle", "🧭 Radar de Modulação & Ajnas (Intiqal)", "🧭 Modulation & Ajnas Radar (Intiqal)");
   }
 
-  radarDescEl.textContent = t(state.lang, "modRadarSubtitle");
+  radarDescEl.textContent = safeT(
+    "modRadarSubtitle",
+    "Rotas tradicionais sobre o Ghammaz e graus-pivô. Ouça a prévia ou module em 1 clique.",
+    "Traditional routes via the Ghammaz and pivot degrees. Preview or modulate in 1 click."
+  );
   radarListEl.innerHTML = "";
 
   if (modulationOrigin) {
@@ -1466,11 +1035,11 @@ function renderModulationRadarCard() {
       originBanner.className = "mod-origin-banner";
       originBanner.innerHTML = `
         <div class="mod-origin-text">
-          <span style="color:var(--text-muted); font-size:0.69rem;">${t(state.lang, "modOriginPrefix")}</span>
+          <span style="color:var(--text-muted); font-size:0.69rem;">${safeT("modOriginPrefix", "Origem anterior:", "Previous origin:")}</span>
           <strong>${modulationOrigin.label}</strong>
         </div>
-        <button type="button" class="primary" id="btn-return-mod-origin" style="padding:4px 10px; font-size:0.74rem;">
-          ${t(state.lang, "btnReturnOrigin")}
+        <button type="button" class="primary compact-btn" id="btn-return-mod-origin">
+          ${safeT("btnReturnOrigin", "↩ Voltar à Origem", "↩ Return to Origin")}
         </button>
       `;
       radarListEl.appendChild(originBanner);
@@ -1518,11 +1087,11 @@ function renderModulationRadarCard() {
       </div>
       <div class="mod-route-desc">${reasonText}</div>
       <div class="mod-route-actions">
-        <button type="button" class="sadaf-btn btn-preview-mod">
-          ${t(state.lang, "btnPreviewMod")}
+        <button type="button" class="ghost-btn btn-preview-mod">
+          ${safeT("btnPreviewMod", "🔊 Ouvir", "🔊 Preview")}
         </button>
-        <button type="button" class="primary btn-apply-mod">
-          ${t(state.lang, "btnApplyMod")}
+        <button type="button" class="plum-btn btn-apply-mod">
+          ${safeT("btnApplyMod", "⚡ Modular", "⚡ Modulate")}
         </button>
       </div>
     `;
@@ -1629,11 +1198,11 @@ function updateInfoPanel() {
       sayrBox.style.display = "flex";
       sayrBox.innerHTML = `
         <div>
-          <strong style="color:var(--sadaf-cyan);">✨ ${phrase.title}</strong>
+          <strong style="color:var(--plum);">✨ ${phrase.title}</strong>
           <div style="margin-top:3px; color:var(--text-muted);">${phrase.summary}</div>
-          <div style="margin-top:4px; font-size:0.78rem; color:var(--accent);"><strong>${t(state.lang, "pillNotes")}:</strong> ${phraseNotes}</div>
+          <div style="margin-top:4px; font-size:0.76rem; color:var(--accent);"><strong>${t(state.lang, "pillNotes")}:</strong> ${phraseNotes}</div>
         </div>
-        <button id="btn-inline-taqsim" class="sadaf-btn" style="padding:5px 12px; font-size:0.78rem;">${t(state.lang, "btnPlayPhraseInline")}</button>
+        <button type="button" id="btn-inline-taqsim" class="plum-btn compact-btn">${t(state.lang, "btnPlayPhraseInline")}</button>
       `;
       document.getElementById("btn-inline-taqsim")?.addEventListener("click", handlePlayTaqsim);
     } else {
@@ -1649,7 +1218,7 @@ function updateInfoPanel() {
       box.className = "bridge-box";
       box.innerHTML = `
         <span>${t(state.lang, "bridgeQaflaPrefix")} <strong>${entity.name}</strong></span>
-        <button id="btn-jump-cadence" class="primary" style="padding:5px 12px; font-size:0.78rem;">${t(state.lang, "btnOpenQafla")}</button>
+        <button type="button" id="btn-jump-cadence" class="primary compact-btn">${t(state.lang, "btnOpenQafla")}</button>
       `;
       bridgeContainer.appendChild(box);
       document.getElementById("btn-jump-cadence")?.addEventListener("click", () => {
@@ -1661,8 +1230,6 @@ function updateInfoPanel() {
         state.cadenceStepIndex = 0;
         if (state.shapeMode === "FULL_NECK") {
           state.shapeMode = "OPEN_FIRST_POS";
-          const selShape = /** @type {HTMLSelectElement} */ (document.getElementById("select-shape"));
-          if (selShape) selShape.value = "OPEN_FIRST_POS";
         }
         syncControlsWithState();
         refreshAll();
@@ -1674,7 +1241,7 @@ function updateInfoPanel() {
       box.className = "bridge-box";
       box.innerHTML = `
         <span>${t(state.lang, "bridgeMatrixPrefix")} <strong>${entity.bridge_text}</strong></span>
-        <button id="btn-jump-maqam" style="padding:4px 10px; font-size:0.78rem;">${t(state.lang, "btnSeeMaqam")}</button>
+        <button type="button" id="btn-jump-maqam" class="ghost-btn compact-btn">${t(state.lang, "btnSeeMaqam")}</button>
       `;
       bridgeContainer.appendChild(box);
       document.getElementById("btn-jump-maqam")?.addEventListener("click", () => {
@@ -1729,7 +1296,6 @@ function handlePlayTaqsim() {
   state.octavePathOnly = false;
   state.showSayr = true;
   state.staffMode = "SAYR";
-  document.getElementById("btn-toggle-sayr")?.classList.add("selected");
   syncControlsWithState();
 
   playTaqsimPhrase(activeStruct.effectiveRootQ, phrase.steps, activeStruct.centsMap, (stepIdx) => {
@@ -1820,18 +1386,26 @@ function populateEntitySelect() {
 }
 
 function syncSelectionActionButtons() {
-  ensureDynamicTonicControlsExist();
+  const ribbon = document.getElementById("stage-selection-ribbon");
+  const ribbonStatus = document.getElementById("selection-ribbon-status");
+  const btnInlineStaff = document.getElementById("btn-inline-toggle-staff");
+  const btnDockSetTonic = document.getElementById("btn-dock-set-tonic");
+  const btnDockClear = document.getElementById("btn-dock-clear-note");
   const btnClearFilter = document.getElementById("btn-clear-staff-filter");
   const btnSetRoot = document.getElementById("btn-set-root-from-selection");
-  const btnDockSetTonic = document.getElementById("btn-dock-set-tonic");
-  const btnMobSetTonic = document.getElementById("btn-mob-set-tonic");
-  const btnMobClearNote = document.getElementById("btn-mob-clear-note");
 
   const pcQ = resolvePitchClassQ(selectedStaffOrNeckPitch);
+  const hasSelection = selectedStaffOrNeckPitch !== null && pcQ !== null && Boolean(PITCH_CLASSES_24[pcQ]);
 
-  if (selectedStaffOrNeckPitch !== null && pcQ !== null && PITCH_CLASSES_24[pcQ]) {
+  if (btnInlineStaff) {
+    btnInlineStaff.textContent = state.showStaff
+      ? (state.lang === "en" ? "🎼 Hide Staff" : "🎼 Ocultar Pauta")
+      : (state.lang === "en" ? "🎼 Show Staff" : "🎼 Exibir Pauta");
+  }
+
+  if (hasSelection && pcQ !== null) {
     const pc = PITCH_CLASSES_24[pcQ];
-    const labelText = `${t(state.lang, "btnSetRootFromNote")}: ${pc.flat} (${pc.arabic})`;
+    const labelText = `${safeT("btnSetRootFromNote", "🎯 Definir Tônica", "🎯 Set Tonic")}: ${pc.flat} (${pc.arabic})`;
 
     if (btnClearFilter) btnClearFilter.style.display = "inline-flex";
     if (btnSetRoot) {
@@ -1839,24 +1413,28 @@ function syncSelectionActionButtons() {
       btnSetRoot.textContent = labelText;
     }
     if (btnDockSetTonic) {
-      btnDockSetTonic.style.display = state.showStaff ? "none" : "inline-flex";
+      btnDockSetTonic.style.display = "inline-flex";
       btnDockSetTonic.textContent = labelText;
     }
-    if (btnMobSetTonic) {
-      btnMobSetTonic.style.display = "inline-flex";
-      btnMobSetTonic.textContent = labelText;
-    }
-    if (btnMobClearNote) {
-      btnMobClearNote.style.display = "inline-flex";
+    if (btnDockClear) btnDockClear.style.display = "inline-flex";
+    if (ribbonStatus) {
+      ribbonStatus.textContent = `${pc.flat} (${pc.arabic})`;
     }
   } else {
     if (btnClearFilter) btnClearFilter.style.display = "none";
     if (btnSetRoot) btnSetRoot.style.display = "none";
     if (btnDockSetTonic) btnDockSetTonic.style.display = "none";
-    if (btnMobSetTonic) btnMobSetTonic.style.display = "none";
-    if (btnMobClearNote) btnMobClearNote.style.display = "none";
+    if (btnDockClear) btnDockClear.style.display = "none";
+    if (ribbonStatus) ribbonStatus.textContent = "";
   }
 
+  // No Desktop, a barra contextual só aparece quando a pauta está oculta e há nota selecionada
+  if (ribbon) {
+    const showRibbonDesktop = !state.showStaff && hasSelection;
+    ribbon.classList.toggle("visible", showRibbonDesktop);
+  }
+
+  // Barra de Caminho de 1 Oitava Ancorado
   const octBar = document.getElementById("octave-path-bar");
   if (octBar) {
     if (hasValidAnchor() && typeof state.anchorAbsQ === "number") {
@@ -1865,7 +1443,7 @@ function syncSelectionActionButtons() {
       const pc = PITCH_CLASSES_24[pcIdx] || PITCH_CLASSES_24[0];
       const octNum = Math.floor(state.anchorAbsQ / 24) + 2;
       const lbl = document.getElementById("octave-bar-label");
-      const titlePrefix = t(state.lang, "octaveBarTitle");
+      const titlePrefix = safeT("octaveBarTitle", "📍 Caminho da Tônica:", "📍 Tonic Path:");
       if (lbl) lbl.textContent = `${titlePrefix} ${pc.flat}${octNum} (${pc.arabic})`;
 
       const btnAll = document.getElementById("btn-oct-mode-all");
@@ -1875,23 +1453,23 @@ function syncSelectionActionButtons() {
       const btnPlayOct = document.getElementById("btn-play-octave-path");
 
       if (btnAll) {
-        btnAll.textContent = t(state.lang, "btnOctaveAll");
+        btnAll.textContent = safeT("btnOctaveAll", "🌐 Todas as Oitavas", "🌐 All Octaves");
         btnAll.classList.toggle("selected", !state.octavePathOnly);
       }
       if (btnSingle) {
-        btnSingle.textContent = t(state.lang, "btnOctaveSingle");
+        btnSingle.textContent = safeT("btnOctaveSingle", "🎯 Caminho 1 Oitava", "🎯 1-Octave Path");
         btnSingle.classList.toggle("selected", state.octavePathOnly);
       }
       if (btnAsc) {
-        btnAsc.textContent = t(state.lang, "btnOctaveAsc");
+        btnAsc.textContent = safeT("btnOctaveAsc", "↑ Ascendente (+8ª)", "↑ Ascending (+8ve)");
         btnAsc.classList.toggle("selected", state.octavePathDir === "ASC");
       }
       if (btnDesc) {
-        btnDesc.textContent = t(state.lang, "btnOctaveDesc");
+        btnDesc.textContent = safeT("btnOctaveDesc", "↓ Descendente (-8ª)", "↓ Descending (-8ve)");
         btnDesc.classList.toggle("selected", state.octavePathDir === "DESC");
       }
       if (btnPlayOct) {
-        btnPlayOct.textContent = t(state.lang, "btnPlayOctavePath");
+        btnPlayOct.textContent = safeT("btnPlayOctavePath", "▶ Ouvir Caminho", "▶ Play Path");
       }
     } else {
       octBar.style.display = "none";
@@ -1900,11 +1478,9 @@ function syncSelectionActionButtons() {
 }
 
 function syncControlsWithState() {
-  ensureDynamicTonicControlsExist();
   applyStaticTranslations(state.lang);
   populateAllLocalizedSelects();
 
-  // Garante orientação vertical sempre que estiver em viewport mobile (<= 768px)
   if (isMobileViewport()) {
     state.orientation = "VERTICAL";
   }
@@ -1916,15 +1492,14 @@ function syncControlsWithState() {
   document.body.setAttribute("data-zen", isZenMode ? "true" : "false");
   document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
 
+  const selTrad = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
+  if (selTrad) selTrad.value = state.tradition;
+
   const selShape = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
-  if (selShape) {
-    selShape.value = state.shapeMode;
-  }
+  if (selShape) selShape.value = state.shapeMode;
 
   const selLabel = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-label"));
-  if (selLabel) {
-    selLabel.value = state.labelMode;
-  }
+  if (selLabel) selLabel.value = state.labelMode;
 
   const btnPosMap = document.getElementById("btn-pos-map");
   if (btnPosMap) {
@@ -1937,27 +1512,36 @@ function syncControlsWithState() {
     legendPivot.style.display = state.showPositionsMap ? "inline-flex" : "none";
   }
 
+  document.getElementById("btn-guide-semi")?.classList.toggle("selected", state.showSemiGuides);
+  document.getElementById("btn-guide-micro")?.classList.toggle("selected", state.showMicroGuides);
+  document.getElementById("btn-ghost-notes")?.classList.toggle("selected", state.showGhostNotes);
+  document.getElementById("btn-toggle-sayr")?.classList.toggle("selected", state.showSayr);
+  document.getElementById("btn-dir-asc")?.classList.toggle("selected", state.direction === "ASC");
+  document.getElementById("btn-dir-desc")?.classList.toggle("selected", state.direction === "DESC");
+  document.getElementById("btn-chord-voicing")?.classList.toggle("selected", state.chordVoicingOnly);
+  document.getElementById("btn-chord-all")?.classList.toggle("selected", !state.chordVoicingOnly);
+
   const btnTheme = document.getElementById("btn-theme");
   if (btnTheme) {
     btnTheme.textContent = state.theme === "light"
-      ? t(state.lang, "btnThemeDark")
-      : t(state.lang, "btnThemeLight");
+      ? safeT("btnThemeDark", "🌙 Escuro", "🌙 Dark")
+      : safeT("btnThemeLight", "☀️ Claro", "☀️ Light");
   }
 
   const btnZen = document.getElementById("btn-zen-mode");
   if (btnZen) {
-    btnZen.textContent = t(state.lang, "btnZenEnter");
+    btnZen.textContent = safeT("btnZenEnter", "🪷 Imersivo", "🪷 Zen Stage");
     btnZen.classList.toggle("selected", isZenMode);
   }
 
   const btnSidebar = document.getElementById("btn-toggle-sidebar");
   if (btnSidebar) {
     if (isSidebarCollapsed) {
-      btnSidebar.textContent = t(state.lang, "btnShowSidebar");
-      btnSidebar.classList.add("selected");
-    } else {
-      btnSidebar.textContent = t(state.lang, "btnHideSidebar");
+      btnSidebar.textContent = safeT("btnShowSidebar", "◧ Exibir Teoria", "◧ Show Theory");
       btnSidebar.classList.remove("selected");
+    } else {
+      btnSidebar.textContent = safeT("btnHideSidebar", "◧ Ocultar Teoria", "◧ Hide Theory");
+      btnSidebar.classList.add("selected");
     }
   }
 
@@ -1990,6 +1574,11 @@ function syncControlsWithState() {
   const staffBox = document.getElementById("staff-stage-box");
   if (staffBox) staffBox.style.display = state.showStaff ? "flex" : "none";
   document.getElementById("btn-toggle-staff")?.classList.toggle("selected", state.showStaff);
+
+  const btnHideStaffInline = document.getElementById("btn-hide-staff-inline");
+  if (btnHideStaffInline) {
+    btnHideStaffInline.textContent = state.lang === "en" ? "— Hide Staff" : "— Ocultar Pauta";
+  }
 
   const btnStaffScale = document.getElementById("btn-staff-mode-scale");
   const btnStaffSayr = document.getElementById("btn-staff-mode-sayr");
@@ -2026,6 +1615,11 @@ function syncControlsWithState() {
     el.classList.toggle("selected", Number(el.dataset.phrase) === state.sayrPhraseIndex);
   });
 
+  document.querySelectorAll(".jins-filter").forEach(btn => {
+    const el = /** @type {HTMLElement} */ (btn);
+    el.classList.toggle("selected", el.dataset.filter === state.jinsFilter);
+  });
+
   const btnPlay = document.getElementById("btn-play-scale");
   const btnTaqsim = document.getElementById("btn-play-taqsim");
   const btnArp = document.getElementById("btn-arp-chord");
@@ -2043,51 +1637,8 @@ function syncControlsWithState() {
     }
   }
 
-  syncWorkspaceTelemetry();
+  syncCommandBarSummaries();
   renderGlossaryList();
-}
-
-function applySvgThemePolish() {
-  const isLight = state.theme === "light";
-  const staffSvg = document.getElementById("oud-staff");
-  if (staffSvg && isLight) {
-    const firstRect = staffSvg.querySelector("rect");
-    if (firstRect) {
-      firstRect.setAttribute("fill", "#faf3e3");
-      firstRect.setAttribute("stroke", "rgba(138, 90, 25, 0.45)");
-    }
-    staffSvg.querySelectorAll("line").forEach(ln => {
-      const st = ln.getAttribute("stroke") || "";
-      if (st.includes("254, 243, 199")) {
-        ln.setAttribute("stroke", "rgba(75, 54, 33, 0.52)");
-      }
-    });
-    staffSvg.querySelectorAll("text").forEach(tx => {
-      const fl = tx.getAttribute("fill") || "";
-      if (fl === "#fef3c7" || fl === "#ffffff") {
-        tx.setAttribute("fill", "#23160c");
-      } else if (fl === "#fde68a" || fl === "#fde047") {
-        tx.setAttribute("fill", "#8c5811");
-      } else if (fl === "#67e8f9") {
-        tx.setAttribute("fill", "#0e7490");
-      }
-    });
-  }
-
-  const neckSvg = document.getElementById("oud-neck");
-  if (neckSvg && isLight) {
-    neckSvg.querySelectorAll("text").forEach(tx => {
-      if (tx.closest(".note-node") || tx.closest(".region-overlay")) return;
-      const fl = tx.getAttribute("fill") || "";
-      if (fl === "#fef3c7") {
-        tx.setAttribute("fill", "#2c1d11");
-      } else if (fl === "#fde68a") {
-        tx.setAttribute("fill", "#78350f");
-      } else if (fl === "#d8b4fe") {
-        tx.setAttribute("fill", "#6b21a8");
-      }
-    });
-  }
 }
 
 function refreshAll() {
@@ -2134,9 +1685,8 @@ function refreshAll() {
     octavePathNodes
   );
 
-  applySvgThemePolish();
   updateInfoPanel();
-  syncWorkspaceTelemetry();
+  syncCommandBarSummaries();
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
   syncStateToUrl(state);
@@ -2147,75 +1697,97 @@ function initApp() {
     state.orientation = "VERTICAL";
   }
 
-  ensureDynamicTonicControlsExist();
-  document.documentElement.setAttribute("data-theme", state.theme);
-  document.body.setAttribute("data-theme", state.theme);
-  document.body.setAttribute("data-tradition", state.tradition);
-  document.body.setAttribute("data-orientation", state.orientation);
-  document.body.setAttribute("data-sidebar", isSidebarCollapsed ? "collapsed" : "expanded");
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.setAttribute("content", state.theme === "light" ? "#f4eee4" : "#100d0b");
+  }
 
-  // Auto-Portrait automático ao entrar em viewport mobile (<= 768px) e restauração no Desktop
   let wasMobile = isMobileViewport();
   window.addEventListener("resize", () => {
     const nowMobile = isMobileViewport();
     if (nowMobile && !wasMobile) {
+      setActivePopover(null);
       state.orientation = "VERTICAL";
-      if (!userOverrodeSidebar) {
-        isSidebarCollapsed = true;
-      }
+      if (!userOverrodeSidebar) isSidebarCollapsed = true;
       syncControlsWithState();
       refreshAll();
     } else if (!nowMobile && wasMobile) {
-      setMobileSheetOpen(null);
+      setActivePopover(null);
       state.orientation = desktopPreferredOrientation;
-      if (!userOverrodeSidebar) {
-        isSidebarCollapsed = false;
-      }
+      if (!userOverrodeSidebar) isSidebarCollapsed = false;
       syncControlsWithState();
       refreshAll();
     }
     wasMobile = nowMobile;
   });
 
+  // Delegação de eventos globais para Barra Única, Popovers, Zen e Mobile Dock
   document.addEventListener("click", (e) => {
     const rawTarget = e.target;
     const target = rawTarget instanceof Element ? rawTarget : (rawTarget && /** @type {Node} */ (rawTarget).parentElement);
     if (!target) return;
 
-    // Alternar camada visual de Posições Anatômicas & Pivôs
-    if (target.closest("#btn-pos-map")) {
+    const triggerBtn = /** @type {HTMLElement | null} */ (target.closest(".cmd-trigger"));
+    if (triggerBtn) {
       e.preventDefault();
-      state.showPositionsMap = !state.showPositionsMap;
-      syncControlsWithState();
-      refreshAll();
+      const idx = Number(triggerBtn.dataset.panel);
+      setActivePopover(activePopoverIdx === idx ? null : idx);
       return;
     }
 
-    const mobPill = /** @type {HTMLElement | null} */ (target.closest(".mobile-status-pill"));
-    if (mobPill) {
+    if (target.closest("#popover-backdrop, .popover-close-btn, .btn-close-popover")) {
       e.preventDefault();
-      const idx = Number(mobPill.dataset.sheetIdx);
-      setMobileSheetOpen(activeMobileSheetIdx === idx ? null : idx);
-      return;
-    }
-    if (target.closest("#mobile-sheet-backdrop, .btn-close-mobile-sheet")) {
-      e.preventDefault();
-      setMobileSheetOpen(null);
+      setActivePopover(null);
       return;
     }
 
-    if (target.closest("#btn-hide-staff-inline, #btn-mob-inline-staff")) {
+    if (target.closest("#btn-theme, #btn-zen-theme")) {
       e.preventDefault();
-      state.showStaff = !state.showStaff;
-      syncControlsWithState();
-      refreshAll();
+      toggleAppTheme();
       return;
     }
 
-    // Botão 📖 Teoria na barra inferior móvel: exibe/oculta o bloco teórico e rola até ele quando aberto
+    if (target.closest("#btn-zen-mode")) {
+      e.preventDefault();
+      toggleZenMode();
+      return;
+    }
+
+    if (target.closest("#btn-zen-exit")) {
+      e.preventDefault();
+      toggleZenMode(false);
+      return;
+    }
+
+    if (target.closest("#btn-zen-play, #btn-mob-play")) {
+      e.preventDefault();
+      handlePrimaryAudioAction();
+      return;
+    }
+
+    if (target.closest("#btn-zen-taqsim, #btn-mob-taqsim")) {
+      e.preventDefault();
+      handlePlayTaqsim();
+      return;
+    }
+
+    if (target.closest("#btn-zen-drone, #btn-mob-drone")) {
+      e.preventDefault();
+      const droneBtn = document.getElementById("btn-drone");
+      if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
+      syncCommandBarSummaries();
+      return;
+    }
+
+    if (target.closest("#btn-zen-iqa, #btn-mob-iqa")) {
+      e.preventDefault();
+      toggleIqaPlayback();
+      return;
+    }
+
     if (target.closest("#btn-mob-theory")) {
       e.preventDefault();
-      setMobileSheetOpen(null);
+      setActivePopover(null);
       toggleSidebarCollapsed();
       if (!isSidebarCollapsed) {
         requestAnimationFrame(() => {
@@ -2225,92 +1797,35 @@ function initApp() {
       return;
     }
 
-    if (target.closest("#btn-mob-play")) {
-      e.preventDefault();
-      handlePrimaryAudioAction();
-      return;
-    }
-    if (target.closest("#btn-mob-taqsim")) {
-      e.preventDefault();
-      handlePlayTaqsim();
-      return;
-    }
-    if (target.closest("#btn-mob-drone")) {
-      e.preventDefault();
-      const droneBtn = document.getElementById("btn-drone");
-      if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
-      syncWorkspaceTelemetry();
-      return;
-    }
-    if (target.closest("#btn-mob-iqa")) {
-      e.preventDefault();
-      toggleIqaPlayback();
-      return;
-    }
-
-    if (target.closest("#btn-zen-mode")) {
-      e.preventDefault();
-      toggleZenMode();
-      return;
-    }
-    if (target.closest("#btn-zen-exit")) {
-      e.preventDefault();
-      toggleZenMode(false);
-      return;
-    }
-    if (target.closest("#btn-zen-play")) {
-      e.preventDefault();
-      handlePrimaryAudioAction();
-      return;
-    }
-    if (target.closest("#btn-zen-taqsim")) {
-      e.preventDefault();
-      handlePlayTaqsim();
-      return;
-    }
-    if (target.closest("#btn-zen-drone")) {
-      e.preventDefault();
-      const droneBtn = document.getElementById("btn-drone");
-      if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
-      syncWorkspaceTelemetry();
-      return;
-    }
-    if (target.closest("#btn-zen-iqa")) {
-      e.preventDefault();
-      toggleIqaPlayback();
-      return;
-    }
-    if (target.closest("#btn-zen-theme")) {
-      e.preventDefault();
-      toggleAppTheme();
-      return;
-    }
-
     if (target.closest("#btn-toggle-sidebar")) {
       e.preventDefault();
       toggleSidebarCollapsed();
       return;
     }
 
-    const collapseBtn = /** @type {HTMLElement | null} */ (target.closest(".card-collapse-btn"));
-    if (collapseBtn) {
+    if (target.closest("#btn-hide-staff-inline, #btn-inline-toggle-staff")) {
       e.preventDefault();
-      const card = collapseBtn.closest(".mihrab-card, .sanctuary-card, .iqa-card");
-      if (card) {
-        const isCollapsed = card.classList.toggle("card-collapsed");
-        collapseBtn.textContent = isCollapsed ? "+" : "—";
-        syncWorkspaceTelemetry();
-      }
+      state.showStaff = !state.showStaff;
+      syncControlsWithState();
+      refreshAll();
       return;
     }
 
-    if (target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic, #btn-mob-set-tonic")) {
+    if (target.closest("#btn-pos-map")) {
+      e.preventDefault();
+      state.showPositionsMap = !state.showPositionsMap;
+      syncControlsWithState();
+      refreshAll();
+      return;
+    }
+
+    if (target.closest("#btn-set-root-from-selection, #btn-dock-set-tonic")) {
       e.preventDefault();
       applySelectedPitchAsRoot(selectedStaffOrNeckPitch);
       return;
     }
 
-    if (target.closest("#btn-mob-clear-note")) {
+    if (target.closest("#btn-dock-clear-note")) {
       e.preventDefault();
       selectedStaffOrNeckPitch = null;
       refreshAll();
@@ -2372,9 +1887,9 @@ function initApp() {
     }
   });
 
-  const selTradition = /** @type {HTMLSelectElement} */ (document.getElementById("select-tradition"));
-  selTradition.value = state.tradition;
-  selTradition.addEventListener("change", (e) => {
+  // Listeners diretos dos controles
+  const selTradition = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
+  selTradition?.addEventListener("change", (e) => {
     state.tradition = /** @type {HTMLSelectElement} */ (e.target).value;
     document.body.setAttribute("data-tradition", state.tradition);
     refreshAll();
@@ -2386,8 +1901,7 @@ function initApp() {
     refreshAll();
   });
 
-  const btnOrientation = document.getElementById("btn-orientation");
-  btnOrientation?.addEventListener("click", () => {
+  document.getElementById("btn-orientation")?.addEventListener("click", () => {
     if (isMobileViewport()) return;
     desktopPreferredOrientation = state.orientation === "HORIZONTAL" ? "VERTICAL" : "HORIZONTAL";
     state.orientation = desktopPreferredOrientation;
@@ -2421,15 +1935,14 @@ function initApp() {
     refreshAll();
   });
 
-  const selTuning = /** @type {HTMLSelectElement} */ (document.getElementById("select-tuning"));
-  selTuning.addEventListener("change", (e) => {
+  document.getElementById("select-tuning")?.addEventListener("change", (e) => {
     state.tuningId = /** @type {HTMLSelectElement} */ (e.target).value;
     selectedStaffOrNeckPitch = null;
     refreshAll();
   });
 
-  const selRoot = /** @type {HTMLSelectElement} */ (document.getElementById("select-root"));
-  selRoot.addEventListener("change", (e) => {
+  const selRoot = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-root"));
+  selRoot?.addEventListener("change", (e) => {
     clearSequenceTimers();
     highlightedSequenceStep = -1;
     selectedStaffOrNeckPitch = null;
@@ -2451,41 +1964,40 @@ function initApp() {
     const active = /** @type {any} */ (getActiveStructure(state).entity);
     if (active.traditional_root_q !== undefined) {
       state.rootQ = active.traditional_root_q;
-      selRoot.value = String(state.rootQ);
+      if (selRoot) selRoot.value = String(state.rootQ);
       refreshAll();
     }
   });
 
-  const selIqa = /** @type {HTMLSelectElement} */ (document.getElementById("select-iqa"));
-  const sliderBpm = /** @type {HTMLInputElement} */ (document.getElementById("slider-bpm"));
+  const selIqa = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-iqa"));
+  const sliderBpm = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-bpm"));
   const labelBpm = document.getElementById("label-bpm");
-  sliderBpm.value = String(state.bpm);
+  if (sliderBpm) sliderBpm.value = String(state.bpm);
   if (labelBpm) labelBpm.textContent = String(state.bpm);
 
-  selIqa.addEventListener("change", (e) => {
+  selIqa?.addEventListener("change", (e) => {
     state.iqaId = /** @type {HTMLSelectElement} */ (e.target).value;
     const found = DB.iqaat.find(x => x.id === state.iqaId);
     if (found) {
       state.bpm = found.default_bpm;
-      sliderBpm.value = String(state.bpm);
+      if (sliderBpm) sliderBpm.value = String(state.bpm);
       if (labelBpm) labelBpm.textContent = String(state.bpm);
     }
     activeIqaBeatIdx = -1;
     restartIqaIfPlaying();
-    syncWorkspaceTelemetry();
+    syncCommandBarSummaries();
     syncStateToUrl(state);
   });
 
-  sliderBpm.addEventListener("input", (e) => {
+  sliderBpm?.addEventListener("input", (e) => {
     state.bpm = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10);
     if (labelBpm) labelBpm.textContent = String(state.bpm);
     restartIqaIfPlaying();
-    syncWorkspaceTelemetry();
+    syncCommandBarSummaries();
     syncStateToUrl(state);
   });
 
-  const btnToggleIqa = document.getElementById("btn-toggle-iqa");
-  btnToggleIqa?.addEventListener("click", () => {
+  document.getElementById("btn-toggle-iqa")?.addEventListener("click", () => {
     toggleIqaPlayback();
   });
 
@@ -2499,14 +2011,13 @@ function initApp() {
       state.cadenceStepIndex = 0;
       if ((state.mode === "CHORD" || state.mode === "CADENCE") && state.shapeMode === "FULL_NECK") {
         state.shapeMode = "OPEN_FIRST_POS";
-        /** @type {HTMLSelectElement} */ (document.getElementById("select-shape")).value = "OPEN_FIRST_POS";
       }
       syncControlsWithState();
       if (!hasValidAnchor()) {
         const active = /** @type {any} */ (getActiveStructure(state).entity);
         if (active.traditional_root_q !== undefined) {
           state.rootQ = active.traditional_root_q;
-          selRoot.value = String(state.rootQ);
+          if (selRoot) selRoot.value = String(state.rootQ);
         }
       }
       refreshAll();
@@ -2524,17 +2035,15 @@ function initApp() {
       const active = /** @type {any} */ (getActiveStructure(state).entity);
       if (active.traditional_root_q !== undefined) {
         state.rootQ = active.traditional_root_q;
-        selRoot.value = String(state.rootQ);
+        if (selRoot) selRoot.value = String(state.rootQ);
       }
     }
     refreshAll();
   });
 
-  const btnToggleSayr = document.getElementById("btn-toggle-sayr");
-  btnToggleSayr?.classList.toggle("selected", state.showSayr);
-  btnToggleSayr?.addEventListener("click", () => {
+  document.getElementById("btn-toggle-sayr")?.addEventListener("click", () => {
     state.showSayr = !state.showSayr;
-    btnToggleSayr.classList.toggle("selected", state.showSayr);
+    syncControlsWithState();
     refreshAll();
   });
 
@@ -2547,51 +2056,37 @@ function initApp() {
       state.sayrPhraseIndex = Number(/** @type {HTMLElement} */ (btn).dataset.phrase);
       state.showSayr = true;
       state.staffMode = "SAYR";
-      btnToggleSayr?.classList.add("selected");
       syncControlsWithState();
       refreshAll();
     });
   });
 
-  const btnVoicing = document.getElementById("btn-chord-voicing");
-  const btnChordAll = document.getElementById("btn-chord-all");
-  btnVoicing?.classList.toggle("selected", state.chordVoicingOnly);
-  btnChordAll?.classList.toggle("selected", !state.chordVoicingOnly);
-
-  btnVoicing?.addEventListener("click", () => {
+  document.getElementById("btn-chord-voicing")?.addEventListener("click", () => {
     state.chordVoicingOnly = true;
-    btnVoicing.classList.add("selected");
-    btnChordAll?.classList.remove("selected");
+    syncControlsWithState();
     refreshAll();
   });
-  btnChordAll?.addEventListener("click", () => {
+
+  document.getElementById("btn-chord-all")?.addEventListener("click", () => {
     state.chordVoicingOnly = false;
-    btnChordAll.classList.add("selected");
-    btnVoicing?.classList.remove("selected");
+    syncControlsWithState();
     refreshAll();
   });
 
-  const btnAsc = document.getElementById("btn-dir-asc");
-  const btnDesc = document.getElementById("btn-dir-desc");
-  btnAsc?.classList.toggle("selected", state.direction === "ASC");
-  btnDesc?.classList.toggle("selected", state.direction === "DESC");
-
-  btnAsc?.addEventListener("click", () => {
+  document.getElementById("btn-dir-asc")?.addEventListener("click", () => {
     state.direction = "ASC";
-    btnAsc.classList.add("selected");
-    btnDesc?.classList.remove("selected");
-    refreshAll();
-  });
-  btnDesc?.addEventListener("click", () => {
-    state.direction = "DESC";
-    btnDesc.classList.add("selected");
-    btnAsc?.classList.remove("selected");
+    syncControlsWithState();
     refreshAll();
   });
 
-  const selShape = /** @type {HTMLSelectElement} */ (document.getElementById("select-shape"));
-  selShape.value = state.shapeMode;
-  selShape.addEventListener("change", (e) => {
+  document.getElementById("btn-dir-desc")?.addEventListener("click", () => {
+    state.direction = "DESC";
+    syncControlsWithState();
+    refreshAll();
+  });
+
+  const selShape = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-shape"));
+  selShape?.addEventListener("change", (e) => {
     state.shapeMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
     if (
       state.shapeMode === "CLOSED_BOX" ||
@@ -2599,20 +2094,19 @@ function initApp() {
       state.shapeMode === "POS_THIRD_BODY"
     ) {
       state.labelMode = "FINGER";
-      /** @type {HTMLSelectElement} */ (document.getElementById("select-label")).value = "FINGER";
     }
     syncControlsWithState();
     refreshAll();
   });
 
-  const sliderBox = /** @type {HTMLInputElement} */ (document.getElementById("slider-box"));
+  const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
   const labelBoxPos = document.getElementById("label-box-pos");
-  sliderBox.value = String(state.boxAnchorQ);
+  if (sliderBox) sliderBox.value = String(state.boxAnchorQ);
   if (labelBoxPos) {
     const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
     labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
   }
-  sliderBox.addEventListener("input", (e) => {
+  sliderBox?.addEventListener("input", (e) => {
     state.boxAnchorQ = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10);
     if (labelBoxPos) {
       const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
@@ -2622,41 +2116,33 @@ function initApp() {
   });
 
   document.querySelectorAll(".jins-filter").forEach(btn => {
-    const el = /** @type {HTMLElement} */ (btn);
-    el.classList.toggle("selected", el.dataset.filter === state.jinsFilter);
-    el.addEventListener("click", () => {
-      state.jinsFilter = /** @type {any} */ (el.dataset.filter);
-      document.querySelectorAll(".jins-filter").forEach(b => b.classList.remove("selected"));
-      el.classList.add("selected");
+    btn.addEventListener("click", () => {
+      state.jinsFilter = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.filter);
+      syncControlsWithState();
       refreshAll();
     });
   });
 
-  const selLabel = /** @type {HTMLSelectElement} */ (document.getElementById("select-label"));
-  selLabel.value = state.labelMode;
-  selLabel.addEventListener("change", (e) => {
+  document.getElementById("select-label")?.addEventListener("change", (e) => {
     state.labelMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
     refreshAll();
   });
 
-  const btnSemi = document.getElementById("btn-guide-semi");
-  btnSemi?.addEventListener("click", () => {
+  document.getElementById("btn-guide-semi")?.addEventListener("click", () => {
     state.showSemiGuides = !state.showSemiGuides;
-    btnSemi.classList.toggle("selected", state.showSemiGuides);
+    syncControlsWithState();
     refreshAll();
   });
 
-  const btnMicro = document.getElementById("btn-guide-micro");
-  btnMicro?.addEventListener("click", () => {
+  document.getElementById("btn-guide-micro")?.addEventListener("click", () => {
     state.showMicroGuides = !state.showMicroGuides;
-    btnMicro.classList.toggle("selected", state.showMicroGuides);
+    syncControlsWithState();
     refreshAll();
   });
 
-  const btnGhost = document.getElementById("btn-ghost-notes");
-  btnGhost?.addEventListener("click", () => {
+  document.getElementById("btn-ghost-notes")?.addEventListener("click", () => {
     state.showGhostNotes = !state.showGhostNotes;
-    btnGhost.classList.toggle("selected", state.showGhostNotes);
+    syncControlsWithState();
     refreshAll();
   });
 
@@ -2669,7 +2155,7 @@ function initApp() {
   const btnDrone = document.getElementById("btn-drone");
   btnDrone?.addEventListener("click", () => {
     state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, btnDrone);
-    syncWorkspaceTelemetry();
+    syncCommandBarSummaries();
   });
 
   const btnShare = document.getElementById("btn-share");
@@ -2684,8 +2170,7 @@ function initApp() {
     }
   });
 
-  const btnHand = document.getElementById("btn-hand");
-  btnHand?.addEventListener("click", () => {
+  document.getElementById("btn-hand")?.addEventListener("click", () => {
     state.leftHanded = !state.leftHanded;
     syncControlsWithState();
     refreshAll();
@@ -2723,8 +2208,8 @@ function initApp() {
     const isTyping = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
 
     if (e.key === "Escape") {
-      if (activeMobileSheetIdx !== null) {
-        setMobileSheetOpen(null);
+      if (activePopoverIdx !== null) {
+        setActivePopover(null);
         return;
       }
       const drawer = document.getElementById("glossary-drawer");
@@ -2749,9 +2234,10 @@ function initApp() {
 window.addEventListener("DOMContentLoaded", initApp);
 
 // ==========================================================================
-// PWA: Registro do Service Worker Offline & Botão de Instalação Nativa
+// PWA: Service Worker Offline (ativo em produção, ignorado em localhost)
 // ==========================================================================
-if ("serviceWorker" in navigator) {
+const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+if ("serviceWorker" in navigator && !isLocalhost) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
       // Ignora em ambientes sem suporte a Service Worker
@@ -2770,7 +2256,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
     const installBtn = document.createElement("button");
     installBtn.id = "btn-install-pwa";
     installBtn.type = "button";
-    installBtn.className = "sadaf-btn";
+    installBtn.className = "plum-btn";
     installBtn.textContent = state.lang === "en" ? "📲 Install App" : "📲 Instalar App";
     installBtn.addEventListener("click", async () => {
       if (!deferredInstallPrompt) return;
