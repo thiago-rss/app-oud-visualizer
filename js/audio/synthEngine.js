@@ -85,12 +85,8 @@ let rishaThumpBuffer = null;
  */
 let bodyBusNodes = null;
 
-/** @type {HTMLAudioElement | null} */
-let iosKeepAliveAudio = null;
-/** @type {string | null} */
-let iosSilentBlobUrl = null;
 /** @type {number | undefined} */
-let iosIdlePauseTimer;
+let idleSuspendTimer;
 /** @type {boolean} */
 let isMicSessionActive = false;
 /** @type {boolean} */
@@ -115,116 +111,34 @@ let droneNodes = null;
 let lastDroneRootQ = 0;
 
 /**
- * Gera um WAV PCM silencioso de 0,25s em 44.100 Hz Estéreo (compatível com Bluetooth A2DP / AirPods)
- * para manter a categoria AVAudioSessionCategoryPlayback ativa no iOS/WKWebView.
+ * Limpa metadados e estado da MediaSession para impedir exibição de player
+ * na tela de bloqueio e na Central de Controle do iOS.
  */
-function getSilentWavBlobUrl() {
-  if (iosSilentBlobUrl) return iosSilentBlobUrl;
-
-  const sampleRate = 44100;
-  const numChannels = 2;
-  const bitsPerSample = 16;
-  const blockAlign = numChannels * (bitsPerSample / 8); // 4 bytes
-  const byteRate = sampleRate * blockAlign;             // 176400
-  const numFrames = 11025;                              // 0.25s
-  const dataSize = numFrames * blockAlign;              // 44100 bytes
-
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  const writeStr = (/** @type {number} */ offset, /** @type {string} */ str) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
+function clearMediaSession() {
+  try {
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator && navigator.mediaSession) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = "none";
     }
-  };
-
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);             // PCM
-  view.setUint16(22, numChannels, true);   // Stereo (A2DP)
-  view.setUint32(24, sampleRate, true);    // 44.1 kHz
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-  writeStr(36, "data");
-  view.setUint32(40, dataSize, true);
-
-  const blob = new Blob([buffer], { type: "audio/wav" });
-  iosSilentBlobUrl = URL.createObjectURL(blob);
-  return iosSilentBlobUrl;
-}
-
-/**
- * Garante o elemento HTML5 <audio loop playsinline> anexado ao DOM (exigência do WKWebView).
- * Não bloqueia AirPlay nem reprodução remota para permitir saída limpa em AirPods/Bluetooth.
- */
-function ensureIosKeepAliveElement() {
-  if (typeof document === "undefined") return null;
-  if (iosKeepAliveAudio) return iosKeepAliveAudio;
-
-  const audioEl = document.createElement("audio");
-  audioEl.setAttribute("playsinline", "");
-  audioEl.setAttribute("webkit-playsinline", "");
-  audioEl.preload = "auto";
-  audioEl.loop = true;
-  audioEl.muted = false;
-  audioEl.volume = 1;
-  audioEl.src = getSilentWavBlobUrl();
-
-  audioEl.style.position = "fixed";
-  audioEl.style.width = "0";
-  audioEl.style.height = "0";
-  audioEl.style.opacity = "0";
-  audioEl.style.pointerEvents = "none";
-  audioEl.setAttribute("aria-hidden", "true");
-
-  if (document.body) {
-    document.body.appendChild(audioEl);
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
-      if (document.body && !audioEl.parentNode) {
-        document.body.appendChild(audioEl);
-      }
-    }, { once: true });
+  } catch {
+    // Navegadores sem MediaSession ignoram com segurança
   }
-
-  iosKeepAliveAudio = audioEl;
-  return audioEl;
 }
 
 /**
- * Agenda a pausa do loop silencioso após 30 s sem atividade (se Drone e Iqa' estiverem desligados),
- * evitando derrubar a rota Bluetooth entre notas durante o estudo.
+ * Configura a sessão de áudio do iOS (WebKit AudioSession API):
+ * - "play-and-record" quando o microfone estiver ativo
+ * - "playback" durante a reprodução em primeiro plano (habilita A2DP em AirPods e contorna o silencioso)
+ * - "ambient" em repouso/segundo plano (evita sequestro do player da tela de bloqueio)
+ *
+ * @param {"playback"|"play-and-record"|"ambient"} [overrideType]
  */
-function scheduleIosKeepAlivePause() {
-  window.clearTimeout(iosIdlePauseTimer);
-  if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null) return;
-
-  iosIdlePauseTimer = window.setTimeout(() => {
-    if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null) return;
-    if (iosKeepAliveAudio && !iosKeepAliveAudio.paused) {
-      try {
-        iosKeepAliveAudio.pause();
-      } catch {
-        // Ignora
-      }
-    }
-  }, 30000);
-}
-
-/**
- * Configura a sessão de áudio do iOS 17+:
- * - "play-and-record" quando o microfone estiver ativo (permite captura + referência)
- * - "playback" no uso normal (contorna a chave de silencioso e habilita A2DP em AirPods)
- */
-function configureIosAudioSession() {
+function configureIosAudioSession(overrideType) {
   try {
     const navAny = /** @type {any} */ (navigator);
-    const desiredType = isMicSessionActive ? "play-and-record" : "playback";
-    if (navAny && navAny.audioSession && navAny.audioSession.type !== desiredType) {
+    if (!navAny || !navAny.audioSession) return;
+    const desiredType = overrideType || (isMicSessionActive ? "play-and-record" : "playback");
+    if (navAny.audioSession.type !== desiredType) {
       navAny.audioSession.type = desiredType;
     }
   } catch {
@@ -233,9 +147,45 @@ function configureIosAudioSession() {
 }
 
 /**
+ * Libera a sessão de áudio quando o app vai para segundo plano ou a tela é bloqueada,
+ * impedindo que o iOS exiba controles de mídia na tela de bloqueio.
+ */
+function releaseAudioSessionForBackground() {
+  window.clearTimeout(idleSuspendTimer);
+  clearMediaSession();
+
+  if (!isMicSessionActive) {
+    configureIosAudioSession("ambient");
+  }
+
+  if (audioCtx && audioCtx.state === "running") {
+    audioCtx.suspend().catch(() => {});
+  }
+}
+
+/**
+ * Agenda suspensão silenciosa do AudioContext após 5 s de inatividade
+ * (quando Drone, Iqa' e sequências estiverem parados), economizando bateria
+ * e garantindo que nenhum player apareça caso o usuário bloqueie a tela em seguida.
+ */
+function scheduleIdleSuspend() {
+  window.clearTimeout(idleSuspendTimer);
+  if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null) return;
+
+  idleSuspendTimer = window.setTimeout(() => {
+    if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null || sequenceTimers.length > 0) return;
+    clearMediaSession();
+    configureIosAudioSession("ambient");
+    if (audioCtx && audioCtx.state === "running") {
+      audioCtx.suspend().catch(() => {});
+    }
+  }, 5000);
+}
+
+/**
  * Sinaliza ao motor de áudio quando o microfone/afinador está ativo no iOS,
- * pausando o <audio loop> de Playback para liberar o hardware de gravação no WKWebView
- * e marcando o AudioContext para reconstrução ao retornar de HFP para A2DP.
+ * alternando entre "play-and-record" e "playback" e marcando o AudioContext
+ * para reconstrução ao retornar de HFP para A2DP (AirPods/Bluetooth).
  *
  * @param {boolean} active
  */
@@ -244,20 +194,13 @@ export function setMicSessionActive(active) {
   isMicSessionActive = Boolean(active);
 
   if (isMicSessionActive) {
-    window.clearTimeout(iosIdlePauseTimer);
-    if (iosKeepAliveAudio && !iosKeepAliveAudio.paused) {
-      try {
-        iosKeepAliveAudio.pause();
-      } catch {
-        // Ignora
-      }
-    }
+    window.clearTimeout(idleSuspendTimer);
   } else if (prevActive && audioCtx) {
-    // Retorno de "play-and-record" (HFP) para "playback" (A2DP): garante nova rota limpa
     needsContextRebuild = true;
   }
 
   configureIosAudioSession();
+  clearMediaSession();
 }
 
 /**
@@ -642,7 +585,7 @@ function ensureAudioContext() {
 /**
  * Watchdog para bug clássico do iOS WebKit com AirPods/Bluetooth:
  * o AudioContext relata state === "running", mas currentTime congela em 0 ou no instante da troca de rota.
- * Se detectado, reconstrói o contexto na rota ativa e reexecuta a nota.
+ * Se detectado em primeiro plano, reconstrói o contexto na rota ativa e reexecuta a nota.
  *
  * @param {AudioContext} ctx
  * @param {(ctx: AudioContext, masterDest: AudioNode, bodyDest: AudioNode) => void} retryFn
@@ -656,14 +599,14 @@ function verifyAudioClockProgress(ctx, retryFn) {
 
   window.setTimeout(() => {
     clockCheckPending = false;
-    if (ctx !== audioCtx) return;
+    if (ctx !== audioCtx || ctx.state !== "running") return;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
 
     if (ctx.currentTime > t0 + 0.001) {
       lastClockVerifiedTs = performance.now();
       return;
     }
 
-    // Relógio travado na rota Bluetooth/iOS -> reconstrói contexto uma vez a cada >= 2s
     const recoveryPerf = performance.now();
     if (recoveryPerf - lastClockRecoveryTs < 2000) return;
     lastClockRecoveryTs = recoveryPerf;
@@ -681,8 +624,8 @@ function verifyAudioClockProgress(ctx, retryFn) {
 }
 
 /**
- * Executa o desbloqueio síncrono e ativa o keep-alive de Playback no iPhone/Chrome
- * (compatível com AirPods/Bluetooth e desativado enquanto o microfone estiver aberto).
+ * Executa o desbloqueio síncrono via Web Audio puro + AudioSession API
+ * (sem elemento HTML5 audio, evitando qualquer player na tela de bloqueio).
  */
 export function unlockAudioEngine() {
   const nowPerf = performance.now();
@@ -690,32 +633,16 @@ export function unlockAudioEngine() {
 
   // Evita disparos triplos (pointerup + touchend + click) no mesmo toque quando já está saudável
   if (!ctxNeedsKick && nowPerf - lastUnlockTs < 140) {
-    scheduleIosKeepAlivePause();
+    scheduleIdleSuspend();
     return;
   }
   lastUnlockTs = nowPerf;
 
+  window.clearTimeout(idleSuspendTimer);
   configureIosAudioSession();
+  clearMediaSession();
 
   const ctx = needsContextRebuild ? rebuildAudioContext() : ensureAudioContext();
-
-  if (!isMicSessionActive) {
-    const keepAlive = ensureIosKeepAliveElement();
-    if (keepAlive && keepAlive.paused) {
-      try {
-        const p = keepAlive.play();
-        if (p && typeof p.catch === "function") {
-          p.catch(() => {
-            // Será tentado novamente no próximo touchend/click válido
-          });
-        }
-      } catch {
-        // Ignora
-      }
-    }
-    scheduleIosKeepAlivePause();
-  }
-
   if (!ctx) return;
 
   if (ctx.state !== "running") {
@@ -733,6 +660,8 @@ export function unlockAudioEngine() {
   } catch {
     // Ignora
   }
+
+  scheduleIdleSuspend();
 }
 
 /**
@@ -740,6 +669,14 @@ export function unlockAudioEngine() {
  * @param {(ctx: AudioContext, masterDest: AudioNode, bodyDest: AudioNode) => void} fn
  */
 function withReadyAudio(fn) {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    return;
+  }
+
+  window.clearTimeout(idleSuspendTimer);
+  configureIosAudioSession();
+  clearMediaSession();
+
   if (needsContextRebuild) {
     rebuildAudioContext();
   }
@@ -747,11 +684,10 @@ function withReadyAudio(fn) {
   const ctx = ensureAudioContext();
   if (!ctx || !masterGain || !oudBodyInput) return;
 
-  scheduleIosKeepAlivePause();
-
   if (ctx.state === "running") {
     fn(ctx, masterGain, oudBodyInput);
     verifyAudioClockProgress(ctx, fn);
+    scheduleIdleSuspend();
     return;
   }
 
@@ -764,6 +700,7 @@ function withReadyAudio(fn) {
       if (audioCtx === activeCtx && masterGain && oudBodyInput) {
         fn(activeCtx, masterGain, oudBodyInput);
         verifyAudioClockProgress(activeCtx, fn);
+        scheduleIdleSuspend();
       }
     })
     .catch(() => {
@@ -771,7 +708,7 @@ function withReadyAudio(fn) {
     });
 }
 
-// Registra desbloqueio na fase de captura e monitora conexão/desconexão de AirPods/Bluetooth
+// Registra desbloqueio na fase de captura e libera sessão ao bloquear tela ou trocar de rota Bluetooth
 if (typeof window !== "undefined") {
   const MIC_TRIGGER_SELECTOR = "#btn-open-live-tuner, #btn-popover-open-tuner, #btn-tuner-mic-toggle, .btn-study-live-pitch";
 
@@ -797,7 +734,7 @@ if (typeof window !== "undefined") {
       needsContextRebuild = true;
       lastClockVerifiedTs = 0;
 
-      if (droneNodes !== null || iqaIntervalId !== null) {
+      if ((droneNodes !== null || iqaIntervalId !== null) && document.visibilityState === "visible") {
         const rebuilt = rebuildAudioContext();
         rebuilt?.resume().catch(() => {});
       }
@@ -806,27 +743,28 @@ if (typeof window !== "undefined") {
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      if (iosKeepAliveAudio && !iosKeepAliveAudio.paused && droneNodes === null && iqaIntervalId === null) {
-        try {
-          iosKeepAliveAudio.pause();
-        } catch {
-          // Ignora
+      releaseAudioSessionForBackground();
+    } else if (document.visibilityState === "visible") {
+      configureIosAudioSession();
+      clearMediaSession();
+      if (audioCtx) {
+        const st = /** @type {string} */ (audioCtx.state);
+        if (st === "interrupted") {
+          needsContextRebuild = true;
+        } else if (st !== "running" && (droneNodes !== null || iqaIntervalId !== null)) {
+          audioCtx.resume().catch(() => {});
         }
-      }
-    } else if (document.visibilityState === "visible" && audioCtx) {
-      const st = /** @type {string} */ (audioCtx.state);
-      if (st === "interrupted") {
-        needsContextRebuild = true;
-      } else if (st !== "running") {
-        audioCtx.resume().catch(() => {});
       }
     }
   });
+
+  window.addEventListener("pagehide", releaseAudioSessionForBackground);
 }
 
 export function clearSequenceTimers() {
   sequenceTimers.forEach(id => window.clearTimeout(id));
   sequenceTimers = [];
+  scheduleIdleSuspend();
 }
 
 /**
@@ -1126,6 +1064,10 @@ export function playScaleSequence(rootQ, intervals, centsMap = {}) {
     const freq = baseRootFreq * Math.pow(2, (intQ * 50 + centsDev) / 1200);
     const id = window.setTimeout(() => {
       playPluckedNote(freq, idx === intervals.length - 1 ? 1.6 : 0.95, 0.36);
+      if (idx === intervals.length - 1) {
+        sequenceTimers = [];
+        scheduleIdleSuspend();
+      }
     }, idx * 320);
     sequenceTimers.push(id);
   });
@@ -1165,6 +1107,8 @@ export function playTaqsimPhrase(rootQ, steps, centsMap = {}, onStepHighlight) {
 
   const endId = window.setTimeout(() => {
     if (onStepHighlight) onStepHighlight(-1);
+    sequenceTimers = [];
+    scheduleIdleSuspend();
   }, elapsedMs + 280);
   sequenceTimers.push(endId);
 }
@@ -1182,6 +1126,10 @@ export function scheduleCadenceSequence(stepCount, onStep) {
   for (let i = 0; i < stepCount; i++) {
     const id = window.setTimeout(() => {
       onStep(i);
+      if (i === stepCount - 1) {
+        sequenceTimers = [];
+        scheduleIdleSuspend();
+      }
     }, i * 1150);
     sequenceTimers.push(id);
   }
@@ -1206,7 +1154,7 @@ function stopDroneNodes() {
     // Ignora
   }
   droneNodes = null;
-  scheduleIosKeepAlivePause();
+  scheduleIdleSuspend();
 }
 
 function startDroneNodes(rootQ) {
@@ -1243,7 +1191,7 @@ function startDroneNodes(rootQ) {
     osc2.start(now);
 
     droneNodes = { osc1, osc2, filter, gain };
-    window.clearTimeout(iosIdlePauseTimer);
+    window.clearTimeout(idleSuspendTimer);
   });
 }
 
@@ -1300,6 +1248,7 @@ export function updateDronePitch(isActive, rootQ, btnEl) {
  */
 function playIqaStroke(stroke) {
   if (stroke === "REST") return;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
 
   withReadyAudio((ctx, masterDest) => {
     const now = ctx.currentTime + 0.015;
@@ -1374,13 +1323,14 @@ export function startIqaEngine(iqaObj, bpm, onBeat) {
   stopIqaEngine();
   if (!iqaObj || !Array.isArray(iqaObj.pattern) || !iqaObj.pattern.length) return;
   unlockAudioEngine();
-  window.clearTimeout(iosIdlePauseTimer);
+  window.clearTimeout(idleSuspendTimer);
 
   const safeBpm = Math.max(40, Math.min(200, bpm || 96));
   const stepMs = Math.round((60000 / safeBpm) / 2);
   let stepIdx = 0;
 
   const triggerStep = () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
     const step = iqaObj.pattern[stepIdx];
     if (step) {
       playIqaStroke(step.stroke);
@@ -1398,5 +1348,5 @@ export function stopIqaEngine() {
     window.clearInterval(iqaIntervalId);
     iqaIntervalId = null;
   }
-  scheduleIosKeepAlivePause();
+  scheduleIdleSuspend();
 }
