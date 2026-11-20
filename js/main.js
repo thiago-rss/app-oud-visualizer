@@ -147,6 +147,8 @@ let isTunerBarOpen = false;
 let latestPitchDetection = null;
 /** @type {string | null} */
 let tunerErrorCode = null;
+/** @type {string | null} */
+let tunerErrorDetail = null;
 /** @type {number | null} */
 let lastDetectedTunerCourse = null;
 
@@ -289,9 +291,10 @@ function getTunerErrorText(code) {
       ? "This browser does not support Web Audio microphone capture."
       : "Este navegador não oferece suporte à captura de microfone pela Web Audio API.";
   }
-  return isEn
-    ? "Could not start the microphone. Check if another app is using it."
-    : "Não foi possível iniciar o microfone. Verifique se outro aplicativo está usando a entrada.";
+  const suffix = tunerErrorDetail ? ` (${tunerErrorDetail})` : "";
+  return (isEn
+    ? "Could not start the microphone. Check if another app is using it or if Chrome has Mic permission in iOS Settings."
+    : "Não foi possível iniciar o microfone. Verifique se o Chrome tem permissão de microfone nos Ajustes do iOS.") + suffix;
 }
 
 /**
@@ -579,15 +582,16 @@ function handleLivePitchDetection(detection) {
 }
 
 async function startLiveMicCapture() {
-  unlockAudioEngine();
   tunerErrorCode = null;
+  tunerErrorDetail = null;
   syncLiveTunerUI();
 
   await startPitchListening({
     getState: () => state,
     onDetection: handleLivePitchDetection,
-    onError: (code) => {
+    onError: (code, rawErr) => {
       tunerErrorCode = code;
+      tunerErrorDetail = rawErr?.name ? String(rawErr.name) : null;
       latestPitchDetection = null;
       clearLivePitchOverlayOnNeck();
       syncLiveTunerUI();
@@ -612,6 +616,7 @@ function openLiveTunerBar(preferredMode, autoStartMic = true) {
   setActivePopover(null);
   isTunerBarOpen = true;
   tunerErrorCode = null;
+  tunerErrorDetail = null;
 
   if (preferredMode) {
     setPitchDetectionMode(preferredMode);
@@ -629,6 +634,7 @@ function closeLiveTunerBar() {
   isTunerBarOpen = false;
   latestPitchDetection = null;
   tunerErrorCode = null;
+  tunerErrorDetail = null;
   clearLivePitchOverlayOnNeck();
   syncLiveTunerUI();
 }

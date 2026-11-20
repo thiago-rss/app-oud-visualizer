@@ -91,6 +91,8 @@ let iosKeepAliveAudio = null;
 let iosSilentBlobUrl = null;
 /** @type {number | undefined} */
 let iosIdlePauseTimer;
+/** @type {boolean} */
+let isMicSessionActive = false;
 
 /** @type {number[]} */
 let sequenceTimers = [];
@@ -183,10 +185,10 @@ function ensureIosKeepAliveElement() {
  */
 function scheduleIosKeepAlivePause() {
   window.clearTimeout(iosIdlePauseTimer);
-  if (droneNodes !== null || iqaIntervalId !== null) return;
+  if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null) return;
 
   iosIdlePauseTimer = window.setTimeout(() => {
-    if (droneNodes !== null || iqaIntervalId !== null) return;
+    if (isMicSessionActive || droneNodes !== null || iqaIntervalId !== null) return;
     if (iosKeepAliveAudio && !iosKeepAliveAudio.paused) {
       try {
         iosKeepAliveAudio.pause();
@@ -198,17 +200,41 @@ function scheduleIosKeepAlivePause() {
 }
 
 /**
- * Configura a sessão de áudio do iOS 17+ para Playback (Safari nativo).
+ * Configura a sessão de áudio do iOS 17+:
+ * - "play-and-record" quando o microfone estiver ativo (permite captura + referência)
+ * - "playback" no uso normal (contorna a chave física de silencioso no iPhone)
  */
 function configureIosAudioSession() {
   try {
     const navAny = /** @type {any} */ (navigator);
-    if (navAny && navAny.audioSession && navAny.audioSession.type !== "playback") {
-      navAny.audioSession.type = "playback";
+    const desiredType = isMicSessionActive ? "play-and-record" : "playback";
+    if (navAny && navAny.audioSession && navAny.audioSession.type !== desiredType) {
+      navAny.audioSession.type = desiredType;
     }
   } catch {
     // Navegadores sem AudioSession API ignoram com segurança
   }
+}
+
+/**
+ * Sinaliza ao motor de áudio quando o microfone/afinador está ativo no iOS,
+ * pausando o <audio loop> de Playback para liberar o hardware de gravação no WKWebView.
+ *
+ * @param {boolean} active
+ */
+export function setMicSessionActive(active) {
+  isMicSessionActive = Boolean(active);
+  if (isMicSessionActive) {
+    window.clearTimeout(iosIdlePauseTimer);
+    if (iosKeepAliveAudio && !iosKeepAliveAudio.paused) {
+      try {
+        iosKeepAliveAudio.pause();
+      } catch {
+        // Ignora
+      }
+    }
+  }
+  configureIosAudioSession();
 }
 
 /**
@@ -510,27 +536,29 @@ function ensureAudioContext() {
 }
 
 /**
- * Executa o desbloqueio síncrono e ativa o keep-alive de Playback no iPhone/Chrome.
- * Deve ser chamado diretamente dentro de um evento de gesto do usuário (touchend / click).
+ * Executa o desbloqueio síncrono e ativa o keep-alive de Playback no iPhone/Chrome
+ * (exceto quando o microfone estiver ativo, para não bloquear a entrada no iOS).
  */
 export function unlockAudioEngine() {
   const ctx = ensureAudioContext();
   configureIosAudioSession();
 
-  const keepAlive = ensureIosKeepAliveElement();
-  if (keepAlive && keepAlive.paused) {
-    try {
-      const p = keepAlive.play();
-      if (p && typeof p.catch === "function") {
-        p.catch(() => {
-          // Será tentado novamente no próximo touchend/click válido
-        });
+  if (!isMicSessionActive) {
+    const keepAlive = ensureIosKeepAliveElement();
+    if (keepAlive && keepAlive.paused) {
+      try {
+        const p = keepAlive.play();
+        if (p && typeof p.catch === "function") {
+          p.catch(() => {
+            // Será tentado novamente no próximo touchend/click válido
+          });
+        }
+      } catch {
+        // Ignora
       }
-    } catch {
-      // Ignora
     }
+    scheduleIosKeepAlivePause();
   }
-  scheduleIosKeepAlivePause();
 
   if (!ctx) return;
 
@@ -578,9 +606,17 @@ function withReadyAudio(fn) {
     });
 }
 
-// Registra desbloqueio na fase de captura (touchend + click garantem ativação no Chrome iOS)
+// Registra desbloqueio na fase de captura, evitando travar Playback ao tocar nos botões do microfone
 if (typeof window !== "undefined") {
-  const handleUserGesture = () => {
+  const MIC_TRIGGER_SELECTOR = "#btn-open-live-tuner, #btn-popover-open-tuner, #btn-tuner-mic-toggle, .btn-study-live-pitch";
+
+  const handleUserGesture = (/** @type {Event} */ ev) => {
+    const rawTarget = ev?.target;
+    const el = rawTarget instanceof Element ? rawTarget : null;
+    if (el && el.closest(MIC_TRIGGER_SELECTOR)) {
+      setMicSessionActive(true);
+      return;
+    }
     unlockAudioEngine();
   };
 

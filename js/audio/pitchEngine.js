@@ -1,6 +1,7 @@
 // @ts-check
 import { DB, PITCH_CLASSES_24 } from "../core/database.js";
 import { getActiveStructure } from "../core/modalEngine.js";
+import { setMicSessionActive } from "./synthEngine.js";
 
 /**
  * @typedef {"MAQAM_24TET"|"CHROMATIC_24TET"|"TUNER"} PitchDetectionMode
@@ -57,6 +58,8 @@ let micStream = null;
 let micSource = null;
 /** @type {AnalyserNode | null} */
 let analyser = null;
+/** @type {GainNode | null} */
+let silentSinkGain = null;
 /** @type {Float32Array | null} */
 let timeDomainBuf = null;
 /** @type {Float32Array | null} */
@@ -65,11 +68,13 @@ let yinDiffBuf = null;
 let yinCmndfBuf = null;
 
 let listening = false;
+let starting = false;
 /** @type {number | null} */
 let rafId = null;
 let lastFrameTs = 0;
+let lastResumeAttemptTs = 0;
 let suspendedUntilTs = 0;
-let noiseGateRms = 0.011;
+let noiseGateRms = 0.008;
 
 /** @type {PitchDetectionMode} */
 let detectionMode = "MAQAM_24TET";
@@ -446,6 +451,15 @@ function tickAnalysisLoop(nowTs) {
 
   if (!analyser || !timeDomainBuf || !micAudioCtx || !stateGetter) return;
 
+  // Recupera o AudioContext caso o iOS o coloque em "suspended" ou "interrupted"
+  if (micAudioCtx.state !== "running") {
+    if (nowTs - lastResumeAttemptTs > 450) {
+      lastResumeAttemptTs = nowTs;
+      micAudioCtx.resume().catch(() => {});
+    }
+    return;
+  }
+
   // Pausa temporária (ex: usuário clicou em uma joia para ouvir referência)
   if (nowTs < suspendedUntilTs) return;
 
@@ -502,6 +516,32 @@ function tickAnalysisLoop(nowTs) {
 }
 
 /**
+ * Solicita acesso ao microfone com fallback automático para { audio: true }
+ * caso o Chrome iOS / WKWebView rejeite constraints detalhadas de DSP.
+ */
+async function requestMicrophoneStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      },
+      video: false
+    });
+  } catch (firstErr) {
+    const name = /** @type {any} */ (firstErr)?.name || "";
+    if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+      throw firstErr;
+    }
+    return await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: false
+    });
+  }
+}
+
+/**
  * Mapeia erros de permissão/dispositivo do navegador para códigos padronizados.
  * @param {any} err
  * @returns {"PERMISSION_DENIED"|"NO_MICROPHONE"|"INSECURE_CONTEXT"|"UNSUPPORTED"|"UNKNOWN"}
@@ -525,7 +565,7 @@ function classifyMicError(err) {
 
 /**
  * Inicia a captura do microfone/captador e o loop de detecção 24-TET.
- * Deve ser chamado a partir de um clique/toque do usuário.
+ * Deve ser chamado diretamente dentro de um clique/toque do usuário.
  *
  * @param {{
  *   getState: () => import("../core/urlState.js").OudAppState,
@@ -540,7 +580,7 @@ export async function startPitchListening(config) {
   detectionCallback = config.onDetection;
   stateChangeCallback = config.onStateChange || null;
 
-  if (listening) return true;
+  if (listening || starting) return true;
 
   if (typeof window !== "undefined" && !window.isSecureContext) {
     config.onError?.("INSECURE_CONTEXT");
@@ -552,25 +592,35 @@ export async function startPitchListening(config) {
     return false;
   }
 
-  try {
-    // Desliga filtros de voz do navegador para preservar harmônicos e sustain do Oud
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      },
-      video: false
-    });
+  const AudioCtxCtor = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+  if (!AudioCtxCtor) {
+    config.onError?.("UNSUPPORTED");
+    return false;
+  }
 
-    const AudioCtxCtor = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
-    if (!AudioCtxCtor) {
+  starting = true;
+
+  try {
+    // 1. Libera imediatamente a sessão de Playback do iOS para "play-and-record"
+    //    e pausa o <audio loop> silencioso ANTES do getUserMedia()
+    setMicSessionActive(true);
+
+    // 2. Cria e acorda o AudioContext SINCRONAMENTE dentro do gesto do usuário (exigência do iOS)
+    micAudioCtx = new AudioCtxCtor();
+    if (micAudioCtx.state !== "running") {
+      micAudioCtx.resume().catch(() => {});
+    }
+
+    // 3. Solicita o stream de microfone (com fallback { audio: true } no WKWebView/Chrome iOS)
+    micStream = await requestMicrophoneStream();
+
+    // Caso o usuário tenha fechado a barra enquanto aguardava a permissão
+    if (!starting || !micAudioCtx) {
       stopPitchListening();
-      config.onError?.("UNSUPPORTED");
       return false;
     }
 
-    micAudioCtx = new AudioCtxCtor();
+    // 4. Retoma o AudioContext novamente após a abertura do microfone (o iOS pode marcar "interrupted")
     if (micAudioCtx.state !== "running") {
       await micAudioCtx.resume();
     }
@@ -580,19 +630,29 @@ export async function startPitchListening(config) {
     analyser.fftSize = FFT_SIZE;
     analyser.smoothingTimeConstant = 0;
 
+    // 5. Mantém o grafo ativo no WebKit/iOS ligando a saída ao destination com ganho 0 (sem feedback)
+    silentSinkGain = micAudioCtx.createGain();
+    silentSinkGain.gain.setValueAtTime(0, micAudioCtx.currentTime);
+
     micSource.connect(analyser);
+    analyser.connect(silentSinkGain);
+    silentSinkGain.connect(micAudioCtx.destination);
+
     timeDomainBuf = new Float32Array(FFT_SIZE);
 
+    starting = false;
     listening = true;
     recentFreqWindow = [];
     smoothedFreqHz = 0;
     lastValidResult = null;
     lastFrameTs = 0;
+    lastResumeAttemptTs = 0;
 
     stateChangeCallback?.(true);
     rafId = window.requestAnimationFrame(tickAnalysisLoop);
     return true;
   } catch (err) {
+    starting = false;
     stopPitchListening();
     config.onError?.(classifyMicError(err), err);
     return false;
@@ -605,6 +665,7 @@ export async function startPitchListening(config) {
 export function stopPitchListening() {
   const wasListening = listening;
   listening = false;
+  starting = false;
 
   if (rafId !== null) {
     window.cancelAnimationFrame(rafId);
@@ -620,7 +681,24 @@ export function stopPitchListening() {
     micSource = null;
   }
 
-  analyser = null;
+  if (analyser) {
+    try {
+      analyser.disconnect();
+    } catch {
+      // Ignora
+    }
+    analyser = null;
+  }
+
+  if (silentSinkGain) {
+    try {
+      silentSinkGain.disconnect();
+    } catch {
+      // Ignora
+    }
+    silentSinkGain = null;
+  }
+
   timeDomainBuf = null;
 
   if (micStream) {
@@ -642,6 +720,9 @@ export function stopPitchListening() {
     }
     micAudioCtx = null;
   }
+
+  // Devolve o iOS para a sessão de Playback normal
+  setMicSessionActive(false);
 
   recentFreqWindow = [];
   smoothedFreqHz = 0;
