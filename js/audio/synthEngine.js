@@ -710,7 +710,7 @@ function withReadyAudio(fn) {
 
 // Registra desbloqueio na fase de captura e libera sessão ao bloquear tela ou trocar de rota Bluetooth
 if (typeof window !== "undefined") {
-  const MIC_TRIGGER_SELECTOR = "#btn-open-live-tuner, #btn-popover-open-tuner, #btn-tuner-mic-toggle, .btn-study-live-pitch";
+  const MIC_TRIGGER_SELECTOR = "#btn-open-live-tuner, #btn-popover-open-tuner, #btn-tuner-mic-toggle, #btn-mob-mic, .btn-study-live-pitch";
 
   const handleUserGesture = (/** @type {Event} */ ev) => {
     const rawTarget = ev?.target;

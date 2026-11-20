@@ -298,6 +298,18 @@ function getTunerErrorText(code) {
 }
 
 /**
+ * Sincroniza o botão de Microfone ON/OFF da barra inferior mobile (#btn-mob-mic).
+ */
+function syncMobileMicButton() {
+  const btnMobMic = document.getElementById("btn-mob-mic");
+  if (!btnMobMic) return;
+  const listeningNow = isPitchListening();
+  btnMobMic.classList.toggle("active-toggle", listeningNow);
+  btnMobMic.setAttribute("aria-pressed", listeningNow ? "true" : "false");
+  btnMobMic.textContent = listeningNow ? "🎙 Mic: ON" : "🎙 Mic: OFF";
+}
+
+/**
  * Renderiza a fileira clicável das 6 ordens da afinação atual (6ª grave → 1ª aguda) no modo Afinador.
  */
 function renderTunerCoursesList() {
@@ -463,7 +475,7 @@ function renderLiveTunerReadout(det) {
 }
 
 /**
- * Sincroniza estado completo dos controles da faixa de escuta e dos gatilhos no menu ⋯ / Popover 0.
+ * Sincroniza estado completo dos controles da faixa de escuta e dos gatilhos no menu ⋯ / Popover 0 / Dock Mobile.
  */
 function syncLiveTunerUI() {
   const isEn = state.lang === "en";
@@ -479,6 +491,8 @@ function syncLiveTunerUI() {
   if (micDot) {
     micDot.style.display = listeningNow ? "block" : "none";
   }
+
+  syncMobileMicButton();
 
   const btnMenuTuner = document.getElementById("btn-open-live-tuner");
   if (btnMenuTuner) {
@@ -602,6 +616,7 @@ async function startLiveMicCapture() {
         clearLivePitchOverlayOnNeck();
       }
       syncLiveTunerUI();
+      renderStudyGuidePane();
     }
   });
 }
@@ -2018,8 +2033,6 @@ function syncCommandBarSummaries() {
 
   const btnMobPlay = document.getElementById("btn-mob-play");
   const btnMobTaqsim = document.getElementById("btn-mob-taqsim");
-  const btnMobDrone = document.getElementById("btn-mob-drone");
-  const btnMobIqa = document.getElementById("btn-mob-iqa");
   const btnMobTheory = document.getElementById("btn-mob-theory");
 
   if (btnMobPlay) btnMobPlay.textContent = safeT("mobileDockPlay", "▶ Tocar", "▶ Play");
@@ -2027,14 +2040,7 @@ function syncCommandBarSummaries() {
     btnMobTaqsim.textContent = safeT("mobileDockTaqsim", "🎶 Taqsim", "🎶 Taqsim");
     btnMobTaqsim.style.opacity = state.mode === "MAQAM" ? "1" : "0.45";
   }
-  if (btnMobDrone) {
-    btnMobDrone.classList.toggle("active-toggle", state.droneActive);
-    btnMobDrone.textContent = state.droneActive ? `🔊 ${rootName}` : safeT("mobileDockDrone", "🔊 Drone", "🔊 Drone");
-  }
-  if (btnMobIqa) {
-    btnMobIqa.classList.toggle("active-toggle", isIqaPlaying);
-    btnMobIqa.textContent = isIqaPlaying ? "⏹ Iqa'" : safeT("mobileDockIqa", "🥁 Iqa'", "🥁 Iqa'");
-  }
+  syncMobileMicButton();
   if (btnMobTheory) {
     btnMobTheory.classList.toggle("active-toggle", !isSidebarCollapsed);
     btnMobTheory.textContent = isSidebarCollapsed
@@ -3082,6 +3088,21 @@ function initApp() {
       return;
     }
 
+    // Gatilho na barra inferior Mobile: alterna Modo Microfone ON/OFF
+    if (target.closest("#btn-mob-mic")) {
+      e.preventDefault();
+      if (isPitchListening()) {
+        closeLiveTunerBar();
+      } else {
+        openLiveTunerBar(undefined, true);
+        requestAnimationFrame(() => {
+          document.getElementById("live-tuner-bar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+      }
+      renderStudyGuidePane();
+      return;
+    }
+
     // Gatilho no Popover 0 (Afinação & Qarar): abre direto no Afinador das 6 Ordens
     if (target.closest("#btn-popover-open-tuner")) {
       e.preventDefault();
@@ -3205,7 +3226,7 @@ function initApp() {
       return;
     }
 
-    if (target.closest("#btn-zen-drone, #btn-mob-drone")) {
+    if (target.closest("#btn-zen-drone")) {
       e.preventDefault();
       const droneBtn = document.getElementById("btn-drone");
       if (droneBtn) state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
@@ -3215,7 +3236,7 @@ function initApp() {
       return;
     }
 
-    if (target.closest("#btn-zen-iqa, #btn-mob-iqa")) {
+    if (target.closest("#btn-zen-iqa")) {
       e.preventDefault();
       toggleIqaPlayback();
       renderStudyGuidePane();
