@@ -93,6 +93,16 @@ let iosSilentBlobUrl = null;
 let iosIdlePauseTimer;
 /** @type {boolean} */
 let isMicSessionActive = false;
+/** @type {boolean} */
+let needsContextRebuild = false;
+/** @type {number} */
+let lastUnlockTs = 0;
+/** @type {number} */
+let lastClockVerifiedTs = 0;
+/** @type {number} */
+let lastClockRecoveryTs = 0;
+/** @type {boolean} */
+let clockCheckPending = false;
 
 /** @type {number[]} */
 let sequenceTimers = [];
@@ -101,17 +111,25 @@ let iqaIntervalId = null;
 
 /** @type {{ osc1: OscillatorNode, osc2: OscillatorNode, filter: BiquadFilterNode, gain: GainNode } | null} */
 let droneNodes = null;
+/** @type {number} */
+let lastDroneRootQ = 0;
 
 /**
- * Gera um WAV PCM silencioso de 0,5 segundo em Blob URL (sem peso de base64)
+ * Gera um WAV PCM silencioso de 0,25s em 44.100 Hz Estéreo (compatível com Bluetooth A2DP / AirPods)
  * para manter a categoria AVAudioSessionCategoryPlayback ativa no iOS/WKWebView.
  */
 function getSilentWavBlobUrl() {
   if (iosSilentBlobUrl) return iosSilentBlobUrl;
 
-  const sampleRate = 22050;
-  const numSamples = 11025; // 0.5s
-  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const sampleRate = 44100;
+  const numChannels = 2;
+  const bitsPerSample = 16;
+  const blockAlign = numChannels * (bitsPerSample / 8); // 4 bytes
+  const byteRate = sampleRate * blockAlign;             // 176400
+  const numFrames = 11025;                              // 0.25s
+  const dataSize = numFrames * blockAlign;              // 44100 bytes
+
+  const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
 
   const writeStr = (/** @type {number} */ offset, /** @type {string} */ str) => {
@@ -121,18 +139,18 @@ function getSilentWavBlobUrl() {
   };
 
   writeStr(0, "RIFF");
-  view.setUint32(4, 36 + numSamples * 2, true);
+  view.setUint32(4, 36 + dataSize, true);
   writeStr(8, "WAVE");
   writeStr(12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // Mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
+  view.setUint16(20, 1, true);             // PCM
+  view.setUint16(22, numChannels, true);   // Stereo (A2DP)
+  view.setUint32(24, sampleRate, true);    // 44.1 kHz
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
   writeStr(36, "data");
-  view.setUint32(40, numSamples * 2, true);
+  view.setUint32(40, dataSize, true);
 
   const blob = new Blob([buffer], { type: "audio/wav" });
   iosSilentBlobUrl = URL.createObjectURL(blob);
@@ -141,7 +159,7 @@ function getSilentWavBlobUrl() {
 
 /**
  * Garante o elemento HTML5 <audio loop playsinline> anexado ao DOM (exigência do WKWebView).
- * IMPORTANTE: muted DEVE ser false e volume > 0 para o iOS ativar a rota Playback.
+ * Não bloqueia AirPlay nem reprodução remota para permitir saída limpa em AirPods/Bluetooth.
  */
 function ensureIosKeepAliveElement() {
   if (typeof document === "undefined") return null;
@@ -150,12 +168,10 @@ function ensureIosKeepAliveElement() {
   const audioEl = document.createElement("audio");
   audioEl.setAttribute("playsinline", "");
   audioEl.setAttribute("webkit-playsinline", "");
-  audioEl.setAttribute("x-webkit-airplay", "deny");
   audioEl.preload = "auto";
   audioEl.loop = true;
   audioEl.muted = false;
   audioEl.volume = 1;
-  /** @type {any} */ (audioEl).disableRemotePlayback = true;
   audioEl.src = getSilentWavBlobUrl();
 
   audioEl.style.position = "fixed";
@@ -180,8 +196,8 @@ function ensureIosKeepAliveElement() {
 }
 
 /**
- * Agenda a pausa do loop silencioso após 12 s sem atividade (se Drone e Iqa' estiverem desligados),
- * evitando gasto de bateria em repouso.
+ * Agenda a pausa do loop silencioso após 30 s sem atividade (se Drone e Iqa' estiverem desligados),
+ * evitando derrubar a rota Bluetooth entre notas durante o estudo.
  */
 function scheduleIosKeepAlivePause() {
   window.clearTimeout(iosIdlePauseTimer);
@@ -196,13 +212,13 @@ function scheduleIosKeepAlivePause() {
         // Ignora
       }
     }
-  }, 12000);
+  }, 30000);
 }
 
 /**
  * Configura a sessão de áudio do iOS 17+:
  * - "play-and-record" quando o microfone estiver ativo (permite captura + referência)
- * - "playback" no uso normal (contorna a chave física de silencioso no iPhone)
+ * - "playback" no uso normal (contorna a chave de silencioso e habilita A2DP em AirPods)
  */
 function configureIosAudioSession() {
   try {
@@ -218,12 +234,15 @@ function configureIosAudioSession() {
 
 /**
  * Sinaliza ao motor de áudio quando o microfone/afinador está ativo no iOS,
- * pausando o <audio loop> de Playback para liberar o hardware de gravação no WKWebView.
+ * pausando o <audio loop> de Playback para liberar o hardware de gravação no WKWebView
+ * e marcando o AudioContext para reconstrução ao retornar de HFP para A2DP.
  *
  * @param {boolean} active
  */
 export function setMicSessionActive(active) {
+  const prevActive = isMicSessionActive;
   isMicSessionActive = Boolean(active);
+
   if (isMicSessionActive) {
     window.clearTimeout(iosIdlePauseTimer);
     if (iosKeepAliveAudio && !iosKeepAliveAudio.paused) {
@@ -233,7 +252,11 @@ export function setMicSessionActive(active) {
         // Ignora
       }
     }
+  } else if (prevActive && audioCtx) {
+    // Retorno de "play-and-record" (HFP) para "playback" (A2DP): garante nova rota limpa
+    needsContextRebuild = true;
   }
+
   configureIosAudioSession();
 }
 
@@ -502,7 +525,64 @@ function createRishaThumpBuffer(ctx) {
 }
 
 /**
- * Garante que o AudioContext, o barramento master e a caixa convoluída do Oud existam.
+ * Cria o AudioContext com latencyHint "playback" (mais estável para fones Bluetooth / AirPods A2DP).
+ * @returns {AudioContext | null}
+ */
+function createAudioContextSafe() {
+  const AudioCtxCtor = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+  if (!AudioCtxCtor) return null;
+
+  try {
+    return new AudioCtxCtor({ latencyHint: "playback" });
+  } catch {
+    return new AudioCtxCtor();
+  }
+}
+
+/**
+ * Reconstrói o AudioContext e o barramento do Oud na rota de áudio atual
+ * (recupera de troca de fones Bluetooth/AirPods, estado "interrupted" ou relógio congelado no iOS).
+ * @returns {AudioContext | null}
+ */
+function rebuildAudioContext() {
+  const wasDroneActive = droneNodes !== null;
+  const savedRootQ = lastDroneRootQ;
+
+  if (droneNodes) {
+    try {
+      droneNodes.osc1.stop();
+      droneNodes.osc2.stop();
+    } catch {
+      // Ignora
+    }
+    droneNodes = null;
+  }
+
+  const oldCtx = audioCtx;
+  audioCtx = null;
+  masterGain = null;
+  oudBodyInput = null;
+  bodyBusNodes = null;
+  rishaThumpBuffer = null;
+  needsContextRebuild = false;
+
+  if (oldCtx) {
+    try {
+      oldCtx.close().catch(() => {});
+    } catch {
+      // Ignora
+    }
+  }
+
+  const freshCtx = ensureAudioContext();
+  if (wasDroneActive && freshCtx) {
+    startDroneNodes(savedRootQ);
+  }
+  return freshCtx;
+}
+
+/**
+ * Garante que o AudioContext, o barramento master estéreo e a caixa convoluída do Oud existam.
  * @returns {AudioContext | null}
  */
 function ensureAudioContext() {
@@ -510,38 +590,114 @@ function ensureAudioContext() {
 
   configureIosAudioSession();
 
+  if (audioCtx && /** @type {string} */ (audioCtx.state) === "closed") {
+    audioCtx = null;
+    masterGain = null;
+    oudBodyInput = null;
+    bodyBusNodes = null;
+    rishaThumpBuffer = null;
+  }
+
   if (!audioCtx) {
-    const AudioCtxCtor = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
-    if (!AudioCtxCtor) return null;
-    audioCtx = new AudioCtxCtor();
+    const ctx = createAudioContextSafe();
+    if (!ctx) return null;
+    audioCtx = ctx;
 
-    masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.92, audioCtx.currentTime);
+    ctx.addEventListener("statechange", () => {
+      if (ctx !== audioCtx) return;
+      const st = /** @type {string} */ (ctx.state);
+      if (st === "interrupted") {
+        needsContextRebuild = true;
+      }
+    });
 
-    const limiter = audioCtx.createDynamicsCompressor();
-    limiter.threshold.setValueAtTime(-8, audioCtx.currentTime);
-    limiter.knee.setValueAtTime(14, audioCtx.currentTime);
-    limiter.ratio.setValueAtTime(5.5, audioCtx.currentTime);
-    limiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
-    limiter.release.setValueAtTime(0.11, audioCtx.currentTime);
+    masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.92, ctx.currentTime);
+    try {
+      // Upmix explícito para estéreo (formato nativo de Bluetooth A2DP / AirPods)
+      masterGain.channelCount = 2;
+      masterGain.channelCountMode = "explicit";
+      masterGain.channelInterpretation = "speakers";
+    } catch {
+      // Ignora em implementações restritas
+    }
+
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-8, ctx.currentTime);
+    limiter.knee.setValueAtTime(14, ctx.currentTime);
+    limiter.ratio.setValueAtTime(5.5, ctx.currentTime);
+    limiter.attack.setValueAtTime(0.003, ctx.currentTime);
+    limiter.release.setValueAtTime(0.11, ctx.currentTime);
 
     masterGain.connect(limiter);
-    limiter.connect(audioCtx.destination);
+    limiter.connect(ctx.destination);
 
-    oudBodyInput = createOudAcousticBodyBus(audioCtx, masterGain);
-    rishaThumpBuffer = createRishaThumpBuffer(audioCtx);
+    oudBodyInput = createOudAcousticBodyBus(ctx, masterGain);
+    rishaThumpBuffer = createRishaThumpBuffer(ctx);
   }
 
   return audioCtx;
 }
 
 /**
+ * Watchdog para bug clássico do iOS WebKit com AirPods/Bluetooth:
+ * o AudioContext relata state === "running", mas currentTime congela em 0 ou no instante da troca de rota.
+ * Se detectado, reconstrói o contexto na rota ativa e reexecuta a nota.
+ *
+ * @param {AudioContext} ctx
+ * @param {(ctx: AudioContext, masterDest: AudioNode, bodyDest: AudioNode) => void} retryFn
+ */
+function verifyAudioClockProgress(ctx, retryFn) {
+  const nowPerf = performance.now();
+  if (clockCheckPending || nowPerf - lastClockVerifiedTs < 1500) return;
+
+  clockCheckPending = true;
+  const t0 = ctx.currentTime;
+
+  window.setTimeout(() => {
+    clockCheckPending = false;
+    if (ctx !== audioCtx) return;
+
+    if (ctx.currentTime > t0 + 0.001) {
+      lastClockVerifiedTs = performance.now();
+      return;
+    }
+
+    // Relógio travado na rota Bluetooth/iOS -> reconstrói contexto uma vez a cada >= 2s
+    const recoveryPerf = performance.now();
+    if (recoveryPerf - lastClockRecoveryTs < 2000) return;
+    lastClockRecoveryTs = recoveryPerf;
+
+    const rebuilt = rebuildAudioContext();
+    if (!rebuilt) return;
+    rebuilt.resume()
+      .then(() => {
+        if (audioCtx === rebuilt && masterGain && oudBodyInput) {
+          retryFn(rebuilt, masterGain, oudBodyInput);
+        }
+      })
+      .catch(() => {});
+  }, 220);
+}
+
+/**
  * Executa o desbloqueio síncrono e ativa o keep-alive de Playback no iPhone/Chrome
- * (exceto quando o microfone estiver ativo, para não bloquear a entrada no iOS).
+ * (compatível com AirPods/Bluetooth e desativado enquanto o microfone estiver aberto).
  */
 export function unlockAudioEngine() {
-  const ctx = ensureAudioContext();
+  const nowPerf = performance.now();
+  const ctxNeedsKick = !audioCtx || needsContextRebuild || audioCtx.state !== "running";
+
+  // Evita disparos triplos (pointerup + touchend + click) no mesmo toque quando já está saudável
+  if (!ctxNeedsKick && nowPerf - lastUnlockTs < 140) {
+    scheduleIosKeepAlivePause();
+    return;
+  }
+  lastUnlockTs = nowPerf;
+
   configureIosAudioSession();
+
+  const ctx = needsContextRebuild ? rebuildAudioContext() : ensureAudioContext();
 
   if (!isMicSessionActive) {
     const keepAlive = ensureIosKeepAliveElement();
@@ -569,7 +725,7 @@ export function unlockAudioEngine() {
   }
 
   try {
-    const silentBuf = ctx.createBuffer(1, 1, ctx.sampleRate || 22050);
+    const silentBuf = ctx.createBuffer(2, 1, ctx.sampleRate || 44100);
     const src = ctx.createBufferSource();
     src.buffer = silentBuf;
     src.connect(ctx.destination);
@@ -580,10 +736,14 @@ export function unlockAudioEngine() {
 }
 
 /**
- * Garante que o contexto esteja rodando antes de agendar a síntese.
+ * Garante que o contexto esteja rodando na rota ativa antes de agendar a síntese.
  * @param {(ctx: AudioContext, masterDest: AudioNode, bodyDest: AudioNode) => void} fn
  */
 function withReadyAudio(fn) {
+  if (needsContextRebuild) {
+    rebuildAudioContext();
+  }
+
   const ctx = ensureAudioContext();
   if (!ctx || !masterGain || !oudBodyInput) return;
 
@@ -591,14 +751,19 @@ function withReadyAudio(fn) {
 
   if (ctx.state === "running") {
     fn(ctx, masterGain, oudBodyInput);
+    verifyAudioClockProgress(ctx, fn);
     return;
   }
 
   unlockAudioEngine();
-  ctx.resume()
+  const activeCtx = audioCtx;
+  if (!activeCtx) return;
+
+  activeCtx.resume()
     .then(() => {
-      if (audioCtx && masterGain && oudBodyInput) {
-        fn(audioCtx, masterGain, oudBodyInput);
+      if (audioCtx === activeCtx && masterGain && oudBodyInput) {
+        fn(activeCtx, masterGain, oudBodyInput);
+        verifyAudioClockProgress(activeCtx, fn);
       }
     })
     .catch(() => {
@@ -606,7 +771,7 @@ function withReadyAudio(fn) {
     });
 }
 
-// Registra desbloqueio na fase de captura, evitando travar Playback ao tocar nos botões do microfone
+// Registra desbloqueio na fase de captura e monitora conexão/desconexão de AirPods/Bluetooth
 if (typeof window !== "undefined") {
   const MIC_TRIGGER_SELECTOR = "#btn-open-live-tuner, #btn-popover-open-tuner, #btn-tuner-mic-toggle, .btn-study-live-pitch";
 
@@ -625,6 +790,20 @@ if (typeof window !== "undefined") {
   window.addEventListener("pointerup", handleUserGesture, { capture: true, passive: true });
   window.addEventListener("keydown", handleUserGesture, { capture: true, passive: true });
 
+  // Detecta conexão/desconexão de AirPods ou fones Bluetooth em tempo real
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === "function") {
+    navigator.mediaDevices.addEventListener("devicechange", () => {
+      if (!audioCtx) return;
+      needsContextRebuild = true;
+      lastClockVerifiedTs = 0;
+
+      if (droneNodes !== null || iqaIntervalId !== null) {
+        const rebuilt = rebuildAudioContext();
+        rebuilt?.resume().catch(() => {});
+      }
+    });
+  }
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       if (iosKeepAliveAudio && !iosKeepAliveAudio.paused && droneNodes === null && iqaIntervalId === null) {
@@ -634,8 +813,13 @@ if (typeof window !== "undefined") {
           // Ignora
         }
       }
-    } else if (document.visibilityState === "visible" && audioCtx && audioCtx.state !== "running") {
-      audioCtx.resume().catch(() => {});
+    } else if (document.visibilityState === "visible" && audioCtx) {
+      const st = /** @type {string} */ (audioCtx.state);
+      if (st === "interrupted") {
+        needsContextRebuild = true;
+      } else if (st !== "running") {
+        audioCtx.resume().catch(() => {});
+      }
     }
   });
 }
@@ -838,7 +1022,7 @@ export function playPluckedNote(freq, duration = 1.45, volume = 0.38) {
 
   withReadyAudio((ctx, _masterDest, bodyDest) => {
     const cfg = TIMBRE_PROFILES[activeTimbreProfile] || TIMBRE_PROFILES.syrian;
-    const now = ctx.currentTime + 0.004;
+    const now = ctx.currentTime + 0.015;
     const safeDur = Math.max(0.28, Math.min(1.9, duration));
     const volJitter = 0.95 + Math.random() * 0.10;
     const safeVol = Math.max(0.02, volume * volJitter);
@@ -1028,11 +1212,12 @@ function stopDroneNodes() {
 function startDroneNodes(rootQ) {
   stopDroneNodes();
   const safeRootQ = ((rootQ % 24) + 24) % 24;
+  lastDroneRootQ = safeRootQ;
   const rootFreq = 130.81278 * Math.pow(2, safeRootQ / 24);
   const fifthFreq = rootFreq * 1.498307;
 
   withReadyAudio((ctx, masterDest) => {
-    const now = ctx.currentTime + 0.01;
+    const now = ctx.currentTime + 0.015;
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
     osc1.type = "sawtooth";
@@ -1100,6 +1285,7 @@ export function updateDronePitch(isActive, rootQ, btnEl) {
   if (!isActive || !droneNodes || !audioCtx) return;
 
   const safeRootQ = ((rootQ % 24) + 24) % 24;
+  lastDroneRootQ = safeRootQ;
   const rootFreq = 130.81278 * Math.pow(2, safeRootQ / 24);
   const fifthFreq = rootFreq * 1.498307;
   const now = audioCtx.currentTime;
@@ -1116,7 +1302,7 @@ function playIqaStroke(stroke) {
   if (stroke === "REST") return;
 
   withReadyAudio((ctx, masterDest) => {
-    const now = ctx.currentTime + 0.004;
+    const now = ctx.currentTime + 0.015;
 
     if (stroke === "DUM") {
       const osc = ctx.createOscillator();
