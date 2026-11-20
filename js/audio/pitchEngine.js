@@ -8,7 +8,32 @@ import { setMicSessionActive } from "./synthEngine.js";
  */
 
 /**
+ * @typedef {"MIC"|"LINE"} PitchInputProfile
+ */
+
+/**
+ * @typedef {"AUTO"|"CH1"|"CH2"} PitchInputChannel
+ */
+
+/**
  * @typedef {"IN_TUNE"|"CLOSE"|"OFF"|"OUT_OF_SCALE"} IntonationStatus
+ */
+
+/**
+ * @typedef {Object} AudioInputDeviceInfo
+ * @property {string} deviceId
+ * @property {string} label
+ */
+
+/**
+ * @typedef {Object} PitchInputLevelInfo
+ * @property {number} rms        - nível RMS pré-filtro (0..1)
+ * @property {number} peak       - pico absoluto pré-filtro (0..1)
+ * @property {number} db         - nível aproximado em dBFS (-60..0)
+ * @property {number} pct        - percentual visual para barra VU (0..100)
+ * @property {boolean} clipping  - true quando peak >= 0.94 (sinal saturando o pré da interface)
+ * @property {boolean} aboveGate - true quando rms >= noiseGateRms
+ * @property {number} gatePct    - posição visual do limiar de Noise Gate na barra VU (0..100)
  */
 
 /**
@@ -44,7 +69,8 @@ const C2_REF_HZ = 65.40639132514966; // C2 em A4 = 440 Hz
 const MIN_OUD_HZ = 52;               // Margem abaixo do bordão C2 (65.41 Hz)
 const MAX_OUD_HZ = 780;              // Margem acima do registro agudo no tampo
 const FFT_SIZE = 4096;               // >5 ciclos completos mesmo em 65.41 Hz
-const YIN_WINDOW = 1536;             // Janela otimizada (~32 ms a 48 kHz) para <1.5 ms no mobile
+const METER_FFT_SIZE = 512;          // Janela rápida para VU e detecção real de clip
+const YIN_WINDOW = 1536;             // Janela otimizada (~32 ms a 48 kHz) para baixa carga no mobile
 const YIN_THRESHOLD = 0.15;          // Limiar principal de clareza para ordens duplas
 const YIN_FALLBACK_MAX = 0.26;       // Limiar secundário para decaimento de corda
 const FRAME_INTERVAL_MS = 44;        // ~22 fps (suave e leve para bateria no iOS)
@@ -56,12 +82,29 @@ let micAudioCtx = null;
 let micStream = null;
 /** @type {MediaStreamAudioSourceNode | null} */
 let micSource = null;
+/** @type {ChannelSplitterNode | null} */
+let channelSplitter = null;
+/** @type {GainNode | null} */
+let ch1Gain = null;
+/** @type {GainNode | null} */
+let ch2Gain = null;
+/** @type {GainNode | null} */
+let channelMixer = null;
+/** @type {AnalyserNode | null} */
+let meterAnalyser = null;
+/** @type {BiquadFilterNode | null} */
+let sidechainHPF = null;
+/** @type {BiquadFilterNode | null} */
+let sidechainLPF = null;
 /** @type {AnalyserNode | null} */
 let analyser = null;
 /** @type {GainNode | null} */
 let silentSinkGain = null;
+
 /** @type {Float32Array | null} */
 let timeDomainBuf = null;
+/** @type {Float32Array | null} */
+let meterDomainBuf = null;
 /** @type {Float32Array | null} */
 let yinDiffBuf = null;
 /** @type {Float32Array | null} */
@@ -78,6 +121,12 @@ let noiseGateRms = 0.008;
 
 /** @type {PitchDetectionMode} */
 let detectionMode = "MAQAM_24TET";
+/** @type {PitchInputProfile} */
+let inputProfile = "MIC";
+/** @type {PitchInputChannel} */
+let inputChannel = "AUTO";
+/** @type {string} */
+let selectedInputDeviceId = "";
 /** @type {number | null} */
 let lockedTunerCourse = null;
 
@@ -92,6 +141,10 @@ let lastValidTs = 0;
 let stateGetter = null;
 /** @type {((result: PitchDetectionResult | null) => void) | null} */
 let detectionCallback = null;
+/** @type {((level: PitchInputLevelInfo | null) => void) | null} */
+let levelCallback = null;
+/** @type {((devices: AudioInputDeviceInfo[]) => void) | null} */
+let devicesChangeCallback = null;
 /** @type {((active: boolean) => void) | null} */
 let stateChangeCallback = null;
 
@@ -112,6 +165,16 @@ function centsFromC2ToFreq(centsFromC2) {
 }
 
 /**
+ * Converte nível RMS linear (0..1) em escala percentual de VU (-60 dBFS -> 0%, 0 dBFS -> 100%).
+ * @param {number} linearVal
+ */
+function linearToVuPct(linearVal) {
+  const safe = Math.max(1e-5, linearVal);
+  const db = 20 * Math.log10(safe);
+  return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+}
+
+/**
  * Retorna a mediana de uma lista numérica pequena (imune a picos de batimento de ordens duplas).
  * @param {number[]} values
  */
@@ -120,6 +183,66 @@ function computeMedian(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * Aplica em tempo real o roteamento de canais (Auto / Ch 1 / Ch 2) no grafo de entrada.
+ */
+function applyChannelRoutingToGraph() {
+  if (!micAudioCtx || !ch1Gain || !ch2Gain) return;
+  const now = micAudioCtx.currentTime;
+  const g1 = inputChannel === "CH2" ? 0 : 1;
+  const g2 = inputChannel === "CH1" ? 0 : 1;
+  ch1Gain.gain.setTargetAtTime(g1, now, 0.01);
+  ch2Gain.gain.setTargetAtTime(g2, now, 0.01);
+}
+
+/**
+ * Aplica em tempo real a curva do filtro sidechain (Mic acústico vs. Linha / Interface DI):
+ * - LINE: HPF 55 Hz (corta impactos de tampo/cabo) + LPF 1350 Hz (amacia estalo de piezo/risha no YIN)
+ * - MIC:  HPF 48 Hz + LPF 3600 Hz (preserva projeção acústica natural)
+ */
+function applyInputProfileToGraph() {
+  if (!micAudioCtx || !sidechainHPF || !sidechainLPF) return;
+  const now = micAudioCtx.currentTime;
+  const isLine = inputProfile === "LINE";
+
+  sidechainHPF.frequency.setTargetAtTime(isLine ? 55 : 48, now, 0.015);
+  sidechainHPF.Q.setTargetAtTime(0.707, now, 0.015);
+
+  sidechainLPF.frequency.setTargetAtTime(isLine ? 1350 : 3600, now, 0.015);
+  sidechainLPF.Q.setTargetAtTime(0.707, now, 0.015);
+}
+
+/**
+ * Calcula nível pré-filtro (RMS, Peak, dBFS, Clipping) diretamente do canal escolhido da interface.
+ * @param {Float32Array} buf
+ * @returns {PitchInputLevelInfo}
+ */
+function computeInputLevel(buf) {
+  let sumSq = 0;
+  let peak = 0;
+  const len = buf.length;
+  for (let i = 0; i < len; i++) {
+    const v = buf[i];
+    const abs = v < 0 ? -v : v;
+    if (abs > peak) peak = abs;
+    sumSq += v * v;
+  }
+  const rms = Math.sqrt(sumSq / len);
+  const db = Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(1e-5, rms))));
+  const pct = linearToVuPct(rms);
+  const gatePct = linearToVuPct(noiseGateRms);
+
+  return {
+    rms,
+    peak,
+    db,
+    pct,
+    clipping: peak >= 0.94,
+    aboveGate: rms >= noiseGateRms,
+    gatePct
+  };
 }
 
 /**
@@ -166,10 +289,12 @@ function detectPitchYIN(buf, sampleRate) {
     cmndf[tau] = runningSum > 0 ? (acc * tau) / runningSum : 1;
   }
 
-  // Busca o primeiro vale abaixo do limiar YIN dentro da tessitura do Oud
+  // No modo Linha (interface), o sinal limpo permite limiar ligeiramente mais firme contra harmônicos do piezo
+  const activeThreshold = inputProfile === "LINE" ? 0.13 : YIN_THRESHOLD;
+
   let bestTau = -1;
   for (let tau = tauMin; tau <= tauMax; tau++) {
-    if (cmndf[tau] < YIN_THRESHOLD) {
+    if (cmndf[tau] < activeThreshold) {
       while (tau + 1 <= tauMax && cmndf[tau + 1] < cmndf[tau]) {
         tau++;
       }
@@ -178,7 +303,6 @@ function detectPitchYIN(buf, sampleRate) {
     }
   }
 
-  // Fallback suave para o mínimo global caso o sinal esteja decaindo
   if (bestTau === -1) {
     let minVal = 1;
     let minIdx = -1;
@@ -352,7 +476,6 @@ export function resolvePitchTarget(
   const activeStruct = getActiveStructure(state);
   const effRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
 
-  // Monta mapa único de graus válidos dentro da oitava
   /** @type {Map<number, { pcQ: number, degree: string, centsDev: number }>} */
   const scaleDegreesByPc = new Map();
   activeStruct.intervals.forEach((intQ, idx) => {
@@ -368,7 +491,6 @@ export function resolvePitchTarget(
     }
   });
 
-  // Encontra o alvo válido mais próximo dentre todas as oitavas do Oud (C2..C6)
   let bestTarget = {
     absQ: playedAbsQ,
     pcQ: playedPitchClassQ,
@@ -460,8 +582,14 @@ function tickAnalysisLoop(nowTs) {
     return;
   }
 
-  // Pausa temporária (ex: usuário clicou em uma joia para ouvir referência)
-  if (nowTs < suspendedUntilTs) return;
+  // Atualiza medidor VU/Clip pré-filtro mesmo abaixo do gate
+  if (meterAnalyser && meterDomainBuf && levelCallback) {
+    meterAnalyser.getFloatTimeDomainData(meterDomainBuf);
+    levelCallback(computeInputLevel(meterDomainBuf));
+  }
+
+  // Pausa temporária apenas no modo MIC (no modo LINE com interface não há eco acústico)
+  if (inputProfile !== "LINE" && nowTs < suspendedUntilTs) return;
 
   analyser.getFloatTimeDomainData(timeDomainBuf);
   const raw = detectPitchYIN(timeDomainBuf, micAudioCtx.sampleRate);
@@ -481,7 +609,7 @@ function tickAnalysisLoop(nowTs) {
     return;
   }
 
-  // Se houve salto melódico > 70 cents (~1.4 quarto de tom), reinicia a janela de mediana para resposta instantânea
+  // Se houve salto melódico > 70 cents (~1.4 quarto de tom), reinicia a janela de mediana
   if (smoothedFreqHz > 0) {
     const jumpCents = Math.abs(1200 * Math.log2(raw.freqHz / smoothedFreqHz));
     if (jumpCents > 70) {
@@ -491,13 +619,15 @@ function tickAnalysisLoop(nowTs) {
   }
 
   recentFreqWindow.push(raw.freqHz);
-  if (recentFreqWindow.length > 4) {
+  const maxWindow = inputProfile === "LINE" ? 3 : 4;
+  if (recentFreqWindow.length > maxWindow) {
     recentFreqWindow.shift();
   }
 
   const medianFreq = computeMedian(recentFreqWindow);
+  const smoothAlpha = inputProfile === "LINE" ? 0.72 : 0.65;
   smoothedFreqHz = smoothedFreqHz > 0
-    ? smoothedFreqHz * 0.35 + medianFreq * 0.65
+    ? smoothedFreqHz * (1 - smoothAlpha) + medianFreq * smoothAlpha
     : medianFreq;
 
   const currentState = stateGetter();
@@ -516,24 +646,81 @@ function tickAnalysisLoop(nowTs) {
 }
 
 /**
- * Solicita acesso ao microfone com fallback automático para { audio: true }
- * caso o Chrome iOS / WKWebView rejeite constraints detalhadas de DSP.
+ * Lista todas as entradas de áudio disponíveis (Microfone Interno, Interface USB, etc.).
+ * Os rótulos completos aparecem após a primeira concessão de permissão pelo navegador.
+ *
+ * @returns {Promise<AudioInputDeviceInfo[]>}
  */
-async function requestMicrophoneStream() {
+export async function listAudioInputDevices() {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.mediaDevices ||
+    typeof navigator.mediaDevices.enumerateDevices !== "function"
+  ) {
+    return [];
+  }
+
   try {
-    return await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      },
-      video: false
-    });
+    const all = await navigator.mediaDevices.enumerateDevices();
+    const inputs = all.filter(d => d.kind === "audioinput");
+    return inputs.map((dev, idx) => ({
+      deviceId: dev.deviceId || "",
+      label: dev.label || `Entrada de Áudio ${idx + 1}`
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Solicita acesso à entrada de áudio selecionada (preservando 2 canais discretos para interfaces USB)
+ * com fallback automático caso o dispositivo salvo tenha sido desconectado ou o WKWebView rejeite DSP flags.
+ */
+async function requestAudioInputStream() {
+  const buildFullConstraints = (/** @type {boolean} */ includeDeviceId) => {
+    /** @type {any} */
+    const audio = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      channelCount: { ideal: 2 }
+    };
+    if (includeDeviceId && selectedInputDeviceId) {
+      audio.deviceId = { exact: selectedInputDeviceId };
+    }
+    return { audio, video: false };
+  };
+
+  try {
+    return await navigator.mediaDevices.getUserMedia(buildFullConstraints(Boolean(selectedInputDeviceId)));
   } catch (firstErr) {
     const name = /** @type {any} */ (firstErr)?.name || "";
     if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
       throw firstErr;
     }
+
+    // Se um deviceId salvo não estiver mais conectado, volta para o dispositivo padrão
+    if (selectedInputDeviceId && (name === "OverconstrainedError" || name === "NotFoundError")) {
+      selectedInputDeviceId = "";
+      try {
+        return await navigator.mediaDevices.getUserMedia(buildFullConstraints(false));
+      } catch {
+        // Segue para fallback mínimo
+      }
+    }
+
+    // Fallback para Chrome iOS / WKWebView caso channelCount/flags sejam recusados
+    if (selectedInputDeviceId) {
+      try {
+        return await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: { ideal: selectedInputDeviceId } },
+          video: false
+        });
+      } catch {
+        selectedInputDeviceId = "";
+      }
+    }
+
     return await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: false
@@ -564,12 +751,14 @@ function classifyMicError(err) {
 }
 
 /**
- * Inicia a captura do microfone/captador e o loop de detecção 24-TET.
+ * Inicia a captura de áudio (Microfone ou Interface em Linha) e o loop de detecção 24-TET.
  * Deve ser chamado diretamente dentro de um clique/toque do usuário.
  *
  * @param {{
  *   getState: () => import("../core/urlState.js").OudAppState,
  *   onDetection: (result: PitchDetectionResult | null) => void,
+ *   onLevel?: (level: PitchInputLevelInfo | null) => void,
+ *   onDevicesChange?: (devices: AudioInputDeviceInfo[]) => void,
  *   onError?: (code: "PERMISSION_DENIED"|"NO_MICROPHONE"|"INSECURE_CONTEXT"|"UNSUPPORTED"|"UNKNOWN", rawErr?: any) => void,
  *   onStateChange?: (active: boolean) => void
  * }} config
@@ -578,6 +767,8 @@ function classifyMicError(err) {
 export async function startPitchListening(config) {
   stateGetter = config.getState;
   detectionCallback = config.onDetection;
+  levelCallback = config.onLevel || null;
+  devicesChangeCallback = config.onDevicesChange || null;
   stateChangeCallback = config.onStateChange || null;
 
   if (listening || starting) return true;
@@ -601,44 +792,82 @@ export async function startPitchListening(config) {
   starting = true;
 
   try {
-    // 1. Libera imediatamente a sessão de Playback do iOS para "play-and-record"
-    //    e pausa o <audio loop> silencioso ANTES do getUserMedia()
+    // 1. Prepara a sessão do iOS para "play-and-record" ANTES do getUserMedia()
     setMicSessionActive(true);
 
-    // 2. Cria e acorda o AudioContext SINCRONAMENTE dentro do gesto do usuário (exigência do iOS)
+    // 2. Cria e acorda o AudioContext SINCRONAMENTE dentro do gesto do usuário
     micAudioCtx = new AudioCtxCtor();
     if (micAudioCtx.state !== "running") {
       micAudioCtx.resume().catch(() => {});
     }
 
-    // 3. Solicita o stream de microfone (com fallback { audio: true } no WKWebView/Chrome iOS)
-    micStream = await requestMicrophoneStream();
+    // 3. Solicita o stream da interface/microfone (com suporte a deviceId e 2 canais)
+    micStream = await requestAudioInputStream();
 
-    // Caso o usuário tenha fechado a barra enquanto aguardava a permissão
     if (!starting || !micAudioCtx) {
       stopPitchListening();
       return false;
     }
 
-    // 4. Retoma o AudioContext novamente após a abertura do microfone (o iOS pode marcar "interrupted")
+    // Sincroniza o deviceId realmente entregue pelo navegador (caso tenha havido fallback)
+    const activeTrack = micStream.getAudioTracks()[0];
+    const trackSettings = activeTrack && typeof activeTrack.getSettings === "function"
+      ? activeTrack.getSettings()
+      : null;
+    if (trackSettings && trackSettings.deviceId && selectedInputDeviceId) {
+      selectedInputDeviceId = trackSettings.deviceId;
+    }
+
+    // 4. Retoma o AudioContext novamente após abrir o stream (o iOS pode marcar "interrupted")
     if (micAudioCtx.state !== "running") {
       await micAudioCtx.resume();
     }
 
+    // 5. Grafo profissional de entrada:
+    //    Source -> ChannelSplitter(2) -> [Ch1Gain, Ch2Gain] -> ChannelMixer
+    //           -> MeterAnalyser (VU/Clip pré-filtro)
+    //           -> HPF -> LPF (sidechain YIN) -> Analyser -> SilentSink(0) -> Destination
     micSource = micAudioCtx.createMediaStreamSource(micStream);
+    channelSplitter = micAudioCtx.createChannelSplitter(2);
+    ch1Gain = micAudioCtx.createGain();
+    ch2Gain = micAudioCtx.createGain();
+    channelMixer = micAudioCtx.createGain();
+
+    meterAnalyser = micAudioCtx.createAnalyser();
+    meterAnalyser.fftSize = METER_FFT_SIZE;
+    meterAnalyser.smoothingTimeConstant = 0;
+
+    sidechainHPF = micAudioCtx.createBiquadFilter();
+    sidechainHPF.type = "highpass";
+
+    sidechainLPF = micAudioCtx.createBiquadFilter();
+    sidechainLPF.type = "lowpass";
+
     analyser = micAudioCtx.createAnalyser();
     analyser.fftSize = FFT_SIZE;
     analyser.smoothingTimeConstant = 0;
 
-    // 5. Mantém o grafo ativo no WebKit/iOS ligando a saída ao destination com ganho 0 (sem feedback)
     silentSinkGain = micAudioCtx.createGain();
     silentSinkGain.gain.setValueAtTime(0, micAudioCtx.currentTime);
 
-    micSource.connect(analyser);
+    micSource.connect(channelSplitter);
+    channelSplitter.connect(ch1Gain, 0);
+    channelSplitter.connect(ch2Gain, 1);
+    ch1Gain.connect(channelMixer);
+    ch2Gain.connect(channelMixer);
+
+    channelMixer.connect(meterAnalyser);
+    channelMixer.connect(sidechainHPF);
+    sidechainHPF.connect(sidechainLPF);
+    sidechainLPF.connect(analyser);
     analyser.connect(silentSinkGain);
     silentSinkGain.connect(micAudioCtx.destination);
 
+    applyChannelRoutingToGraph();
+    applyInputProfileToGraph();
+
     timeDomainBuf = new Float32Array(FFT_SIZE);
+    meterDomainBuf = new Float32Array(METER_FFT_SIZE);
 
     starting = false;
     listening = true;
@@ -647,6 +876,13 @@ export async function startPitchListening(config) {
     lastValidResult = null;
     lastFrameTs = 0;
     lastResumeAttemptTs = 0;
+
+    // Atualiza lista de dispositivos agora que os labels reais foram liberados pela permissão
+    if (devicesChangeCallback) {
+      listAudioInputDevices().then(devs => {
+        devicesChangeCallback?.(devs);
+      }).catch(() => {});
+    }
 
     stateChangeCallback?.(true);
     rafId = window.requestAnimationFrame(tickAnalysisLoop);
@@ -660,7 +896,7 @@ export async function startPitchListening(config) {
 }
 
 /**
- * Encerra imediatamente o microfone e libera hardware/bateria do sistema operacional.
+ * Encerra imediatamente a captura de áudio e libera hardware/bateria do sistema operacional.
  */
 export function stopPitchListening() {
   const wasListening = listening;
@@ -672,34 +908,38 @@ export function stopPitchListening() {
     rafId = null;
   }
 
-  if (micSource) {
+  const safeDisconnect = (/** @type {AudioNode | null} */ node) => {
+    if (!node) return;
     try {
-      micSource.disconnect();
+      node.disconnect();
     } catch {
       // Ignora
     }
-    micSource = null;
-  }
+  };
 
-  if (analyser) {
-    try {
-      analyser.disconnect();
-    } catch {
-      // Ignora
-    }
-    analyser = null;
-  }
+  safeDisconnect(micSource);
+  safeDisconnect(channelSplitter);
+  safeDisconnect(ch1Gain);
+  safeDisconnect(ch2Gain);
+  safeDisconnect(channelMixer);
+  safeDisconnect(meterAnalyser);
+  safeDisconnect(sidechainHPF);
+  safeDisconnect(sidechainLPF);
+  safeDisconnect(analyser);
+  safeDisconnect(silentSinkGain);
 
-  if (silentSinkGain) {
-    try {
-      silentSinkGain.disconnect();
-    } catch {
-      // Ignora
-    }
-    silentSinkGain = null;
-  }
-
+  micSource = null;
+  channelSplitter = null;
+  ch1Gain = null;
+  ch2Gain = null;
+  channelMixer = null;
+  meterAnalyser = null;
+  sidechainHPF = null;
+  sidechainLPF = null;
+  analyser = null;
+  silentSinkGain = null;
   timeDomainBuf = null;
+  meterDomainBuf = null;
 
   if (micStream) {
     micStream.getTracks().forEach(track => {
@@ -728,6 +968,7 @@ export function stopPitchListening() {
   smoothedFreqHz = 0;
   lastValidResult = null;
 
+  levelCallback?.(null);
   detectionCallback?.(null);
   if (wasListening) {
     stateChangeCallback?.(false);
@@ -751,6 +992,56 @@ export function getPitchDetectionMode() {
 }
 
 /**
+ * Alterna entre entrada acústica ("MIC") e interface de áudio em linha ("LINE").
+ * Atualiza o filtro sidechain em tempo real sem derrubar a captura.
+ * @param {PitchInputProfile} profile
+ */
+export function setPitchInputProfile(profile) {
+  inputProfile = profile === "LINE" ? "LINE" : "MIC";
+  recentFreqWindow = [];
+  applyInputProfileToGraph();
+}
+
+/** @returns {PitchInputProfile} */
+export function getPitchInputProfile() {
+  return inputProfile;
+}
+
+/**
+ * Seleciona qual canal da interface de áudio alimenta o detector ("AUTO" | "CH1" | "CH2").
+ * Atualiza em tempo real sem reiniciar o stream.
+ * @param {PitchInputChannel} channel
+ */
+export function setPitchInputChannel(channel) {
+  if (channel === "CH1" || channel === "CH2" || channel === "AUTO") {
+    inputChannel = channel;
+  } else {
+    inputChannel = "AUTO";
+  }
+  recentFreqWindow = [];
+  applyChannelRoutingToGraph();
+}
+
+/** @returns {PitchInputChannel} */
+export function getPitchInputChannel() {
+  return inputChannel;
+}
+
+/**
+ * Define o deviceId preferido da interface de áudio ("" = entrada padrão do sistema).
+ * Para aplicar um novo dispositivo enquanto já estiver escutando, reinicie o stream.
+ * @param {string} deviceId
+ */
+export function setPitchInputDeviceId(deviceId) {
+  selectedInputDeviceId = typeof deviceId === "string" ? deviceId : "";
+}
+
+/** @returns {string} */
+export function getPitchInputDeviceId() {
+  return selectedInputDeviceId;
+}
+
+/**
  * Trava o modo Afinador em uma ordem específica (1..6) ou volta para detecção automática (`null`).
  * @param {number | null} courseNum
  */
@@ -764,29 +1055,47 @@ export function getLockedTunerCourse() {
 }
 
 /**
- * Ajusta o limiar do Noise Gate (ex: 0.008 para captação baixa, 0.025 para ambiente ruidoso).
+ * Ajusta o limiar do Noise Gate (ex: 0.004 para linha baixa, 0.008 padrão, 0.022 ambiente ruidoso).
  * @param {number} rmsThreshold
  */
 export function setPitchNoiseGate(rmsThreshold) {
-  noiseGateRms = Math.max(0.003, Math.min(0.08, rmsThreshold));
+  noiseGateRms = Math.max(0.002, Math.min(0.08, rmsThreshold));
+}
+
+/** @returns {number} */
+export function getPitchNoiseGate() {
+  return noiseGateRms;
 }
 
 /**
- * Suspende brevemente a detecção para evitar que um som reproduzido pelo próprio app
- * (ex: clicar numa corda de referência) seja recapturado pelo microfone.
+ * Suspende brevemente a detecção para evitar eco acústico no modo MIC.
+ * No modo LINE (interface de áudio com fones), é ignorado para manter leitura contínua.
  * @param {number} [durationMs=380]
  */
 export function suspendPitchDetection(durationMs = 380) {
-  if (!listening) return;
+  if (!listening || inputProfile === "LINE") return;
   suspendedUntilTs = performance.now() + durationMs;
   recentFreqWindow = [];
 }
 
-// Encerra o microfone automaticamente ao trocar de aba ou bloquear a tela do celular
+// Encerra captura ao ocultar a tela e atualiza lista de entradas ao plugar/desplugar interface USB
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden" && listening) {
       stopPitchListening();
     }
+  });
+}
+
+if (
+  typeof navigator !== "undefined" &&
+  navigator.mediaDevices &&
+  typeof navigator.mediaDevices.addEventListener === "function"
+) {
+  navigator.mediaDevices.addEventListener("devicechange", () => {
+    if (!devicesChangeCallback) return;
+    listAudioInputDevices().then(devs => {
+      devicesChangeCallback?.(devs);
+    }).catch(() => {});
   });
 }

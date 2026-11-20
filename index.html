@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>App Oud Visualizer — v3.1 Studio & PWA</title>
-  <meta name="description" content="Método interativo 24-TET para Oud: Guia de Estudos, Detector de Intonação Microtonal, Afinador 6 Ordens, Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at e Luthieria." />
+  <meta name="description" content="Método interativo 24-TET para Oud: Guia de Estudos, Detector de Intonação Microtonal, Modo Linha/Interface, Afinador 6 Ordens, Maqamat, Ajnas, Pauta 24-TET, Sayr, Iqa'at e Luthieria." />
   <meta name="theme-color" content="#100d0b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -417,7 +417,7 @@
         </div>
       </div>
 
-      <!-- Faixa Retrátil de Escuta 24-TET & Afinador das 6 Ordens (v3.1) -->
+      <!-- Faixa Retrátil de Escuta 24-TET, Modo Linha (Interface) & Afinador 6 Ordens -->
       <div id="live-tuner-bar" class="live-tuner-bar" style="display:none;" aria-live="polite">
         <div class="tuner-top-row">
           <div class="tuner-title-cluster">
@@ -431,6 +431,42 @@
           <div class="segmented-pills">
             <button type="button" id="btn-tuner-mic-toggle" class="primary compact-btn">🎙 Ligar Microfone</button>
             <button type="button" id="btn-close-tuner-bar" class="ghost-btn compact-btn" aria-label="Fechar afinador">✕</button>
+          </div>
+        </div>
+
+        <!-- Faixa de Roteamento de Entrada (Microfone vs. Interface em Linha + Canal + Gate + VU) -->
+        <div id="tuner-input-row" class="tuner-input-row">
+          <div class="tuner-input-controls">
+            <div class="segmented-pills" role="group" aria-label="Perfil da entrada de áudio">
+              <button type="button" class="tuner-profile-btn selected" data-input-profile="MIC">🎙 Mic</button>
+              <button type="button" class="tuner-profile-btn" data-input-profile="LINE">🔌 Linha (DI)</button>
+            </div>
+
+            <select id="select-tuner-device" class="tuner-input-select" aria-label="Dispositivo de entrada de áudio">
+              <option value="">Entrada Padrão do Sistema</option>
+            </select>
+
+            <div id="tuner-channel-group" class="segmented-pills" role="group" aria-label="Canal da interface de áudio">
+              <button type="button" class="tuner-channel-btn selected" data-input-channel="AUTO">Auto</button>
+              <button type="button" class="tuner-channel-btn" data-input-channel="CH1">Ch 1</button>
+              <button type="button" class="tuner-channel-btn" data-input-channel="CH2">Ch 2</button>
+            </div>
+
+            <select id="select-tuner-gate" class="tuner-input-select tuner-gate-select" aria-label="Sensibilidade da entrada (Noise Gate)">
+              <option value="0.004">Sens: Alta (Linha baixa)</option>
+              <option value="0.008" selected>Sens: Média (Padrão)</option>
+              <option value="0.018">Sens: Baixa (Ambiente)</option>
+            </select>
+          </div>
+
+          <div class="tuner-vu-cluster" aria-label="Medidor de nível de entrada (VU)">
+            <span class="tuner-vu-label">IN</span>
+            <div class="tuner-vu-track">
+              <div class="tuner-vu-fill" id="tuner-vu-fill"></div>
+              <div class="tuner-vu-gate-mark" id="tuner-vu-gate-mark" title="Limiar do Noise Gate"></div>
+            </div>
+            <span class="tuner-vu-db" id="tuner-vu-db">-∞ dB</span>
+            <span class="tuner-clip-badge" id="tuner-clip-badge" aria-hidden="true">CLIP</span>
           </div>
         </div>
 

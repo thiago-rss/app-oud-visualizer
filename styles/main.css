@@ -2179,3 +2179,142 @@ body[data-sidebar="collapsed"] .deck-body {
     border-radius: 8px;
   }
 }
+
+/* ==========================================================================
+   Modo Linha / Interface de Áudio (Roteamento, Canal, Sensibilidade & VU)
+   ========================================================================== */
+.tuner-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+}
+
+.tuner-input-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  flex: 1 1 auto;
+}
+
+.tuner-input-select {
+  height: 30px;
+  padding: 0 24px 0 9px;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background-color: var(--bg-panel, var(--bg-card, #1a1410));
+  border: 1px solid var(--border-subtle);
+  max-width: 215px;
+  min-width: 135px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.tuner-gate-select {
+  max-width: 175px;
+  min-width: 128px;
+}
+
+.tuner-vu-cluster {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 185px;
+  flex: 0 1 235px;
+}
+
+.tuner-vu-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.tuner-vu-track {
+  position: relative;
+  flex: 1;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+[data-theme="light"] .tuner-vu-track {
+  background: rgba(43, 30, 20, 0.12);
+}
+
+.tuner-vu-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7ea87b 0%, #c99a49 68%, #e06c6c 96%);
+  transition: width 0.05s linear;
+}
+
+.tuner-vu-gate-mark {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: 30%;
+  width: 2px;
+  background: var(--plum);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.tuner-vu-db {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 44px;
+  text-align: right;
+}
+
+.tuner-clip-badge {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  opacity: 0.38;
+  transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.tuner-clip-badge.is-clipping {
+  opacity: 1;
+  color: #ffffff;
+  background: #b92b2b;
+  border-color: #ef6b6b;
+}
+
+@media (max-width: 768px) {
+  .tuner-input-row {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .tuner-input-select,
+  .tuner-gate-select {
+    flex: 1 1 135px;
+    max-width: 100%;
+  }
+
+  .tuner-vu-cluster {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}

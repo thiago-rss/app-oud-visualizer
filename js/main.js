@@ -23,7 +23,6 @@ import {
   localizeStudyLesson
 } from "./core/studyGuide.js";
 import {
-  unlockAudioEngine,
   setOudTimbreProfile,
   getOudTimbreProfile,
   clearSequenceTimers,
@@ -44,6 +43,15 @@ import {
   isPitchListening,
   setPitchDetectionMode,
   getPitchDetectionMode,
+  setPitchInputProfile,
+  getPitchInputProfile,
+  setPitchInputChannel,
+  getPitchInputChannel,
+  setPitchInputDeviceId,
+  getPitchInputDeviceId,
+  listAudioInputDevices,
+  setPitchNoiseGate,
+  getPitchNoiseGate,
   setLockedTunerCourse,
   getLockedTunerCourse,
   suspendPitchDetection
@@ -94,6 +102,28 @@ try {
   // Ignora se localStorage estiver bloqueado
 }
 
+// Restaura preferências do Modo Linha / Interface de Áudio
+try {
+  const savedInputProfile = localStorage.getItem("oud_input_profile_pref");
+  if (savedInputProfile === "MIC" || savedInputProfile === "LINE") {
+    setPitchInputProfile(savedInputProfile);
+  }
+  const savedInputChannel = localStorage.getItem("oud_input_channel_pref");
+  if (savedInputChannel === "AUTO" || savedInputChannel === "CH1" || savedInputChannel === "CH2") {
+    setPitchInputChannel(savedInputChannel);
+  }
+  const savedInputDevice = localStorage.getItem("oud_input_device_pref");
+  if (typeof savedInputDevice === "string") {
+    setPitchInputDeviceId(savedInputDevice);
+  }
+  const savedGate = parseFloat(localStorage.getItem("oud_input_gate_pref") || "");
+  if (Number.isFinite(savedGate) && savedGate >= 0.002 && savedGate <= 0.08) {
+    setPitchNoiseGate(savedGate);
+  }
+} catch {
+  // Ignora se localStorage estiver bloqueado
+}
+
 if (state.theme !== "light" && state.theme !== "dark") state.theme = "dark";
 if (typeof state.rootQ !== "number" || Number.isNaN(state.rootQ) || state.rootQ < 0 || state.rootQ >= 24) state.rootQ = 0;
 if (typeof state.anchorAbsQ !== "number" || Number.isNaN(state.anchorAbsQ)) state.anchorAbsQ = null;
@@ -140,17 +170,21 @@ let shiftOverlayTimer;
 let modulationOrigin = null;
 
 // ==========================================================================
-// Estado do Detector de Intonação 24-TET & Afinador 6 Ordens (v3.1)
+// Estado do Detector de Intonação 24-TET, Modo Linha & Afinador 6 Ordens
 // ==========================================================================
 let isTunerBarOpen = false;
 /** @type {import("./audio/pitchEngine.js").PitchDetectionResult | null} */
 let latestPitchDetection = null;
+/** @type {import("./audio/pitchEngine.js").AudioInputDeviceInfo[]} */
+let availableInputDevices = [];
 /** @type {string | null} */
 let tunerErrorCode = null;
 /** @type {string | null} */
 let tunerErrorDetail = null;
 /** @type {number | null} */
 let lastDetectedTunerCourse = null;
+/** @type {number | undefined} */
+let clipHoldTimer;
 
 // ==========================================================================
 // Estado e Persistência do Guia de Estudos (v3.0)
@@ -262,51 +296,157 @@ function clearAllActivePlayback() {
 }
 
 // ==========================================================================
-// Controlador do Detector de Intonação 24-TET & Afinador 6 Ordens (v3.1)
+// Controlador do Detector 24-TET, Modo Linha (Interface) & Afinador 6 Ordens
 // ==========================================================================
 
 /**
- * Traduz códigos de erro de microfone para mensagens claras ao músico.
+ * Converte valor linear de Noise Gate na posição visual (0..100%) sobre a barra VU (-60..0 dBFS).
+ * @param {number} gateRms
+ */
+function gateRmsToVuPct(gateRms) {
+  const db = 20 * Math.log10(Math.max(1e-5, gateRms));
+  return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+}
+
+/**
+ * Traduz códigos de erro de entrada de áudio para mensagens claras ao músico.
  * @param {string} code
  */
 function getTunerErrorText(code) {
   const isEn = state.lang === "en";
   if (code === "PERMISSION_DENIED") {
     return isEn
-      ? "Microphone permission denied. Allow mic access in browser settings and try again."
-      : "Permissão de microfone negada. Libere o acesso nas configurações do navegador e tente novamente.";
+      ? "Audio input permission denied. Allow microphone access in browser settings and try again."
+      : "Permissão de entrada de áudio negada. Libere o acesso nas configurações do navegador e tente novamente.";
   }
   if (code === "NO_MICROPHONE") {
     return isEn
-      ? "No microphone or audio interface detected on this device."
-      : "Nenhum microfone ou interface de áudio foi encontrado neste dispositivo.";
+      ? "No microphone or USB audio interface detected on this device."
+      : "Nenhum microfone ou interface de áudio USB foi encontrado neste dispositivo.";
   }
   if (code === "INSECURE_CONTEXT") {
     return isEn
-      ? "Microphone capture requires HTTPS (GitHub Pages) or localhost."
-      : "A captura pelo microfone exige conexão segura HTTPS (GitHub Pages) ou localhost.";
+      ? "Audio capture requires HTTPS (GitHub Pages) or localhost."
+      : "A captura de áudio exige conexão segura HTTPS (GitHub Pages) ou localhost.";
   }
   if (code === "UNSUPPORTED") {
     return isEn
-      ? "This browser does not support Web Audio microphone capture."
-      : "Este navegador não oferece suporte à captura de microfone pela Web Audio API.";
+      ? "This browser does not support Web Audio input capture."
+      : "Este navegador não oferece suporte à captura de áudio pela Web Audio API.";
   }
   const suffix = tunerErrorDetail ? ` (${tunerErrorDetail})` : "";
   return (isEn
-    ? "Could not start the microphone. Check if another app is using it or if Chrome has Mic permission in iOS Settings."
-    : "Não foi possível iniciar o microfone. Verifique se o Chrome tem permissão de microfone nos Ajustes do iOS.") + suffix;
+    ? "Could not start the audio input. Check your USB interface connection or browser mic permissions."
+    : "Não foi possível iniciar a entrada de áudio. Verifique a conexão da interface USB ou a permissão nos Ajustes.") + suffix;
 }
 
 /**
- * Sincroniza o botão de Microfone ON/OFF da barra inferior mobile (#btn-mob-mic).
+ * Atualiza a lista de dispositivos no seletor `#select-tuner-device`.
+ */
+function renderAudioInputDeviceOptions() {
+  const sel = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tuner-device"));
+  if (!sel) return;
+
+  const isEn = state.lang === "en";
+  const currentId = getPitchInputDeviceId();
+  sel.innerHTML = "";
+
+  const defaultOpt = document.createElement("option");
+  defaultOpt.value = "";
+  defaultOpt.textContent = isEn ? "System Default Input" : "Entrada Padrão do Sistema";
+  sel.appendChild(defaultOpt);
+
+  let foundSaved = currentId === "";
+  availableInputDevices.forEach((dev, idx) => {
+    if (!dev.deviceId) return;
+    const opt = document.createElement("option");
+    opt.value = dev.deviceId;
+    opt.textContent = dev.label || (isEn ? `Audio Input ${idx + 1}` : `Entrada de Áudio ${idx + 1}`);
+    sel.appendChild(opt);
+    if (dev.deviceId === currentId) {
+      foundSaved = true;
+    }
+  });
+
+  if (foundSaved) {
+    sel.value = currentId;
+  } else {
+    sel.value = "";
+  }
+}
+
+/**
+ * Consulta dispositivos disponíveis no sistema e atualiza o seletor.
+ */
+function refreshAudioInputDevices() {
+  listAudioInputDevices()
+    .then((devs) => {
+      availableInputDevices = devs;
+      renderAudioInputDeviceOptions();
+    })
+    .catch(() => {
+      // Ignora em navegadores restritos
+    });
+}
+
+/**
+ * Atualiza a barra VU, dBFS, marcador de Gate e alerta de CLIP em tempo real (~22 fps).
+ * @param {import("./audio/pitchEngine.js").PitchInputLevelInfo | null} level
+ */
+function renderLiveInputLevel(level) {
+  const fillEl = document.getElementById("tuner-vu-fill");
+  const gateMarkEl = document.getElementById("tuner-vu-gate-mark");
+  const dbEl = document.getElementById("tuner-vu-db");
+  const clipEl = document.getElementById("tuner-clip-badge");
+  if (!fillEl || !dbEl || !clipEl) return;
+
+  if (gateMarkEl) {
+    const pct = level ? level.gatePct : gateRmsToVuPct(getPitchNoiseGate());
+    gateMarkEl.style.left = `${pct.toFixed(1)}%`;
+  }
+
+  if (!level || !isPitchListening()) {
+    fillEl.style.width = "0%";
+    dbEl.textContent = "-∞ dB";
+    window.clearTimeout(clipHoldTimer);
+    clipEl.classList.remove("is-clipping");
+    clipEl.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  fillEl.style.width = `${level.pct.toFixed(1)}%`;
+  dbEl.textContent = level.db <= -58 ? "-∞ dB" : `${Math.round(level.db)} dB`;
+
+  if (level.clipping) {
+    clipEl.classList.add("is-clipping");
+    clipEl.setAttribute("aria-hidden", "false");
+    window.clearTimeout(clipHoldTimer);
+    clipHoldTimer = window.setTimeout(() => {
+      clipEl.classList.remove("is-clipping");
+      clipEl.setAttribute("aria-hidden", "true");
+    }, 650);
+  }
+}
+
+/**
+ * Sincroniza o botão de entrada ON/OFF da barra inferior mobile (#btn-mob-mic).
  */
 function syncMobileMicButton() {
   const btnMobMic = document.getElementById("btn-mob-mic");
   if (!btnMobMic) return;
   const listeningNow = isPitchListening();
+  const isLine = getPitchInputProfile() === "LINE";
+  const isEn = state.lang === "en";
+
   btnMobMic.classList.toggle("active-toggle", listeningNow);
   btnMobMic.setAttribute("aria-pressed", listeningNow ? "true" : "false");
-  btnMobMic.textContent = listeningNow ? "🎙 Mic: ON" : "🎙 Mic: OFF";
+
+  if (isLine) {
+    const lineWord = isEn ? "Line" : "Linha";
+    btnMobMic.textContent = listeningNow ? `🔌 ${lineWord}: ON` : `🔌 ${lineWord}: OFF`;
+  } else {
+    btnMobMic.textContent = listeningNow ? "🎙 Mic: ON" : "🎙 Mic: OFF";
+  }
 }
 
 /**
@@ -371,6 +511,7 @@ function renderLiveTunerReadout(det) {
   const isEn = state.lang === "en";
   const listeningNow = isPitchListening();
   const mode = getPitchDetectionMode();
+  const isLine = getPitchInputProfile() === "LINE";
 
   if (!det || !det.active) {
     bar.removeAttribute("data-tuner-status");
@@ -381,8 +522,12 @@ function renderLiveTunerReadout(det) {
     needle.classList.remove("is-active", "is-holding");
 
     if (!listeningNow) {
-      noteSub.textContent = isEn ? "Microphone paused" : "Microfone pausado";
-      dirHint.textContent = isEn ? "Click 'Start Mic' to listen" : "Clique em 'Ligar Microfone' para escutar";
+      noteSub.textContent = isLine
+        ? (isEn ? "Line input paused" : "Entrada de linha pausada")
+        : (isEn ? "Microphone paused" : "Microfone pausado");
+      dirHint.textContent = isLine
+        ? (isEn ? "Click 'Start Line' to listen" : "Clique em 'Ligar Linha' para escutar")
+        : (isEn ? "Click 'Start Mic' to listen" : "Clique em 'Ligar Microfone' para escutar");
     } else if (mode === "TUNER") {
       const locked = getLockedTunerCourse();
       const tuning = DB.tunings.find(x => x.id === state.tuningId) || DB.tunings[0];
@@ -393,7 +538,9 @@ function renderLiveTunerReadout(det) {
       dirHint.textContent = isEn ? "Listening..." : "Aguardando sinal...";
     } else {
       noteSub.textContent = isEn ? "Play a note on your Oud" : "Toque uma nota no Oud";
-      dirHint.textContent = isEn ? "Listening in 24-TET..." : "Escutando em 24-TET...";
+      dirHint.textContent = isLine
+        ? (isEn ? "Listening via Interface (24-TET)..." : "Escutando via Interface (24-TET)...")
+        : (isEn ? "Listening in 24-TET..." : "Escutando em 24-TET...");
     }
 
     if (mode === "TUNER") {
@@ -475,12 +622,15 @@ function renderLiveTunerReadout(det) {
 }
 
 /**
- * Sincroniza estado completo dos controles da faixa de escuta e dos gatilhos no menu ⋯ / Popover 0 / Dock Mobile.
+ * Sincroniza controles da faixa de escuta, Modo Linha (Interface), Menu ⋯, Popover 0 e Dock Mobile.
  */
 function syncLiveTunerUI() {
   const isEn = state.lang === "en";
   const listeningNow = isPitchListening();
   const mode = getPitchDetectionMode();
+  const profile = getPitchInputProfile();
+  const channel = getPitchInputChannel();
+  const isLine = profile === "LINE";
 
   const bar = document.getElementById("live-tuner-bar");
   if (bar) {
@@ -498,7 +648,9 @@ function syncLiveTunerUI() {
   if (btnMenuTuner) {
     btnMenuTuner.classList.toggle("active-toggle", listeningNow || isTunerBarOpen);
     btnMenuTuner.textContent = listeningNow
-      ? (isEn ? "🎙 Live Tuner: ON" : "🎙 Escuta 24-TET: ATIVA")
+      ? (isLine
+        ? (isEn ? "🔌 Line Input: ON" : "🔌 Escuta Linha: ATIVA")
+        : (isEn ? "🎙 Live Tuner: ON" : "🎙 Escuta 24-TET: ATIVA"))
       : (isEn ? "🎙 24-TET Listener & Tuner" : "🎙 Escuta 24-TET & Afinador");
   }
 
@@ -519,20 +671,30 @@ function syncLiveTunerUI() {
     statusPill.classList.toggle("is-listening", listeningNow);
     statusPill.classList.toggle("is-error", Boolean(tunerErrorCode));
     if (tunerErrorCode) {
-      statusPill.textContent = isEn ? "● Mic unavailable" : "● Microfone indisponível";
+      statusPill.textContent = isEn ? "● Input unavailable" : "● Entrada indisponível";
     } else if (listeningNow) {
-      statusPill.textContent = isEn ? "● Listening (Mic ON)" : "● Escutando (Mic ON)";
+      statusPill.textContent = isLine
+        ? (isEn ? `● Listening (Line • ${channel})` : `● Escutando (Linha • ${channel})`)
+        : (isEn ? "● Listening (Mic ON)" : "● Escutando (Mic ON)");
     } else {
-      statusPill.textContent = isEn ? "● Mic paused" : "● Microfone pausado";
+      statusPill.textContent = isLine
+        ? (isEn ? "● Line paused" : "● Linha pausada")
+        : (isEn ? "● Mic paused" : "● Microfone pausado");
     }
   }
 
   const btnMicToggle = document.getElementById("btn-tuner-mic-toggle");
   if (btnMicToggle) {
     btnMicToggle.className = listeningNow ? "danger-ghost compact-btn" : "primary compact-btn";
-    btnMicToggle.textContent = listeningNow
-      ? (isEn ? "⏹ Stop Mic" : "⏹ Pausar Microfone")
-      : (isEn ? "🎙 Start Mic" : "🎙 Ligar Microfone");
+    if (listeningNow) {
+      btnMicToggle.textContent = isLine
+        ? (isEn ? "⏹ Stop Line" : "⏹ Pausar Linha")
+        : (isEn ? "⏹ Stop Mic" : "⏹ Pausar Microfone");
+    } else {
+      btnMicToggle.textContent = isLine
+        ? (isEn ? "🔌 Start Line" : "🔌 Ligar Linha")
+        : (isEn ? "🎙 Start Mic" : "🎙 Ligar Microfone");
+    }
   }
 
   document.querySelectorAll(".tuner-mode-btn").forEach(el => {
@@ -547,6 +709,45 @@ function syncLiveTunerUI() {
       btn.textContent = isEn ? "🪕 6-Course Tuner" : "🪕 Afinador 6 Ordens";
     }
   });
+
+  // Perfil de entrada (Mic acústico vs. Linha DI / Interface)
+  document.querySelectorAll(".tuner-profile-btn").forEach(el => {
+    const btn = /** @type {HTMLElement} */ (el);
+    const p = btn.dataset.inputProfile;
+    btn.classList.toggle("selected", p === profile);
+    if (p === "MIC") {
+      btn.textContent = "🎙 Mic";
+    } else if (p === "LINE") {
+      btn.textContent = isEn ? "🔌 Line (DI)" : "🔌 Linha (DI)";
+    }
+  });
+
+  // Canal da interface (Auto / Ch 1 / Ch 2)
+  document.querySelectorAll(".tuner-channel-btn").forEach(el => {
+    const btn = /** @type {HTMLElement} */ (el);
+    btn.classList.toggle("selected", btn.dataset.inputChannel === channel);
+  });
+
+  // Seletor de sensibilidade (Noise Gate)
+  const gateSel = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tuner-gate"));
+  if (gateSel) {
+    const curGate = getPitchNoiseGate();
+    const opts = gateSel.options;
+    if (opts.length >= 3) {
+      opts[0].textContent = isEn ? "Sens: High (Low Line)" : "Sens: Alta (Linha baixa)";
+      opts[1].textContent = isEn ? "Sens: Medium (Default)" : "Sens: Média (Padrão)";
+      opts[2].textContent = isEn ? "Sens: Low (Noisy Room)" : "Sens: Baixa (Ambiente)";
+    }
+    const closest = curGate <= 0.006 ? "0.004" : (curGate >= 0.013 ? "0.018" : "0.008");
+    gateSel.value = closest;
+  }
+
+  const gateMarkEl = document.getElementById("tuner-vu-gate-mark");
+  if (gateMarkEl) {
+    gateMarkEl.style.left = `${gateRmsToVuPct(getPitchNoiseGate()).toFixed(1)}%`;
+  }
+
+  renderAudioInputDeviceOptions();
 
   const coursesStrip = document.getElementById("tuner-courses-strip");
   if (coursesStrip) {
@@ -566,10 +767,14 @@ function syncLiveTunerUI() {
     feedbackEl.classList.toggle("is-error", Boolean(tunerErrorCode));
     if (tunerErrorCode) {
       feedbackEl.textContent = `⚠ ${getTunerErrorText(tunerErrorCode)}`;
+    } else if (listeningNow && isLine) {
+      feedbackEl.textContent = isEn
+        ? "🔌 Line (Interface) mode: piezo sidechain filter active and continuous tracking over Drone & Iqa'."
+        : "🔌 Modo Linha (Interface): filtro anti-piezo ativo e leitura contínua sobre Drone e Iqa' (use fones na interface).";
     } else if (listeningNow && (state.droneActive || isIqaPlaying)) {
       feedbackEl.textContent = isEn
-        ? "🎧 Tip: use headphones when combining Drone or Iqa' with microphone listening."
-        : "🎧 Dica: use fones de ouvido ao combinar Drone ou Iqa' com a escuta pelo microfone.";
+        ? "🎧 Tip: use headphones (or switch to Line DI with an interface) when combining Drone/Iqa' with pitch detection."
+        : "🎧 Dica: use fones de ouvido (ou mude para Linha DI com interface) ao combinar Drone/Iqa' com a escuta.";
     } else if (listeningNow && mode === "MAQAM_24TET") {
       feedbackEl.textContent = isEn
         ? "Target follows the active Maqam/Jins intervals including traditional microtonal deviations (cents_dev)."
@@ -579,6 +784,9 @@ function syncLiveTunerUI() {
     }
   }
 
+  if (!listeningNow) {
+    renderLiveInputLevel(null);
+  }
   renderLiveTunerReadout(latestPitchDetection);
 }
 
@@ -603,17 +811,24 @@ async function startLiveMicCapture() {
   await startPitchListening({
     getState: () => state,
     onDetection: handleLivePitchDetection,
+    onLevel: renderLiveInputLevel,
+    onDevicesChange: (devs) => {
+      availableInputDevices = devs;
+      renderAudioInputDeviceOptions();
+    },
     onError: (code, rawErr) => {
       tunerErrorCode = code;
       tunerErrorDetail = rawErr?.name ? String(rawErr.name) : null;
       latestPitchDetection = null;
       clearLivePitchOverlayOnNeck();
+      renderLiveInputLevel(null);
       syncLiveTunerUI();
     },
     onStateChange: (active) => {
       if (!active) {
         latestPitchDetection = null;
         clearLivePitchOverlayOnNeck();
+        renderLiveInputLevel(null);
       }
       syncLiveTunerUI();
       renderStudyGuidePane();
@@ -622,7 +837,7 @@ async function startLiveMicCapture() {
 }
 
 /**
- * Abre a faixa de Escuta/Afinador no modo desejado e opcionalmente liga o microfone.
+ * Abre a faixa de Escuta/Afinador no modo desejado e opcionalmente liga a entrada.
  * @param {import("./audio/pitchEngine.js").PitchDetectionMode} [preferredMode]
  * @param {boolean} [autoStartMic=true]
  */
@@ -637,6 +852,7 @@ function openLiveTunerBar(preferredMode, autoStartMic = true) {
     setPitchDetectionMode(preferredMode);
   }
 
+  refreshAudioInputDevices();
   syncLiveTunerUI();
 
   if (autoStartMic && !isPitchListening()) {
@@ -651,6 +867,7 @@ function closeLiveTunerBar() {
   tunerErrorCode = null;
   tunerErrorDetail = null;
   clearLivePitchOverlayOnNeck();
+  renderLiveInputLevel(null);
   syncLiveTunerUI();
 }
 
@@ -1052,7 +1269,7 @@ function renderStudyGuidePane() {
         <button type="button" class="ghost-btn compact-btn btn-study-live-pitch ${isPitchListening() ? "active-toggle" : ""}">
           ${isPitchListening()
             ? (isEn ? "🎙 Live Pitch: ON" : "🎙 Escuta 24-TET: ATIVA")
-            : (isEn ? "🎙 Check Intonation (Mic)" : "🎙 Checar Afinação (Mic)")}
+            : (isEn ? "🎙 Check Intonation (Mic / Line)" : "🎙 Checar Afinação (Mic / Linha)")}
         </button>
         ${currentLesson.suggestDrone ? `
           <button type="button" class="ghost-btn compact-btn btn-study-drone ${state.droneActive ? "active-toggle" : ""}">
@@ -3088,7 +3305,7 @@ function initApp() {
       return;
     }
 
-    // Gatilho na barra inferior Mobile: alterna Modo Microfone ON/OFF
+    // Gatilho na barra inferior Mobile: alterna Modo Microfone / Linha ON/OFF
     if (target.closest("#btn-mob-mic")) {
       e.preventDefault();
       if (isPitchListening()) {
@@ -3133,6 +3350,36 @@ function initApp() {
       setPitchDetectionMode(nextMode);
       latestPitchDetection = null;
       clearLivePitchOverlayOnNeck();
+      syncLiveTunerUI();
+      return;
+    }
+
+    // Alterna entre 🎙 Mic e 🔌 Linha (DI / Interface de Áudio) em tempo real
+    const profileBtn = /** @type {HTMLElement | null} */ (target.closest(".tuner-profile-btn"));
+    if (profileBtn) {
+      e.preventDefault();
+      const nextProfile = /** @type {import("./audio/pitchEngine.js").PitchInputProfile} */ (profileBtn.dataset.inputProfile || "MIC");
+      setPitchInputProfile(nextProfile);
+      try {
+        localStorage.setItem("oud_input_profile_pref", nextProfile);
+      } catch {
+        // Ignora
+      }
+      syncLiveTunerUI();
+      return;
+    }
+
+    // Alterna canal da interface (Auto / Ch 1 / Ch 2) em tempo real
+    const channelBtn = /** @type {HTMLElement | null} */ (target.closest(".tuner-channel-btn"));
+    if (channelBtn) {
+      e.preventDefault();
+      const nextChannel = /** @type {import("./audio/pitchEngine.js").PitchInputChannel} */ (channelBtn.dataset.inputChannel || "AUTO");
+      setPitchInputChannel(nextChannel);
+      try {
+        localStorage.setItem("oud_input_channel_pref", nextChannel);
+      } catch {
+        // Ignora
+      }
       syncLiveTunerUI();
       return;
     }
@@ -3348,6 +3595,36 @@ function initApp() {
       state.octavePathOnly = false;
       refreshAll();
     }
+  });
+
+  // Seletor de dispositivo de entrada (Interface USB / Microfone)
+  document.getElementById("select-tuner-device")?.addEventListener("change", async (e) => {
+    const newDeviceId = /** @type {HTMLSelectElement} */ (e.target).value;
+    setPitchInputDeviceId(newDeviceId);
+    try {
+      localStorage.setItem("oud_input_device_pref", newDeviceId);
+    } catch {
+      // Ignora
+    }
+    if (isPitchListening()) {
+      stopPitchListening();
+      await startLiveMicCapture();
+    } else {
+      syncLiveTunerUI();
+    }
+  });
+
+  // Seletor de sensibilidade (Noise Gate)
+  document.getElementById("select-tuner-gate")?.addEventListener("change", (e) => {
+    const val = parseFloat(/** @type {HTMLSelectElement} */ (e.target).value);
+    if (!Number.isFinite(val)) return;
+    setPitchNoiseGate(val);
+    try {
+      localStorage.setItem("oud_input_gate_pref", String(val));
+    } catch {
+      // Ignora
+    }
+    syncLiveTunerUI();
   });
 
   const selTradition = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
@@ -3729,6 +4006,7 @@ function initApp() {
     }
   });
 
+  refreshAudioInputDevices();
   syncControlsWithState();
   refreshAll();
 }
