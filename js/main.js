@@ -23,6 +23,7 @@ import {
   localizeStudyLesson
 } from "./core/studyGuide.js";
 import { getLocalizedStudyDossier } from "./core/studyDossiers.js";
+import { getAvailableEtudeKinds, generateTechnicalEtude } from "./core/technicalEtudes.js";
 import {
   setOudTimbreProfile,
   getOudTimbreProfile,
@@ -203,6 +204,12 @@ let appliedStudyLessonId = null;
 /** @type {"ALL"|"foundation"|"intermediate"|"advanced"|"mastery"|"world"} */
 let activeStudyLevelFilter = "ALL";
 let isStudyDossierOpen = false;
+/** @type {import("./core/technicalEtudes.js").TechnicalEtudeKind} */
+let activeEtudeKind = "BROKEN_THIRDS";
+let activeEtudeSpeed = 0.85;
+let isEtudeLoopPlaying = false;
+/** @type {number[]} */
+let etudePlaybackTimers = [];
 
 function loadStudyProgress() {
   const allLessons = getAllStudyLessons();
@@ -1400,6 +1407,146 @@ function buildStudyDossierHtml(lessonId, isEn) {
   `;
 }
 
+function stopTechnicalEtudePlayback(shouldRefresh = false) {
+  etudePlaybackTimers.forEach(id => window.clearTimeout(id));
+  etudePlaybackTimers = [];
+  const hadStep = highlightedSequenceStep !== -1 || isEtudeLoopPlaying;
+  isEtudeLoopPlaying = false;
+  highlightedSequenceStep = -1;
+  if (shouldRefresh && hadStep) {
+    refreshAll();
+  }
+}
+
+function getEtudeKindLabel(kind, isEn) {
+  if (kind === "BROKEN_THIRDS") return isEn ? "Broken 3rds" : "Terças (1-3-2)";
+  if (kind === "GROUPS_OF_3") return isEn ? "3-Note Groups" : "Grupos de 3";
+  if (kind === "BARIOLAGE_PEDAL") return isEn ? "Pedal & Risha" : "Pedal & Risha";
+  return isEn ? "Microtonal Focus" : "Foco Microtonal";
+}
+
+function playTechnicalEtudeSequence(lessonId, loop = false) {
+  const lesson = getStudyLessonById(lessonId);
+  if (!lesson) return;
+
+  if (appliedStudyLessonId !== lesson.id) {
+    applyStudyLessonPreset(lesson.id, { playConfirmTone: false, scrollToStage: false });
+  }
+
+  clearAllActivePlayback();
+  stopTechnicalEtudePlayback(false);
+
+  const avail = getAvailableEtudeKinds(lesson);
+  const chosenKind = avail.includes(activeEtudeKind) ? activeEtudeKind : avail[0];
+  const spec = generateTechnicalEtude(state, lesson, chosenKind);
+  if (!spec.steps.length) return;
+
+  isEtudeLoopPlaying = Boolean(loop);
+  const speedFactor = Math.max(0.4, Math.min(1.5, activeEtudeSpeed || 0.85));
+
+  const runCycle = () => {
+    etudePlaybackTimers.forEach(id => window.clearTimeout(id));
+    etudePlaybackTimers = [];
+
+    let elapsedMs = 0;
+    spec.steps.forEach((st, idx) => {
+      const dur = Math.max(150, Math.round(st.baseDurMs / speedFactor));
+      const tId = window.setTimeout(() => {
+        highlightedSequenceStep = idx;
+        const freq = 65.41 * Math.pow(2, (st.absQ * 50 + st.centsDev) / 1200);
+        const vel = st.risha === "UP" ? 0.24 : 0.34;
+        playPluckedNote(freq, Math.max(0.55, dur / 320), vel);
+        refreshAll();
+      }, elapsedMs);
+      etudePlaybackTimers.push(tId);
+      elapsedMs += dur;
+    });
+
+    const totalMs = elapsedMs + 180;
+    suspendPitchDetection(totalMs + 350);
+
+    const endId = window.setTimeout(() => {
+      if (isEtudeLoopPlaying) {
+        runCycle();
+      } else {
+        highlightedSequenceStep = -1;
+        refreshAll();
+      }
+    }, totalMs);
+    etudePlaybackTimers.push(endId);
+  };
+
+  syncControlsWithState();
+  renderStudyGuidePane();
+  runCycle();
+}
+
+function buildTechnicalEtudesHtml(lesson, isEn) {
+  if (!lesson) return "";
+  const avail = getAvailableEtudeKinds(lesson);
+  const chosenKind = avail.includes(activeEtudeKind) ? activeEtudeKind : avail[0];
+  const spec = generateTechnicalEtude(state, lesson, chosenKind);
+
+  const kindBtnsHtml = avail.map(k => `
+    <button type="button" class="study-etude-kind-btn ${k === chosenKind ? "selected" : ""}" data-etude-kind="${k}">
+      ${getEtudeKindLabel(k, isEn)}
+    </button>
+  `).join("");
+
+  const speeds = [0.65, 0.85, 1.0];
+  const speedBtnsHtml = speeds.map(sp => `
+    <button type="button" class="study-etude-speed-btn ${Math.abs(activeEtudeSpeed - sp) < 0.02 ? "selected" : ""}" data-etude-speed="${sp}">
+      ${sp.toFixed(2).replace(/\.00$/, ".0")}×
+    </button>
+  `).join("");
+
+  const stepsStripHtml = spec.steps.slice(0, 12).map((st, idx) => {
+    const arrow = st.risha === "DOWN" ? "↓" : "↑";
+    const isHi = highlightedSequenceStep === idx;
+    return `
+      <span class="study-etude-step-chip ${st.risha === "DOWN" ? "is-down" : "is-up"} ${isHi ? "is-playing" : ""}">
+        <span class="risha-arrow">${arrow}</span>
+        <strong>${st.noteName}</strong>
+        ${st.degree ? `<small>${st.degree}</small>` : ""}
+      </span>
+    `;
+  }).join("");
+
+  return `
+    <div class="study-etude-box">
+      <div class="study-etude-top">
+        <div>
+          <div class="study-etude-kicker">🏋️ ${isEn ? "Procedural Technical Etude" : "Estudo Técnico Procedural"} · ${spec.title}</div>
+          <div class="study-etude-sub">${spec.subtitle}</div>
+        </div>
+        <div class="segmented-pills">
+          <div class="segmented-pills" role="group" aria-label="${isEn ? "Tempo speed" : "Velocidade"}">
+            ${speedBtnsHtml}
+          </div>
+          <button type="button" class="plum-btn compact-btn btn-etude-play">
+            ${isEn ? "▶ Play Etude" : "▶ Tocar Estudo"}
+          </button>
+          <button type="button" class="ghost-btn compact-btn btn-etude-loop ${isEtudeLoopPlaying ? "active-toggle" : ""}">
+            ${isEtudeLoopPlaying ? (isEn ? "⏹ Stop Loop" : "⏹ Parar Loop") : "🔁 Loop"}
+          </button>
+        </div>
+      </div>
+
+      <div class="segmented-pills" style="margin-top:8px;">
+        ${kindBtnsHtml}
+      </div>
+
+      ${stepsStripHtml ? `<div class="study-etude-steps">${stepsStripHtml}</div>` : ""}
+
+      ${spec.focusTip ? `
+        <div class="study-etude-tip">
+          <strong>Risha &amp; ${isEn ? "Mechanics:" : "Mecânica:"}</strong> ${spec.focusTip}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
 function renderStudyGuidePane() {
   const pane = getStudyPaneElement();
   if (!pane) return;
@@ -1495,6 +1642,7 @@ function renderStudyGuidePane() {
     `;
   }).join("");
 
+  const etudesHtml = currentLesson ? buildTechnicalEtudesHtml(currentLesson, isEn) : "";
   const dossierHtml = currentLesson ? buildStudyDossierHtml(currentLesson.id, isEn) : "";
 
   const activeDetailHtml = locLesson && currentLesson ? `
@@ -1536,6 +1684,8 @@ function renderStudyGuidePane() {
           <div style="margin-top:3px; color:var(--text-secondary);">${locLesson.earTip}</div>
         </div>
       </div>
+
+      ${etudesHtml}
 
       ${dossierHtml}
 
