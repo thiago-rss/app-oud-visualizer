@@ -22,6 +22,7 @@ import {
   localizeStudyModule,
   localizeStudyLesson
 } from "./core/studyGuide.js";
+import { getLocalizedStudyDossier } from "./core/studyDossiers.js";
 import {
   setOudTimbreProfile,
   getOudTimbreProfile,
@@ -201,6 +202,7 @@ let activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first
 let appliedStudyLessonId = null;
 /** @type {"ALL"|"foundation"|"intermediate"|"advanced"|"mastery"} */
 let activeStudyLevelFilter = "ALL";
+let isStudyDossierOpen = false;
 
 function loadStudyProgress() {
   const allLessons = getAllStudyLessons();
@@ -1323,6 +1325,81 @@ function getStudyPaneElement() {
 /**
  * Renderiza toda a aba "Guia de Estudos" (barra de progresso, filtro por nível, 10 capítulos, cartões e missão ativa).
  */
+/**
+ * Monta o HTML do bloco recolhível "Dossiê Teórico, Intonação & Repertório" para a lição ativa.
+ * @param {string} lessonId
+ * @param {boolean} isEn
+ */
+function buildStudyDossierHtml(lessonId, isEn) {
+  const dossier = getLocalizedStudyDossier(state.lang, lessonId);
+  if (!dossier) return "";
+
+  const tagsHtml = dossier.tags
+    .map(tag => `<span class="study-dossier-chip">${tag}</span>`)
+    .join("");
+
+  const repertoireHtml = dossier.repertoire.map(ref => `
+    <div class="study-rep-card">
+      <div class="study-rep-head">
+        <div>
+          <div class="study-rep-piece">${ref.piece}</div>
+          <div class="study-rep-artist">${ref.artist}</div>
+        </div>
+        <a class="ghost-btn compact-btn study-rep-link" href="${ref.searchUrl}" target="_blank" rel="noopener noreferrer" title="${isEn ? "Search reference recording on YouTube" : "Buscar gravação de referência no YouTube"}">
+          ▶ ${isEn ? "Listen Ref" : "Buscar Áudio"}
+        </a>
+      </div>
+      <div class="study-rep-note">
+        <strong>${isEn ? "What to listen for:" : "O que observar na gravação:"}</strong> ${ref.listenFor}
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    <div class="study-dossier-shell ${isStudyDossierOpen ? "is-open" : ""}">
+      <button type="button" class="study-dossier-toggle" aria-expanded="${isStudyDossierOpen ? "true" : "false"}">
+        <span class="study-dossier-toggle-left">
+          <span>📚</span>
+          <span>${isEn ? "Theoretical Dossier, Intonation & Repertoire" : "Dossiê Teórico, Intonação & Repertório"}</span>
+        </span>
+        <span class="study-dossier-toggle-right">
+          ${isStudyDossierOpen
+            ? (isEn ? "▾ Hide Dossier" : "▾ Recolher Dossiê")
+            : (isEn ? "▸ Deep Dive" : "▸ Aprofundar")}
+        </span>
+      </button>
+
+      ${isStudyDossierOpen ? `
+        <div class="study-dossier-body">
+          <div class="study-dossier-chips">${tagsHtml}</div>
+
+          <div class="study-dossier-grid">
+            <div class="study-dossier-card">
+              <div class="study-dossier-card-title">📐 ${isEn ? "Architecture & Modal Gravity" : "Arquitetura & Gravidade Modal"}</div>
+              <p>${dossier.structure}</p>
+            </div>
+            <div class="study-dossier-card">
+              <div class="study-dossier-card-title">🎚️ ${isEn ? "Intonation, Schools & Acoustics" : "Intonação, Escolas & Acústica"}</div>
+              <p>${dossier.temperament}</p>
+            </div>
+            <div class="study-dossier-card is-pitfall">
+              <div class="study-dossier-card-title">⚠️ ${isEn ? "Common Pitfall & Fix" : "Armadilha Comum & Correção"}</div>
+              <p>${dossier.pitfall}</p>
+            </div>
+          </div>
+
+          <div class="study-rep-section">
+            <div class="study-rep-section-title">🎧 ${isEn ? "Guided Listening — Classic Repertoire & Masters" : "Escuta Guiada — Repertório & Mestres"}</div>
+            <div class="study-rep-list">
+              ${repertoireHtml}
+            </div>
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
 function renderStudyGuidePane() {
   const pane = getStudyPaneElement();
   if (!pane) return;
@@ -1415,6 +1492,8 @@ function renderStudyGuidePane() {
     `;
   }).join("");
 
+  const dossierHtml = currentLesson ? buildStudyDossierHtml(currentLesson.id, isEn) : "";
+
   const activeDetailHtml = locLesson && currentLesson ? `
     <div class="bridge-box sayr-highlight-box study-active-detail" style="margin-top:12px; align-items:flex-start; flex-direction:column; gap:10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:10px; flex-wrap:wrap;">
@@ -1454,6 +1533,8 @@ function renderStudyGuidePane() {
           <div style="margin-top:3px; color:var(--text-secondary);">${locLesson.earTip}</div>
         </div>
       </div>
+
+      ${dossierHtml}
 
       <div class="segmented-pills" style="width:100%; padding-top:4px; border-top:1px solid var(--border-subtle);">
         <button type="button" class="${currentLesson.suggestLivePitch && !isPitchListening() ? "plum-btn" : "ghost-btn"} compact-btn btn-study-live-pitch ${isPitchListening() ? "active-toggle" : ""}">
@@ -1537,6 +1618,11 @@ function renderStudyGuidePane() {
 
     ${activeDetailHtml}
   `;
+
+  pane.querySelector(".study-dossier-toggle")?.addEventListener("click", () => {
+    isStudyDossierOpen = !isStudyDossierOpen;
+    renderStudyGuidePane();
+  });
 
   pane.querySelectorAll(".study-level-pill").forEach(btn => {
     btn.addEventListener("click", () => {

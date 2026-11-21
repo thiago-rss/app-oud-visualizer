@@ -2428,3 +2428,230 @@ body[data-sidebar="collapsed"] .deck-body {
   }
 }
 
+/* === Guia de Estudos — Dossiê Teórico, Intonação & Repertório (v3.4) === */
+.study-dossier-shell {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card) 82%, var(--bg-input));
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.study-dossier-shell.is-open {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border-subtle));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+.study-dossier-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.16s ease;
+}
+
+.study-dossier-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.study-dossier-toggle-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-main);
+}
+
+.study-dossier-toggle-right {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.study-dossier-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border-subtle);
+  animation: studyDossierReveal 0.18s ease-out;
+}
+
+@keyframes studyDossierReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.study-dossier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.study-dossier-chip {
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--plum) 15%, var(--bg-input));
+  color: var(--plum);
+  border: 1px solid color-mix(in srgb, var(--plum) 36%, transparent);
+}
+
+.study-dossier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+  gap: 10px;
+}
+
+.study-dossier-card {
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.study-dossier-card.is-pitfall {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-input));
+}
+
+.study-dossier-card-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  color: var(--accent);
+}
+
+.study-dossier-card p {
+  margin: 0;
+  font-size: 0.81rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.study-rep-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.study-rep-section-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  color: var(--plum);
+}
+
+.study-rep-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  gap: 10px;
+}
+
+.study-rep-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.study-rep-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.study-rep-piece {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.study-rep-artist {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.study-rep-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.study-rep-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.study-rep-note {
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.study-rep-note strong {
+  color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+  .study-dossier-toggle {
+    padding: 9px 11px;
+  }
+
+  .study-dossier-toggle-left {
+    font-size: 0.8rem;
+  }
+
+  .study-dossier-body {
+    padding: 10px 11px 12px;
+  }
+
+  .study-dossier-grid,
+  .study-rep-list {
+    grid-template-columns: 1fr;
+  }
+
+  .study-rep-head {
+    flex-wrap: wrap;
+  }
+}
