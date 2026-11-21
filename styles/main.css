@@ -2364,3 +2364,67 @@ body[data-sidebar="collapsed"] .deck-body {
     scrollbar-width: thin;
   }
 }
+
+/* === Guia de Estudos — 10 Capítulos (Filtro por Nível + Selo Mestre) === */
+.study-level-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.study-level-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.study-level-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-main);
+}
+
+.study-level-pill.selected {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.study-mod-btn.is-mastery-mod {
+  border-style: double;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-subtle));
+}
+
+.study-mod-btn.is-mastery-mod.selected {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.study-master-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+@media (max-width: 768px) {
+  .study-level-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+}
+

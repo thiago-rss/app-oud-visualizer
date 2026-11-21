@@ -187,7 +187,7 @@ let lastDetectedTunerCourse = null;
 let clipHoldTimer;
 
 // ==========================================================================
-// Estado e Persistência do Guia de Estudos (v3.2 — 6 Módulos / 18 Lições)
+// Estado e Persistência do Guia de Estudos (v3.3 — 10 Capítulos / 30 Lições)
 // ==========================================================================
 const STORAGE_STUDY_DONE = "oud_study_completed_v3";
 const STORAGE_STUDY_ACTIVE = "oud_study_active_v3";
@@ -199,6 +199,8 @@ let activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
 let activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
 /** @type {string | null} */
 let appliedStudyLessonId = null;
+/** @type {"ALL"|"foundation"|"intermediate"|"advanced"|"mastery"} */
+let activeStudyLevelFilter = "ALL";
 
 function loadStudyProgress() {
   const allLessons = getAllStudyLessons();
@@ -1037,6 +1039,14 @@ function handlePivotAction(payload) {
 }
 
 /**
+ * Normaliza texto para busca segura sem acentos.
+ * @param {string} str
+ */
+function normalizeStudyKey(str) {
+  return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
  * Resolve o ID real de um Iqa' a partir de DB.iqaat (ou do <select> no DOM como fallback),
  * garantindo compatibilidade mesmo se o ID em database.js variar (ex.: iqa_samai vs iqa_samai_thaqil).
  * @param {string | undefined} preferredId
@@ -1049,10 +1059,10 @@ function resolveStudyIqaId(preferredId, keyword) {
       return preferredId;
     }
     if (keyword) {
-      const normKey = keyword.toLowerCase();
+      const normKey = normalizeStudyKey(keyword);
       const found = DB.iqaat.find(x =>
-        x.id.toLowerCase().includes(normKey) ||
-        (x.name || "").toLowerCase().includes(normKey)
+        normalizeStudyKey(x.id).includes(normKey) ||
+        normalizeStudyKey(x.name || "").includes(normKey)
       );
       if (found) return found.id;
     }
@@ -1065,16 +1075,64 @@ function resolveStudyIqaId(preferredId, keyword) {
       return preferredId;
     }
     if (keyword) {
-      const normKey = keyword.toLowerCase();
+      const normKey = normalizeStudyKey(keyword);
       const match = options.find(opt =>
-        opt.value.toLowerCase().includes(normKey) ||
-        (opt.textContent || "").toLowerCase().includes(normKey)
+        normalizeStudyKey(opt.value).includes(normKey) ||
+        normalizeStudyKey(opt.textContent || "").includes(normKey)
       );
       if (match) return match.value;
     }
   }
 
   return preferredId || null;
+}
+
+/**
+ * Resolve o ID real de uma afinação em DB.tunings por ID exato ou palavras-chave.
+ * @param {string | undefined} preferredId
+ * @param {string[] | undefined} keywords
+ * @returns {string | null}
+ */
+function resolveStudyTuningId(preferredId, keywords) {
+  if (!Array.isArray(DB.tunings) || !DB.tunings.length) return preferredId || null;
+  if (preferredId && DB.tunings.some(x => x.id === preferredId)) return preferredId;
+  if (Array.isArray(keywords) && keywords.length) {
+    const normKeys = keywords.map(normalizeStudyKey);
+    const found = DB.tunings.find(x => {
+      const hay = normalizeStudyKey(`${x.id} ${x.name || ""} ${(/** @type {any} */ (x)).name_en || ""}`);
+      return normKeys.some(k => hay.includes(k));
+    });
+    if (found) return found.id;
+  }
+  return preferredId || null;
+}
+
+/**
+ * Resolve o ID real de um Maqam, Jins, Escala, Acorde ou Cadência em DB.
+ * @param {"MAQAM"|"JINS"|"SCALE"|"CHORD"|"CADENCE"} mode
+ * @param {string | undefined} preferredId
+ * @param {string[] | undefined} keywords
+ * @returns {string | null}
+ */
+function resolveStudyEntityId(mode, preferredId, keywords) {
+  /** @type {any[]} */
+  let list = DB.maqamat;
+  if (mode === "JINS") list = DB.ajnas;
+  else if (mode === "SCALE") list = DB.scales;
+  else if (mode === "CHORD") list = DB.chords;
+  else if (mode === "CADENCE") list = DB.cadences;
+
+  if (!Array.isArray(list) || !list.length) return preferredId || null;
+  if (preferredId && list.some(x => x.id === preferredId)) return preferredId;
+  if (Array.isArray(keywords) && keywords.length) {
+    const normKeys = keywords.map(normalizeStudyKey);
+    const found = list.find(x => {
+      const hay = normalizeStudyKey(`${x.id} ${x.name || ""} ${x.name_en || ""} ${x.short_symbol || ""}`);
+      return normKeys.some(k => hay.includes(k));
+    });
+    if (found) return found.id;
+  }
+  return list[0].id;
 }
 
 /**
@@ -1112,9 +1170,25 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   state.octavePathOnly = false;
 
   const p = lesson.preset;
-  if (p.tuningId) state.tuningId = p.tuningId;
+  if (p.tuningId || p.tuningKeywords) {
+    const resolvedTuning = resolveStudyTuningId(p.tuningId, p.tuningKeywords);
+    if (resolvedTuning) {
+      state.tuningId = resolvedTuning;
+      setLockedTunerCourse(null);
+    }
+  }
+  if (p.tradition) {
+    state.tradition = p.tradition;
+    document.body.setAttribute("data-tradition", state.tradition);
+  }
+
   state.mode = p.mode;
-  state.entityId = p.entityId;
+  const resolvedEntity = resolveStudyEntityId(p.mode, p.entityId, p.entityKeywords);
+  if (resolvedEntity) state.entityId = resolvedEntity;
+  if (typeof p.chordVoicingOnly === "boolean") {
+    state.chordVoicingOnly = p.chordVoicingOnly;
+  }
+
   state.rootQ = p.rootQ;
   state.direction = p.direction || "ASC";
   state.shapeMode = p.shapeMode;
@@ -1166,6 +1240,13 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   activeStudyLessonId = lesson.id;
   activeStudyModuleId = lesson.moduleId;
   appliedStudyLessonId = lesson.id;
+
+  // Garante que o capítulo da lição recém-aplicada permaneça visível se o filtro por nível estiver ativo
+  const lessonMod = STUDY_MODULES.find(m => m.id === lesson.moduleId);
+  if (lessonMod && activeStudyLevelFilter !== "ALL" && lessonMod.level !== activeStudyLevelFilter) {
+    activeStudyLevelFilter = lessonMod.level;
+  }
+
   saveStudyProgress();
 
   syncControlsWithState();
@@ -1185,7 +1266,7 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
 }
 
 /**
- * Executa o exemplo sonoro recomendado pela lição ativa (Escala, Taqsim ou Posição).
+ * Executa o exemplo sonoro recomendado pela lição ativa (Escala, Taqsim, Arpejo ou Posição).
  * @param {string} lessonId
  */
 function playStudyLessonExample(lessonId) {
@@ -1198,6 +1279,12 @@ function playStudyLessonExample(lessonId) {
 
   if (lesson.audioAction === "REGION") {
     handlePlayPositionRegion(lesson.preset.shapeMode);
+    return;
+  }
+
+  if (lesson.audioAction === "ARPEGGIO" && currentChordVoicingFreqs.length > 0) {
+    suspendPitchDetection(currentChordVoicingFreqs.length * 220 + 500);
+    arpeggiateChordVoicing(currentChordVoicingFreqs);
     return;
   }
 
@@ -1234,7 +1321,7 @@ function getStudyPaneElement() {
 }
 
 /**
- * Renderiza toda a aba "Guia de Estudos" (barra de progresso, 6 módulos Base + Avançado, cartões e missão ativa).
+ * Renderiza toda a aba "Guia de Estudos" (barra de progresso, filtro por nível, 10 capítulos, cartões e missão ativa).
  */
 function renderStudyGuidePane() {
   const pane = getStudyPaneElement();
@@ -1266,15 +1353,35 @@ function renderStudyGuidePane() {
   const isCurrentDone = currentLesson ? completedStudyLessons.has(currentLesson.id) : false;
   const isCurrentApplied = currentLesson ? appliedStudyLessonId === currentLesson.id : false;
 
-  const modulesTabsHtml = STUDY_MODULES.map(rawMod => {
+  const visibleModules = activeStudyLevelFilter === "ALL"
+    ? STUDY_MODULES
+    : STUDY_MODULES.filter(m => m.level === activeStudyLevelFilter);
+
+  const levelFilters = [
+    { id: "ALL", pt: `Todos (${STUDY_MODULES.length})`, en: `All (${STUDY_MODULES.length})` },
+    { id: "foundation", pt: "🌱 Base (1–2)", en: "🌱 Base (1–2)" },
+    { id: "intermediate", pt: "✨ Interm. (3–4)", en: "✨ Interm. (3–4)" },
+    { id: "advanced", pt: "🪶 Avanç. (5–8)", en: "🪶 Adv. (5–8)" },
+    { id: "mastery", pt: "👑 Mestre (9–10)", en: "👑 Master (9–10)" }
+  ];
+
+  const levelFilterHtml = levelFilters.map(lf => `
+    <button type="button" class="study-level-pill ${activeStudyLevelFilter === lf.id ? "selected" : ""}" data-study-level="${lf.id}">
+      ${isEn ? lf.en : lf.pt}
+    </button>
+  `).join("");
+
+  const modulesTabsHtml = visibleModules.map(rawMod => {
     const m = localizeStudyModule(state.lang, rawMod);
     const modDone = rawMod.lessons.filter(l => completedStudyLessons.has(l.id)).length;
     const isAct = rawMod.id === currentMod.id;
     const isAdv = rawMod.level === "advanced";
+    const isMaster = rawMod.level === "mastery";
     return `
-      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""} ${isAdv ? "is-advanced-mod" : ""}" data-study-module="${rawMod.id}">
+      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""} ${isAdv ? "is-advanced-mod" : ""} ${isMaster ? "is-mastery-mod" : ""}" data-study-module="${rawMod.id}">
         <span>${m.icon} ${m.title}</span>
         ${isAdv ? `<span class="study-adv-tag">${isEn ? "Adv" : "Avanç."}</span>` : ""}
+        ${isMaster ? `<span class="study-master-tag">${isEn ? "Master" : "Mestre"}</span>` : ""}
         <span class="deck-tab-count">${modDone}/${rawMod.lessons.length}</span>
       </button>
     `;
@@ -1375,6 +1482,11 @@ function renderStudyGuidePane() {
               : (isEn ? `🥁 Start Iqa' (${currentLesson.preset.bpm || 86} BPM)` : `🥁 Iniciar Iqa' (${currentLesson.preset.bpm || 86} BPM)`)}
           </button>
         ` : ""}
+        ${currentLesson.suggestZenMode ? `
+          <button type="button" class="plum-btn compact-btn btn-study-zen">
+            ${isEn ? "🪷 Enter Zen Stage (F)" : "🪷 Entrar no Modo Imersivo (Zen)"}
+          </button>
+        ` : ""}
         ${currentLesson.openRadarHint ? `
           <button type="button" class="plum-btn compact-btn btn-study-open-radar">
             ${isEn ? "🧭 Open Modulation Radar" : "🧭 Abrir Radar de Modulação"}
@@ -1411,6 +1523,10 @@ function renderStudyGuidePane() {
       </div>
     </div>
 
+    <div class="study-level-bar" role="group" aria-label="${isEn ? "Filter chapters by level" : "Filtrar capítulos por nível"}">
+      ${levelFilterHtml}
+    </div>
+
     <div class="segmented-pills study-modules-bar" style="margin-bottom:12px;">
       ${modulesTabsHtml}
     </div>
@@ -1421,6 +1537,24 @@ function renderStudyGuidePane() {
 
     ${activeDetailHtml}
   `;
+
+  pane.querySelectorAll(".study-level-pill").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const lvl = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.studyLevel || "ALL");
+      activeStudyLevelFilter = lvl;
+      const matchingMods = lvl === "ALL"
+        ? STUDY_MODULES
+        : STUDY_MODULES.filter(m => m.level === lvl);
+      if (matchingMods.length && !matchingMods.some(m => m.id === activeStudyModuleId)) {
+        const nextMod = matchingMods[0];
+        activeStudyModuleId = nextMod.id;
+        const firstPending = nextMod.lessons.find(l => !completedStudyLessons.has(l.id)) || nextMod.lessons[0];
+        if (firstPending) activeStudyLessonId = firstPending.id;
+        saveStudyProgress();
+      }
+      renderStudyGuidePane();
+    });
+  });
 
   pane.querySelectorAll(".study-mod-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1511,6 +1645,13 @@ function renderStudyGuidePane() {
     renderStudyGuidePane();
   });
 
+  pane.querySelector(".btn-study-zen")?.addEventListener("click", () => {
+    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+      applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
+    }
+    toggleZenMode(true);
+  });
+
   pane.querySelector(".btn-study-open-radar")?.addEventListener("click", () => {
     if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
@@ -1529,6 +1670,7 @@ function renderStudyGuidePane() {
       : "Deseja zerar o progresso de todas as lições do Guia de Estudos?";
     if (!window.confirm(msg)) return;
     completedStudyLessons.clear();
+    activeStudyLevelFilter = "ALL";
     activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
     activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
     appliedStudyLessonId = null;
