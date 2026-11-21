@@ -187,7 +187,7 @@ let lastDetectedTunerCourse = null;
 let clipHoldTimer;
 
 // ==========================================================================
-// Estado e Persistência do Guia de Estudos (v3.0)
+// Estado e Persistência do Guia de Estudos (v3.2 — 6 Módulos / 18 Lições)
 // ==========================================================================
 const STORAGE_STUDY_DONE = "oud_study_completed_v3";
 const STORAGE_STUDY_ACTIVE = "oud_study_active_v3";
@@ -1037,6 +1037,65 @@ function handlePivotAction(payload) {
 }
 
 /**
+ * Resolve o ID real de um Iqa' a partir de DB.iqaat (ou do <select> no DOM como fallback),
+ * garantindo compatibilidade mesmo se o ID em database.js variar (ex.: iqa_samai vs iqa_samai_thaqil).
+ * @param {string | undefined} preferredId
+ * @param {string | undefined} keyword
+ * @returns {string | null}
+ */
+function resolveStudyIqaId(preferredId, keyword) {
+  if (Array.isArray(DB.iqaat)) {
+    if (preferredId && DB.iqaat.some(x => x.id === preferredId)) {
+      return preferredId;
+    }
+    if (keyword) {
+      const normKey = keyword.toLowerCase();
+      const found = DB.iqaat.find(x =>
+        x.id.toLowerCase().includes(normKey) ||
+        (x.name || "").toLowerCase().includes(normKey)
+      );
+      if (found) return found.id;
+    }
+  }
+
+  const selectIqa = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-iqa"));
+  if (selectIqa) {
+    const options = Array.from(selectIqa.options);
+    if (preferredId && options.some(opt => opt.value === preferredId)) {
+      return preferredId;
+    }
+    if (keyword) {
+      const normKey = keyword.toLowerCase();
+      const match = options.find(opt =>
+        opt.value.toLowerCase().includes(normKey) ||
+        (opt.textContent || "").toLowerCase().includes(normKey)
+      );
+      if (match) return match.value;
+    }
+  }
+
+  return preferredId || null;
+}
+
+/**
+ * Alterna o caráter sonoro Sírio/Egípcio, persiste a preferência e toca uma prévia na tônica ativa.
+ */
+function toggleOudTimbreProfileWithPreview() {
+  const nextProfile = getOudTimbreProfile() === "syrian" ? "egyptian" : "syrian";
+  setOudTimbreProfile(nextProfile);
+  try {
+    localStorage.setItem("oud_timbre_pref", nextProfile);
+  } catch {
+    // Ignora
+  }
+  syncControlsWithState();
+  renderStudyGuidePane();
+  suspendPitchDetection(750);
+  const previewFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
+  playPluckedNote(previewFreq, 1.35, 0.36);
+}
+
+/**
  * Aplica o preset completo de uma lição do Guia de Estudos no espelho do Oud.
  * @param {string} lessonId
  * @param {{ playConfirmTone?: boolean, scrollToStage?: boolean }} [opts]
@@ -1059,7 +1118,16 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   state.rootQ = p.rootQ;
   state.direction = p.direction || "ASC";
   state.shapeMode = p.shapeMode;
-  if (typeof p.boxAnchorQ === "number") state.boxAnchorQ = p.boxAnchorQ;
+  if (typeof p.boxAnchorQ === "number") {
+    state.boxAnchorQ = p.boxAnchorQ;
+    const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
+    const labelBoxPos = document.getElementById("label-box-pos");
+    if (sliderBox) sliderBox.value = String(state.boxAnchorQ);
+    if (labelBoxPos) {
+      const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
+      labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
+    }
+  }
   state.labelMode = p.labelMode;
   state.jinsFilter = p.jinsFilter || "ALL";
   state.showSemiGuides = p.showSemiGuides;
@@ -1072,7 +1140,20 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   state.showPositionsMap = p.showPositionsMap;
   state.cadenceStepIndex = 0;
 
-  if (p.iqaId) state.iqaId = p.iqaId;
+  if (p.iqaId || p.iqaKeyword) {
+    const resolvedIqa = resolveStudyIqaId(p.iqaId, p.iqaKeyword);
+    if (resolvedIqa) state.iqaId = resolvedIqa;
+  }
+
+  if (p.soundChar === "syrian" || p.soundChar === "egyptian") {
+    setOudTimbreProfile(p.soundChar);
+    try {
+      localStorage.setItem("oud_timbre_pref", p.soundChar);
+    } catch {
+      // Ignora
+    }
+  }
+
   if (typeof p.bpm === "number") {
     state.bpm = p.bpm;
     const sliderBpm = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-bpm"));
@@ -1153,7 +1234,7 @@ function getStudyPaneElement() {
 }
 
 /**
- * Renderiza toda a aba "Guia de Estudos" (barra de progresso, 4 módulos, cartões e missão ativa).
+ * Renderiza toda a aba "Guia de Estudos" (barra de progresso, 6 módulos Base + Avançado, cartões e missão ativa).
  */
 function renderStudyGuidePane() {
   const pane = getStudyPaneElement();
@@ -1189,9 +1270,11 @@ function renderStudyGuidePane() {
     const m = localizeStudyModule(state.lang, rawMod);
     const modDone = rawMod.lessons.filter(l => completedStudyLessons.has(l.id)).length;
     const isAct = rawMod.id === currentMod.id;
+    const isAdv = rawMod.level === "advanced";
     return `
-      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""}" data-study-module="${rawMod.id}">
+      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""} ${isAdv ? "is-advanced-mod" : ""}" data-study-module="${rawMod.id}">
         <span>${m.icon} ${m.title}</span>
+        ${isAdv ? `<span class="study-adv-tag">${isEn ? "Adv" : "Avanç."}</span>` : ""}
         <span class="deck-tab-count">${modDone}/${rawMod.lessons.length}</span>
       </button>
     `;
@@ -1266,11 +1349,18 @@ function renderStudyGuidePane() {
       </div>
 
       <div class="segmented-pills" style="width:100%; padding-top:4px; border-top:1px solid var(--border-subtle);">
-        <button type="button" class="ghost-btn compact-btn btn-study-live-pitch ${isPitchListening() ? "active-toggle" : ""}">
+        <button type="button" class="${currentLesson.suggestLivePitch && !isPitchListening() ? "plum-btn" : "ghost-btn"} compact-btn btn-study-live-pitch ${isPitchListening() ? "active-toggle" : ""}">
           ${isPitchListening()
             ? (isEn ? "🎙 Live Pitch: ON" : "🎙 Escuta 24-TET: ATIVA")
             : (isEn ? "🎙 Check Intonation (Mic / Line)" : "🎙 Checar Afinação (Mic / Linha)")}
         </button>
+        ${currentLesson.suggestTimbreCompare ? `
+          <button type="button" class="plum-btn compact-btn btn-study-timbre">
+            ${getOudTimbreProfile() === "egyptian"
+              ? (isEn ? "🪕 Tone: Egyptian → Syrian" : "🪕 Timbre: Egípcio → Sírio")
+              : (isEn ? "🪕 Tone: Syrian → Egyptian" : "🪕 Timbre: Sírio → Egípcio")}
+          </button>
+        ` : ""}
         ${currentLesson.suggestDrone ? `
           <button type="button" class="ghost-btn compact-btn btn-study-drone ${state.droneActive ? "active-toggle" : ""}">
             ${state.droneActive
@@ -1396,6 +1486,10 @@ function renderStudyGuidePane() {
     }
     openLiveTunerBar("MAQAM_24TET", true);
     renderStudyGuidePane();
+  });
+
+  pane.querySelector(".btn-study-timbre")?.addEventListener("click", () => {
+    toggleOudTimbreProfileWithPreview();
   });
 
   pane.querySelector(".btn-study-drone")?.addEventListener("click", () => {
@@ -3435,17 +3529,7 @@ function initApp() {
 
     if (target.closest("#btn-timbre-profile")) {
       e.preventDefault();
-      const nextProfile = getOudTimbreProfile() === "syrian" ? "egyptian" : "syrian";
-      setOudTimbreProfile(nextProfile);
-      try {
-        localStorage.setItem("oud_timbre_pref", nextProfile);
-      } catch {
-        // Ignora
-      }
-      syncControlsWithState();
-      suspendPitchDetection(750);
-      const previewFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
-      playPluckedNote(previewFreq, 1.35, 0.36);
+      toggleOudTimbreProfileWithPreview();
       return;
     }
 

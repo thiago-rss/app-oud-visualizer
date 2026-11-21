@@ -2318,3 +2318,49 @@ body[data-sidebar="collapsed"] .deck-body {
     flex: 1 1 100%;
   }
 }
+
+/* === Guia de Estudos — Expansão 6 Módulos (Base + Avançado) === */
+.study-modules-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.study-mod-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.study-mod-btn.is-advanced-mod {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--plum) 48%, var(--border-subtle));
+}
+
+.study-mod-btn.is-advanced-mod.selected {
+  border-style: solid;
+  border-color: var(--plum);
+}
+
+.study-adv-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--plum) 18%, transparent);
+  color: var(--plum);
+  border: 1px solid color-mix(in srgb, var(--plum) 35%, transparent);
+}
+
+@media (max-width: 768px) {
+  .study-modules-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}

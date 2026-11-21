@@ -20,7 +20,9 @@
  * @property {"SCALE"|"SAYR"} [staffMode]
  * @property {boolean} showPositionsMap
  * @property {string} [iqaId]
+ * @property {string} [iqaKeyword]
  * @property {number} [bpm]
+ * @property {"syrian"|"egyptian"} [soundChar]
  */
 
 /**
@@ -41,6 +43,8 @@
  * @property {"SCALE"|"TAQSIM"|"REGION"} audioAction
  * @property {boolean} [suggestDrone]
  * @property {boolean} [suggestIqa]
+ * @property {boolean} [suggestLivePitch]
+ * @property {boolean} [suggestTimbreCompare]
  * @property {boolean} [openRadarHint]
  * @property {StudyLessonPreset} preset
  */
@@ -49,6 +53,7 @@
  * @typedef {Object} StudyModule
  * @property {string} id
  * @property {number} order
+ * @property {"foundation"|"intermediate"|"advanced"} level
  * @property {string} icon
  * @property {string} titlePt
  * @property {string} titleEn
@@ -65,6 +70,7 @@ export const STUDY_MODULES = [
   {
     id: "mod_foundation",
     order: 1,
+    level: "foundation",
     icon: "🌱",
     titlePt: "1. Fundação & 12-TET",
     titleEn: "1. Foundation & 12-TET",
@@ -181,6 +187,7 @@ export const STUDY_MODULES = [
   {
     id: "mod_ajnas",
     order: 2,
+    level: "foundation",
     icon: "۞",
     titlePt: "2. O Universo dos Ajnas",
     titleEn: "2. The World of Ajnas",
@@ -236,6 +243,7 @@ export const STUDY_MODULES = [
         audioAction: "SCALE",
         suggestDrone: true,
         suggestIqa: false,
+        suggestLivePitch: true,
         preset: {
           mode: "JINS",
           entityId: "jins_rast",
@@ -268,6 +276,7 @@ export const STUDY_MODULES = [
         audioAction: "SCALE",
         suggestDrone: true,
         suggestIqa: false,
+        suggestLivePitch: true,
         preset: {
           mode: "JINS",
           entityId: "jins_bayati",
@@ -292,6 +301,7 @@ export const STUDY_MODULES = [
   {
     id: "mod_sayr_rhythm",
     order: 3,
+    level: "intermediate",
     icon: "✨",
     titlePt: "3. Fraseado (Sayr) & Ritmo",
     titleEn: "3. Phrasing (Sayr) & Rhythm",
@@ -402,6 +412,7 @@ export const STUDY_MODULES = [
           staffMode: "SAYR",
           showPositionsMap: true,
           iqaId: "iqa_maqsum",
+          iqaKeyword: "maqsum",
           bpm: 86
         }
       }
@@ -414,6 +425,7 @@ export const STUDY_MODULES = [
   {
     id: "mod_mobility_mod",
     order: 4,
+    level: "intermediate",
     icon: "🧭",
     titlePt: "4. Mobilidade & Modulação",
     titleEn: "4. Mobility & Modulation",
@@ -525,6 +537,268 @@ export const STUDY_MODULES = [
         }
       }
     ]
+  },
+
+  // =========================================================================
+  // MÓDULO 5 — EXPRESSÃO, ORNAMENTAÇÃO & TIMBRE (AVANÇADO)
+  // =========================================================================
+  {
+    id: "mod_expression_timbre",
+    order: 5,
+    level: "advanced",
+    icon: "🪶",
+    titlePt: "5. Expressão, Risha & Timbre",
+    titleEn: "5. Expression, Risha & Timbre",
+    subtitlePt: "Refine a mão direita (Risha), explore cordas soltas como pedal (Bariolage), deslizes microtonais (Zahfa) e o contraste entre as escolas Síria e Egípcia.",
+    subtitleEn: "Refine your right hand (Risha), use open-course pedals (Bariolage), microtonal slides (Zahfa), and the tonal contrast between Syrian and Egyptian schools.",
+    lessons: [
+      {
+        id: "les_13_bariolage_pedal",
+        moduleId: "mod_expression_timbre",
+        number: 13,
+        duration: "7 min",
+        glossaryTerm: "taqsim",
+        titlePt: "Bariolage & Pedal de Corda Solta",
+        titleEn: "Bariolage & Open-Course Pedal",
+        summaryPt: "No Bariolage (recurso central em Munir Bashir e na escola iraquiana/levantina), a melodia caminha em uma ordem enquanto a corda solta vizinha responde continuamente como pedal rítmico e harmônico.",
+        summaryEn: "In Bariolage (a signature of Munir Bashir and Levantine/Iraqi playing), the melody moves on one course while the adjacent open course rings continuously as a rhythmic-harmonic pedal.",
+        taskPt: "Em Maqam Kurd (D), mantenha o dedo 0 da 3ª ordem (D solto) ou 2ª ordem (G solto) como pivô. Toque a linha descendente C – Bb – A – G na 2ª ordem intercalando cada nota com um golpe leve para cima (Radd) na 3ª ordem solta (D).",
+        taskEn: "In Maqam Kurd (D), use open 3rd course (D) or open 2nd course (G) as a pivot. Play the descending line C – Bb – A – G on the 2nd course while alternating every note with a light upstroke (Radd) on open D.",
+        earTipPt: "Use palhetada alternada rigorosa: golpe descendente (↓) nas notas da melodia e ascendente suave (↑) na corda solta pedal, sem abafar a ressonância.",
+        earTipEn: "Keep strict alternating Risha: downstrokes (↓) on melody notes and soft upstrokes (↑) on the open pedal course without muting its ring.",
+        audioAction: "TAQSIM",
+        suggestDrone: true,
+        suggestIqa: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_kurd",
+          rootQ: 4,
+          direction: "ASC",
+          shapeMode: "FULL_NECK",
+          labelMode: "FINGER",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: true,
+          showSayr: true,
+          sayrPhraseIndex: 1,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true,
+          iqaId: "iqa_baladi",
+          iqaKeyword: "baladi",
+          bpm: 82
+        }
+      },
+      {
+        id: "les_14_zahfa_microtonal",
+        moduleId: "mod_expression_timbre",
+        number: 14,
+        duration: "7 min",
+        glossaryTerm: "sikah_interval",
+        titlePt: "Zahfa & Inflexões Microtonais (Sikah)",
+        titleEn: "Zahfa & Microtonal Inflections (Sikah)",
+        summaryPt: "A Zahfa é o portamento característico do Oud sem trastes: um deslize controlado do mesmo dedo por 1 ou 2 quartos de tom que dá voz humana aos graus neutros.",
+        summaryEn: "Zahfa is the signature fretless Oud glide: a controlled slide of the same finger across 1 or 2 quarter tones that gives neutral degrees a vocal quality.",
+        taskPt: "Aplique Maqam Sikah (tônica diretamente no quarto de tom E-!) e ligue a Escuta 24-TET. Ataque a nota D# (2q) ou D e deslize o dedo 1 suavemente até estabilizar exatamente sobre a estrela E- (3q), observando o ponteiro ao vivo travar no alvo.",
+        taskEn: "Apply Maqam Sikah (tonic directly on quarter-tone E-!) and enable Live Pitch 24-TET. Pluck D# (2q) or D and glide finger 1 smoothly until the live pointer locks right onto the E- star (3q).",
+        earTipPt: "Evite deslizar devagar demais como glissando de slide-guitar: a Zahfa árabe é rápida na partida e pousa com firmeza e silêncio no centro da nota.",
+        earTipEn: "Avoid slow guitar-like slides: Arabic Zahfa launches briskly and settles with clean stillness right at the pitch center.",
+        audioAction: "TAQSIM",
+        suggestDrone: true,
+        suggestIqa: false,
+        suggestLivePitch: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_sikah",
+          rootQ: 7,
+          direction: "ASC",
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "DEGREE",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: false,
+          showSayr: true,
+          sayrPhraseIndex: 0,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true
+        }
+      },
+      {
+        id: "les_15_syrian_vs_egyptian",
+        moduleId: "mod_expression_timbre",
+        number: 15,
+        duration: "8 min",
+        glossaryTerm: "sayr",
+        titlePt: "Escolas Síria vs. Egípcia (Timbre & Posição)",
+        titleEn: "Syrian vs. Egyptian Schools (Timbre & Position)",
+        summaryPt: "O ponto onde a Risha toca a corda e a escolha de posição transformam o fraseado: a escola Síria privilegia ataque seco perto do cavalete; a Egípcia busca bojo cheio, notas ligadas e vibrato perto da roseta.",
+        summaryEn: "Where the Risha strikes and which position you choose reshape your phrasing: the Syrian school favors crisp attack near the bridge; the Egyptian school seeks warm resonance, legato, and vibrato near the rosette.",
+        taskPt: "Com Bayati em D na 2ª Posição (menos cordas soltas, mais controle de vibrato) e nomes árabes visíveis, ouça o exemplo alternando o botão '🪕 Alternar Timbre (Sírio / Egípcio)' abaixo. Depois reproduza os dois ataques no seu Oud real.",
+        taskEn: "With Bayati in D in 2nd Position (fewer open strings, deeper vibrato control) and Arabic note names on, play the example while toggling '🪕 Switch Timbre (Syrian / Egyptian)' below. Then mirror both right-hand positions on your real Oud.",
+        earTipPt: "No ataque Egípcio, incline levemente a Risha e desloque a mão direita em direção à roseta central; no Sírio, recue 3 a 4 cm em direção ao cavalete para destacar os médios.",
+        earTipEn: "For Egyptian tone, angle the Risha slightly and move toward the main rosette; for Syrian clarity, shift 3–4 cm toward the bridge to bring out crisp midrange definition.",
+        audioAction: "TAQSIM",
+        suggestDrone: false,
+        suggestIqa: true,
+        suggestTimbreCompare: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_bayati",
+          rootQ: 4,
+          direction: "ASC",
+          shapeMode: "POS_SECOND",
+          labelMode: "ARABIC",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: true,
+          showSayr: true,
+          sayrPhraseIndex: 1,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true,
+          iqaId: "iqa_saidi",
+          iqaKeyword: "saidi",
+          bpm: 92,
+          soundChar: "egyptian"
+        }
+      }
+    ]
+  },
+
+  // =========================================================================
+  // MÓDULO 6 — MAQAMAT COMPOSTOS & RITMOS ASSIMÉTRICOS (AVANÇADO)
+  // =========================================================================
+  {
+    id: "mod_compound_asymmetric",
+    order: 6,
+    level: "advanced",
+    icon: "☪️",
+    titlePt: "6. Maqamat Compostos & Ritmos Ímpares",
+    titleEn: "6. Compound Maqamat & Odd Rhythms",
+    subtitlePt: "Domine os modos de maior carga expressiva do repertório clássico (Saba, Huzam e Nawa Athar) e a respiração em ciclos compostos.",
+    subtitleEn: "Master the most expressive classical modes (Saba, Huzam, and Nawa Athar) alongside compound rhythmic cycles.",
+    lessons: [
+      {
+        id: "les_16_maqam_saba",
+        moduleId: "mod_compound_asymmetric",
+        number: 16,
+        duration: "8 min",
+        glossaryTerm: "maqam",
+        titlePt: "Maqam Saba — O 4º Grau Diminuto (b4)",
+        titleEn: "Maqam Saba — The Diminished 4th (b4)",
+        summaryPt: "Considerado o Maqam mais pungente da música árabe, o Saba nasce de um tetracorde sobreposto onde o 4º grau (Gb / b4) cai meio tom abaixo da quarta justa, abrindo um Jins Hijaz oculto a partir do 3º grau (F).",
+        summaryEn: "Regarded as the most poignant Arabic Maqam, Saba features an overlapping structure where the 4th degree (Gb / b4) drops a semitone below the perfect fourth, unlocking a hidden Jins Hijaz starting on the 3rd degree (F).",
+        taskPt: "Com o Drone em D e a Escuta 24-TET ativa, pratique a célula D – E- – F – Gb na 3ª ordem (evite tocar a 2ª ordem solta G!). Depois suba pelo Jins Hijaz em F (F – Gb – A – Bb) e explore o Radar de Modulação.",
+        taskEn: "With the D Drone and Live Pitch 24-TET active, practice D – E- – F – Gb on the 3rd course (avoid open 2nd course G!). Then ascend through Jins Hijaz on F (F – Gb – A – Bb) and inspect the Modulation Radar.",
+        earTipPt: "O coração emocional do Saba está na queda íntima de Gb para F: repouse bastante no F (3º grau) antes de resolver no Qarar D.",
+        earTipEn: "The emotional core of Saba lies in the tender drop from Gb down to F: linger on F (3rd degree) before resolving to Qarar D.",
+        audioAction: "TAQSIM",
+        suggestDrone: true,
+        suggestIqa: false,
+        suggestLivePitch: true,
+        openRadarHint: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_saba",
+          rootQ: 4,
+          direction: "ASC",
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "DEGREE",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: false,
+          showSayr: true,
+          sayrPhraseIndex: 0,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true
+        }
+      },
+      {
+        id: "les_17_maqam_huzam_samai",
+        moduleId: "mod_compound_asymmetric",
+        number: 17,
+        duration: "9 min",
+        glossaryTerm: "iqa",
+        titlePt: "Maqam Huzam & Sama'i Thaqil (10/8)",
+        titleEn: "Maqam Huzam & Sama'i Thaqil (10/8)",
+        summaryPt: "O Huzam combina o brilho suspenso do tricorde Jins Sikah (E- – F – G) com o drama do Jins Hijaz sobre o Ghammaz G (G – Ab – B – C). Associado ao ciclo Sama'i Thaqil (10/8), introduz a forma clássica instrumental Sama'i.",
+        summaryEn: "Huzam pairs the suspended lift of tricord Jins Sikah (E- – F – G) with the drama of Jins Hijaz on Ghammaz G (G – Ab – B – C). Paired with Sama'i Thaqil (10/8), it unlocks the classical Sama'i form.",
+        taskPt: "Inicie o Iqa' Sama'i Thaqil a 74 BPM e conte o ciclo em 4 grupos desiguais: (1-2-3) · (4-5) · (6-7) · (8-9-10). Toque a frase de abertura do Huzam destacando o salto Ab–B na 2ª ordem e resolvendo no Qarar E- sobre o tempo 1 (DUM).",
+        taskEn: "Start Iqa' Sama'i Thaqil at 74 BPM and feel the cycle in 4 uneven groups: (1-2-3) · (4-5) · (6-7) · (8-9-10). Play Huzam's opening phrase emphasizing the Ab–B leap on the 2nd course and landing on Qarar E- on beat 1 (DUM).",
+        earTipPt: "Não apresse o último bloco de 3 colcheias (tempos 8-9-10): é a pausa respirada antes do próximo DUM que dá elegância ao Sama'i.",
+        earTipEn: "Never rush the final 3-eighth block (beats 8-9-10): that unhurried breath before the next DUM gives Sama'i its poise.",
+        audioAction: "TAQSIM",
+        suggestDrone: false,
+        suggestIqa: true,
+        openRadarHint: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_huzam",
+          rootQ: 7,
+          direction: "ASC",
+          shapeMode: "FULL_NECK",
+          labelMode: "NOTE_NAME",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: false,
+          showSayr: true,
+          sayrPhraseIndex: 0,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true,
+          iqaId: "iqa_samai_thaqil",
+          iqaKeyword: "samai",
+          bpm: 74
+        }
+      },
+      {
+        id: "les_18_nawa_athar_finale",
+        moduleId: "mod_compound_asymmetric",
+        number: 18,
+        duration: "9 min",
+        glossaryTerm: "qafla",
+        titlePt: "Nawa Athar — Dupla 2ª Aumentada & Shape Móvel",
+        titleEn: "Nawa Athar — Double Augmented 2nd & Movable Box",
+        summaryPt: "O Maqam Nawa Athar (C – D – Eb – F# – G – Ab – B – c) empilha duas segundas aumentadas (Eb–F# e Ab–B), unindo Jins Nikriz na base e Jins HijazKar no topo — um teste completo de abertura e virtuosismo.",
+        summaryEn: "Maqam Nawa Athar (C – D – Eb – F# – G – Ab – B – c) stacks two augmented seconds (Eb–F# and Ab–B), joining Jins Nikriz below with Jins HijazKar above — a complete workout for hand stretch and virtuosity.",
+        taskPt: "Treine o modo dentro do Shape Móvel fechado (sem depender de cordas soltas), depois acione o ritmo Malfuf a 108 BPM (acentuação sincopada 3+3+2) e encaixe a frase 3. Qafla em direção ao C agudo e de volta ao Qarar.",
+        taskEn: "Practice the mode inside the closed Movable Box (without relying on open courses), then launch Iqa' Malfuf at 108 BPM (syncopated 3+3+2 pulse) and lock phrase 3. Qafla up to high C and back to Qarar.",
+        earTipPt: "Para consolidar toda a trilha, abra o Radar de Modulação a partir de Nawa Athar e crie um mini-Taqsim de 1 minuto passando por Nahawand ou Hijaz antes da Qafla final.",
+        earTipEn: "To cap off the entire curriculum, open the Modulation Radar from Nawa Athar and weave a 1-minute Taqsim visiting Nahawand or Hijaz before your closing Qafla.",
+        audioAction: "TAQSIM",
+        suggestDrone: false,
+        suggestIqa: true,
+        openRadarHint: true,
+        preset: {
+          mode: "MAQAM",
+          entityId: "maqam_nawa_athar",
+          rootQ: 0,
+          direction: "ASC",
+          shapeMode: "CLOSED_BOX",
+          boxAnchorQ: 2,
+          labelMode: "FINGER",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: true,
+          showSayr: true,
+          sayrPhraseIndex: 2,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true,
+          iqaId: "iqa_malfuf",
+          iqaKeyword: "malfuf",
+          bpm: 108
+        }
+      }
+    ]
   }
 ];
 
@@ -558,6 +832,28 @@ export function getNextStudyLesson(lessonId) {
 }
 
 /**
+ * Calcula estatísticas de progresso global e por trilha (Base vs. Avançado).
+ * @param {Set<string>} completedIds
+ */
+export function getStudyProgressStats(completedIds) {
+  const all = getAllStudyLessons();
+  const advancedIds = STUDY_MODULES
+    .filter(m => m.level === "advanced")
+    .flatMap(m => m.lessons.map(l => l.id));
+
+  const doneTotal = all.filter(l => completedIds.has(l.id)).length;
+  const doneAdvanced = advancedIds.filter(id => completedIds.has(id)).length;
+
+  return {
+    total: all.length,
+    doneTotal,
+    pctTotal: all.length > 0 ? Math.round((doneTotal / all.length) * 100) : 0,
+    advancedTotal: advancedIds.length,
+    doneAdvanced
+  };
+}
+
+/**
  * Localiza os textos de um módulo para o idioma ativo ("pt" | "en").
  * @param {string} lang
  * @param {StudyModule} mod
@@ -567,7 +863,12 @@ export function localizeStudyModule(lang, mod) {
   return {
     ...mod,
     title: isEn ? mod.titleEn : mod.titlePt,
-    subtitle: isEn ? mod.subtitleEn : mod.subtitlePt
+    subtitle: isEn ? mod.subtitleEn : mod.subtitlePt,
+    levelLabel: mod.level === "advanced"
+      ? (isEn ? "Advanced" : "Avançado")
+      : mod.level === "intermediate"
+        ? (isEn ? "Intermediate" : "Intermediário")
+        : (isEn ? "Foundation" : "Base")
   };
 }
 
