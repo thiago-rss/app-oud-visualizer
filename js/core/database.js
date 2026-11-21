@@ -902,6 +902,83 @@ export const DB = {
       ghammaz_q: [14],
       bridge_maqam: "maqam_nahawand",
       bridge_text: "Maqam Nahawand"
+    },
+    {
+      id: "scale_pentatonic_minor",
+      name: "Pentatônica Menor (1 – b3 – 4 – 5 – b7)",
+      description: "Escala universal de 5 notas sem semitons; base do Blues, Folk, Rock e improvisação aberta no Oud.",
+      traditional_root_q: 4,
+      intervals_q: [0, 6, 10, 14, 20, 24],
+      degrees: ["1", "b3", "4", "5", "b7", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_nahawand",
+      bridge_text: "Maqam Nahawand"
+    },
+    {
+      id: "scale_pentatonic_major",
+      name: "Pentatônica Maior (1 – 2 – 3 – 5 – 6)",
+      description: "Escala luminosa de 5 notas presente na música folk global, celta, oriental e brasileira.",
+      traditional_root_q: 0,
+      intervals_q: [0, 4, 8, 14, 18, 24],
+      degrees: ["1", "2", "3", "5", "6", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_ajam",
+      bridge_text: "Maqam Ajam"
+    },
+    {
+      id: "scale_blues",
+      name: "Escala Blues (1 – b3 – 4 – b5 – 5 – b7)",
+      description: "Pentatônica menor acrescida da blue note b5 (trítono), ideal para fraseado expressivo e deslizes no Oud.",
+      traditional_root_q: 4,
+      intervals_q: [0, 6, 10, 12, 14, 20, 24],
+      degrees: ["1", "b3", "4", "b5", "5", "b7", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_nahawand",
+      bridge_text: "Maqam Nahawand"
+    },
+    {
+      id: "scale_blues_micro",
+      name: "Blues Microtonal 24-TET (3- & 7- Neutras)",
+      description: "Explora o braço sem trastes do Oud para tocar a terça e a sétima neutras reais do Blues do Delta e do Sahel.",
+      traditional_root_q: 0,
+      intervals_q: [0, 7, 10, 12, 14, 21, 24],
+      degrees: ["1", "3-", "4", "b5", "5", "7-", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_rast",
+      bridge_text: "Maqam Rast"
+    },
+    {
+      id: "scale_lydian_b7",
+      name: "Lídio b7 (Modo Nordestino / Acústico)",
+      description: "Escala com #4 e b7 (4º modo da menor melódica), assinatura da rabeca nordestina, Baião e Jazz moderno.",
+      traditional_root_q: 0,
+      intervals_q: [0, 4, 8, 12, 14, 18, 20, 24],
+      degrees: ["1", "2", "3", "#4", "5", "6", "b7", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_ajam",
+      bridge_text: "Maqam Ajam"
+    },
+    {
+      id: "scale_melodic_minor",
+      name: "Menor Melódica (Jazz Minor)",
+      description: "Modo menor com 6ª e 7ª maiores (1 – 2 – b3 – 4 – 5 – 6 – 7), base da harmonia moderna e do Jazz contemporâneo.",
+      traditional_root_q: 0,
+      intervals_q: [0, 4, 6, 10, 14, 18, 22, 24],
+      degrees: ["1", "2", "b3", "4", "5", "6", "7", "8"],
+      ghammaz_q: [14],
+      bridge_maqam: "maqam_nahawand",
+      bridge_text: "Maqam Nahawand"
+    },
+    {
+      id: "scale_phrygian_dominant",
+      name: "Frígio Dominante (Flamenco / Hijaz 12-TET)",
+      description: "5º modo da menor harmônica (1 – b2 – 3 – 4 – 5 – b6 – b7), ponte direta entre Maqam Hijaz, Flamenco e Rebetiko.",
+      traditional_root_q: 4,
+      intervals_q: [0, 2, 8, 10, 14, 16, 20, 24],
+      degrees: ["1", "b2", "3", "4", "5", "b6", "b7", "8"],
+      ghammaz_q: [10],
+      bridge_maqam: "maqam_hijaz",
+      bridge_text: "Maqam Hijaz"
     }
   ],
 
@@ -989,6 +1066,30 @@ export const DB = {
       cents_dev: {},
       bridge_maqam: "maqam_kurd",
       bridge_text: "Maqam Kurd"
+    },
+    {
+      id: "chord_power_5",
+      name: "Quinta Aberta / Power Voicing (1 – 5)",
+      short_symbol: "5",
+      description: "Voicing aberto sem terça (1 – 5), universal para Folk, Rock modal e acompanhamento sem conflito microtonal.",
+      traditional_root_q: 4,
+      intervals_q: [0, 14],
+      degrees: ["1", "5"],
+      cents_dev: {},
+      bridge_maqam: "maqam_kurd",
+      bridge_text: "Maqam Kurd"
+    },
+    {
+      id: "chord_maj7",
+      name: "Tétrade Maior com 7ª (Maj7)",
+      short_symbol: "maj7",
+      description: "Acorde maior com 7ª maior (1 – 3 – 5 – 7), essencial em Jazz modal, Bossa Nova e Oud contemporâneo.",
+      traditional_root_q: 0,
+      intervals_q: [0, 8, 14, 22],
+      degrees: ["1", "3", "5", "7"],
+      cents_dev: {},
+      bridge_maqam: "maqam_ajam",
+      bridge_text: "Maqam Ajam"
     }
   ],
 
@@ -1172,6 +1273,72 @@ export const DB = {
         { stroke: "DUM", label: "D" },
         { stroke: "TAK", label: "T" },
         { stroke: "KAH", label: "k" },
+        { stroke: "REST", label: "·" }
+      ]
+    },
+    {
+      id: "iqa_chiftetelli",
+      name: "Chiftetelli / Tsifteteli (8/4 — Egeu & Levante)",
+      default_bpm: 86,
+      pattern: [
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "REST", label: "·" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "REST", label: "·" },
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "REST", label: "·" },
+        { stroke: "REST", label: "·" },
+        { stroke: "REST", label: "·" }
+      ]
+    },
+    {
+      id: "iqa_rumba_flamenca",
+      name: "Tangos / Rumba Flamenca (4/4 — Andaluzia)",
+      default_bpm: 104,
+      pattern: [
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "KAH", label: "K" },
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "KAH", label: "K" }
+      ]
+    },
+    {
+      id: "iqa_baiao",
+      name: "Baião / Zabumba (2/4 — Nordeste do Brasil)",
+      default_bpm: 102,
+      pattern: [
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "KAH", label: "K" },
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" }
+      ]
+    },
+    {
+      id: "iqa_waltz_34",
+      name: "Pulso Ternário / Valsa (3/4 — Universal)",
+      default_bpm: 96,
+      pattern: [
+        { stroke: "DUM", label: "D" },
+        { stroke: "REST", label: "·" },
+        { stroke: "TAK", label: "T" },
+        { stroke: "REST", label: "·" },
+        { stroke: "KAH", label: "K" },
         { stroke: "REST", label: "·" }
       ]
     }

@@ -2655,3 +2655,27 @@ body[data-sidebar="collapsed"] .deck-body {
     flex-wrap: wrap;
   }
 }
+
+
+/* === Guia de Estudos — Trilha Mundo & Fusão (v3.5) === */
+.study-mod-btn.is-world-mod {
+  border-style: dashed;
+  border-color: color-mix(in srgb, #2dd4bf 48%, var(--border-subtle));
+}
+
+.study-mod-btn.is-world-mod.selected {
+  border-style: solid;
+  border-color: #14b8a6;
+}
+
+.study-world-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #14b8a6 16%, transparent);
+  color: #14b8a6;
+  border: 1px solid color-mix(in srgb, #14b8a6 38%, transparent);
+}

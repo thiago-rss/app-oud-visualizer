@@ -200,7 +200,7 @@ let activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
 let activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
 /** @type {string | null} */
 let appliedStudyLessonId = null;
-/** @type {"ALL"|"foundation"|"intermediate"|"advanced"|"mastery"} */
+/** @type {"ALL"|"foundation"|"intermediate"|"advanced"|"mastery"|"world"} */
 let activeStudyLevelFilter = "ALL";
 let isStudyDossierOpen = false;
 
@@ -1439,7 +1439,8 @@ function renderStudyGuidePane() {
     { id: "foundation", pt: "🌱 Base (1–2)", en: "🌱 Base (1–2)" },
     { id: "intermediate", pt: "✨ Interm. (3–4)", en: "✨ Interm. (3–4)" },
     { id: "advanced", pt: "🪶 Avanç. (5–8)", en: "🪶 Adv. (5–8)" },
-    { id: "mastery", pt: "👑 Mestre (9–10)", en: "👑 Master (9–10)" }
+    { id: "mastery", pt: "👑 Mestre (9–10)", en: "👑 Master (9–10)" },
+    { id: "world", pt: "🌍 Mundo & Fusão (11–13)", en: "🌍 World & Fusion (11–13)" }
   ];
 
   const levelFilterHtml = levelFilters.map(lf => `
@@ -1454,11 +1455,13 @@ function renderStudyGuidePane() {
     const isAct = rawMod.id === currentMod.id;
     const isAdv = rawMod.level === "advanced";
     const isMaster = rawMod.level === "mastery";
+    const isWorld = rawMod.level === "world";
     return `
-      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""} ${isAdv ? "is-advanced-mod" : ""} ${isMaster ? "is-mastery-mod" : ""}" data-study-module="${rawMod.id}">
+      <button type="button" class="study-mod-btn ${isAct ? "selected" : ""} ${isAdv ? "is-advanced-mod" : ""} ${isMaster ? "is-mastery-mod" : ""} ${isWorld ? "is-world-mod" : ""}" data-study-module="${rawMod.id}">
         <span>${m.icon} ${m.title}</span>
         ${isAdv ? `<span class="study-adv-tag">${isEn ? "Adv" : "Avanç."}</span>` : ""}
         ${isMaster ? `<span class="study-master-tag">${isEn ? "Master" : "Mestre"}</span>` : ""}
+        ${isWorld ? `<span class="study-world-tag">${isEn ? "World" : "Mundo"}</span>` : ""}
         <span class="deck-tab-count">${modDone}/${rawMod.lessons.length}</span>
       </button>
     `;

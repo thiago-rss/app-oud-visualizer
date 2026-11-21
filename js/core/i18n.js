@@ -701,7 +701,19 @@ export const DB_EN = {
   iqa_malfuf: {
     name: "Malfuf / Laff (2/4)",
     description: "Circular binary cycle used in lively introductions and Taqsim transitions."
-  }
+  },
+  scale_pentatonic_minor: { name: "Minor Pentatonic (1 – b3 – 4 – 5 – b7)", bridge_text: "Maqam Nahawand", description: "Universal 5-note semitone-free scale; foundation of Blues, Folk, Rock, and open Oud improvisation." },
+  scale_pentatonic_major: { name: "Major Pentatonic (1 – 2 – 3 – 5 – 6)", bridge_text: "Maqam Ajam", description: "Bright 5-note scale heard across global folk, Celtic, East Asian, and Brazilian melodies." },
+  scale_blues: { name: "Blues Scale (1 – b3 – 4 – b5 – 5 – b7)", bridge_text: "Maqam Nahawand", description: "Minor pentatonic plus the b5 blue note (tritone), ideal for expressive glides on a fretless Oud." },
+  scale_blues_micro: { name: "Microtonal Blues 24-TET (Neutral 3- & 7-)", bridge_text: "Maqam Rast", description: "Harnesses the fretless Oud neck to play authentic neutral 3rd and 7th blue notes of Delta & Sahel Blues." },
+  scale_lydian_b7: { name: "Lydian b7 (Northeastern Brazilian / Acoustic)", bridge_text: "Maqam Ajam", description: "Scale with #4 and b7 (4th mode of Melodic Minor), signature of Brazilian Baião, rabeca, and modern Jazz." },
+  scale_melodic_minor: { name: "Melodic Minor (Jazz Minor)", bridge_text: "Maqam Nahawand", description: "Minor mode with natural 6th and major 7th, cornerstone of contemporary Jazz harmony." },
+  scale_phrygian_dominant: { name: "Phrygian Dominant (Flamenco / 12-TET Hijaz)", bridge_text: "Maqam Hijaz", description: "5th mode of Harmonic Minor (1 – b2 – 3 – 4 – 5 – b6 – b7), direct bridge across Hijaz, Flamenco, and Rebetiko." },
+  chord_power_5: { name: "Open Fifth / Power Voicing (1 – 5)", bridge_text: "Maqam Kurd", description: "Open third-less voicing (1 – 5), universal for Folk, modal Rock, and microtone-friendly accompaniment." },
+  iqa_chiftetelli: { name: "Chiftetelli / Tsifteteli (8/4 — Aegean & Levant)", description: "Slow, swaying 8/4 cycle shared by Greek Rebetiko, Anatolian, and Levantine traditions." },
+  iqa_rumba_flamenca: { name: "Tangos / Rumba Flamenca (4/4 — Andalusia)", description: "Driving 4/4 Andalusian compás suited to Flamenco phrasing and Oud-guitar fusion." },
+  iqa_baiao: { name: "Baião / Zabumba (2/4 — Northeastern Brazil)", description: "Syncopated 2/4 zabumba pulse from Northeastern Brazil, pairing naturally with Lydian b7." },
+  iqa_waltz_34: { name: "Triple Pulse / Waltz (3/4 — Universal)", description: "Balanced 3/4 cycle for European folk, Renaissance dance forms, and contemporary Jazz waltzes." }
 };
 
 /**

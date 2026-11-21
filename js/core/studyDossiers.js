@@ -659,6 +659,195 @@ export const STUDY_DOSSIERS = {
         listenForEn: "Enjoy the seamless bridge from free rubato improvisation into the pulsed Sama'i, inspiring your own Zen Stage recital."
       }
     ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 11 — MODOS OCIDENTAIS, FOLK & ROCK MODAL
+  // =========================================================================
+  les_31_dorian_aeolian_folk: {
+    tagsPt: ["Modo Dórico (1–2–b3–4–5–6–b7)", "6ª Maior Característica", "Folk Celta & Modal", "Bordão em D"],
+    tagsEn: ["Dorian Mode (1–2–b3–4–5–6–b7)", "Signature Major 6th", "Celtic & Modal Folk", "Open D Drone"],
+    structurePt: "O Modo Dórico compartilha 6 das 7 notas da escala menor natural (Eólio), trocando apenas a 6ª menor (b6) pela 6ª maior (6). No Oud em D, essa nota é o B natural na 2ª ordem (4q) — que cria um contraste luminoso imediato contra a 3ª menor (F).",
+    structureEn: "Dorian shares 6 of 7 pitches with Natural Minor (Aeolian), raising only b6 to a natural 6th. On a D-rooted Oud, that pitch is B natural on the 2nd course (4q) — creating an instant bright lift against minor 3rd F.",
+    temperamentPt: "Em contextos de Folk europeu, Rock modal e trilhas sonoras, todas as notas seguem 12-TET limpo. Ainda assim, o timbre amadeirado de cordas duplas do Oud e a ausência de trastes permitem glissandos sutis na 6ª maior e na 7ª menor que lembram a gaita de foles e o bouzouki irlandês.",
+    temperamentEn: "In European Folk, modal Rock, and film scoring, pitches follow clean 12-TET. Yet the Oud's double-course wood resonance and fretless glides on the 6th and b7 evoke Celtic bouzouki and uilleann pipes naturally.",
+    pitfallPt: "Cair no hábito do Maqam Nahawand/Kurd tocando Bb em vez de B natural por reflexo da mão esquerda. Solução: destaque deliberadamente o salto F → B → A nas primeiras frases para gravar o brilho Dórico no ouvido.",
+    pitfallEn: "Slipping back into Bb out of Nahawand/Kurd muscle memory. Fix: deliberately emphasize F → B → A in your opening phrases to lock Dorian's brightness into your ear.",
+    repertoire: [
+      {
+        piece: "Scarborough Fair / Folk Modal em Dórico no Oud",
+        artist: "Tradição Celta / Interpretações em Oud & Alaúde",
+        query: "Oud Dorian Folk Celtic improvisation",
+        listenForPt: "Repare como a 6ª maior (B natural em D) ilumina a frase principal sem jamais perder o clima ancestral do modo menor.",
+        listenForEn: "Hear how the natural 6th (B in D Dorian) brightens the melody while keeping its ancient minor gravity."
+      }
+    ]
+  },
+
+  les_32_lydian_mixolydian_open: {
+    tagsPt: ["Modo Lídio (#4)", "Atmosfera Cinematográfica", "Mixolídio (b7)", "Sustentação na Roseta"],
+    tagsEn: ["Lydian Mode (#4)", "Cinematic Atmosphere", "Mixolydian (b7)", "Rosette Sustain"],
+    structurePt: "O Modo Lídio (C–D–E–F#–G–A–B) elimina a tensão descendente da 4ª justa (F → E) e a substitui por uma 4ª aumentada ascendente (F# → G). Já o Mixolídio (C–D–E–F–G–A–Bb) rebaixa a 7ª para b7, espelhando a descida clássica do Maqam Ajam.",
+    structureEn: "Lydian (C–D–E–F#–G–A–B) replaces the downward pull of the perfect 4th (F → E) with an upward-floating #4 (F# → G). Mixolydian (C–D–E–F–G–A–Bb) lowers the 7th to b7, mirroring the descending path of Maqam Ajam.",
+    temperamentPt: "Em música de cinema e fusão acústica, tocar Lídio no Oud com o perfil Egípcio próximo à roseta produz sobretons aveludados que se misturam perfeitamente a violoncelo, piano e sintetizadores ambientes.",
+    temperamentEn: "In film scoring and acoustic fusion, playing Lydian on the Oud with the warm Egyptian profile near the rosette yields velvety overtones that blend seamlessly with cello, piano, and ambient pads.",
+    pitfallPt: "Deixar o F# (#4) soar isolado sem resolver no G ou no E, fazendo o ouvido perder a tônica C. Solução: use o Drone em C e ancore os finais de frase na tríade C–E–G antes de flutuar pelo F#.",
+    pitfallEn: "Letting #4 (F#) wander without anchoring C, making the ear drift into G Major. Fix: keep the C Drone on and ground phrase endings on C–E–G before floating over F#.",
+    repertoire: [
+      {
+        piece: "Astrakan Café / Paisagens Modais em Oud",
+        artist: "Anouar Brahem / Ara Dinkjian",
+        query: "Anouar Brahem Oud Lydian ambient",
+        listenForPt: "Observe o uso de intervalos abertos de 5ª, 7ª maior e #4 deixando o bojo do Oud soar como um instrumento camerístico.",
+        listenForEn: "Notice the spacious 5ths, major 7ths, and #4 colors letting the Oud sing like a chamber instrument."
+      }
+    ]
+  },
+
+  les_33_power_voicings_box: {
+    tagsPt: ["Power Chord (1–5)", "Quartas Justas (A–d–g–c)", "Shape Móvel Fechado", "Palm Mute de Risha"],
+    tagsEn: ["Power Chord (1–5)", "Perfect Fourths (A–d–g–c)", "Closed Movable Box", "Risha Palm Mute"],
+    structurePt: "Um Power Voicing (1–5, ex.: D–A) omite a terça — por isso funciona igualmente bem sobre modos maiores, menores ou microtonais! Nas 4 ordens agudas afinadas em quartas (A–d–g–c), a quinta justa fica sempre 1 tom (4q) à frente na ordem mais aguda vizinha.",
+    structureEn: "A Power Voicing (1–5, e.g. D–A) omits the 3rd — making it compatible with major, minor, or microtonal melodies alike! Across the four fourth-tuned upper courses (A–d–g–c), the perfect 5th always sits 1 whole tone (4q) forward on the next higher course.",
+    temperamentPt: "A quinta justa pura (razão 3:2) é o intervalo mais consonante depois da oitava. No braço sem trastes, quando dedo 1 e dedo 3 cravam a quinta exata, o batimento acústico desaparece e o tampo do Oud vibra com o dobro de projeção.",
+    temperamentEn: "A pure perfect fifth (3:2 ratio) is the most resonant interval after the octave. On a fretless neck, locking finger 1 and finger 3 on a pure fifth makes beating vanish and doubles soundboard projection.",
+    pitfallPt: "Deixar o dedo 3 cair um pouco baixo na corda vizinha, criando uma quinta 'murcha' fora de afinação. Solução: confira o Power Chord devagar nota por nota antes de rasguear as duas ordens juntas.",
+    pitfallEn: "Letting finger 3 slip slightly flat on the adjacent course, turning the fifth dull. Fix: check both notes individually before strumming them together.",
+    repertoire: [
+      {
+        piece: "Oud Rock & Fusão Progressiva (Power Voicings & Riffs)",
+        artist: "Rabih Abou-Khalil / Le Trio Joubran / Dhafir Youssef",
+        query: "Rabih Abou-Khalil Oud fusion groove",
+        listenForPt: "Repare na precisão rítmica da mão direita alternando riffs graves com acordes abertos de quinta e quarta.",
+        listenForEn: "Hear the razor-sharp right-hand groove alternating low riffs with open fifth and fourth voicings."
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 12 — BLUES, PENTATÔNICAS & BLUE NOTES MICROTONAIS
+  // =========================================================================
+  les_34_pentatonics_fretless: {
+    tagsPt: ["Pentatônica Menor", "Desert Blues (Sahel)", "Agrupamentos de 3 Notas", "Sem Semitons"],
+    tagsEn: ["Minor Pentatonic", "Desert Blues (Sahel)", "3-Note Groupings", "No Semitones"],
+    structurePt: "A Pentatônica Menor (1–b3–4–5–b7) remove o 2º e o 6º graus da escala menor, eliminando todos os semitons. No Oud, ela cria uma ponte natural entre o Blues americano e a música tuaregue/saheliana (Mali e Níger), historicamente parente dos alaúdes africanos (ngoni e tidinit).",
+    structureEn: "Minor Pentatonic (1–b3–4–5–b7) removes degrees 2 and 6, eliminating all semitones. On the Oud, it naturally bridges American Blues with Tuareg/Sahelian music (Mali & Niger), historic cousins of West African lutes (ngoni and tidinit).",
+    temperamentPt: "Como todos os saltos da pentatônica são de 1 tom (4q) ou 1,5 tom (6q), a mão esquerda ganha fluidez imediata para fraseados rápidos sem o risco de embolar dedos em semitons apertados.",
+    temperamentEn: "Because every step is either a whole tone (4q) or minor third (6q), the left hand moves briskly without cramped semitone fingerings.",
+    pitfallPt: "Tocar a pentatônica apenas subindo e descendo em ordem linear. Solução: quebre o desenho em saltos de quarta (D→G, F→A, G→C) e repita motivos rítmicos curtos de 3 notas.",
+    pitfallEn: "Running pentatonic notes straight up and down. Fix: break patterns into fourth leaps (D→G, F→A, G→C) and repeat hypnotic 3-note rhythmic cells.",
+    repertoire: [
+      {
+        piece: "Desert Blues & Pentatônica em Alaúdes (Ali Farka Touré / Oud Fusion)",
+        artist: "Ali Farka Touré / Toumani Diabaté / Oud Blues",
+        query: "Oud Desert Blues pentatonic",
+        listenForPt: "Sinta o pulso hipnótico das frases curtas em pentatônica menor apoiadas nos graves repetitivos.",
+        listenForEn: "Feel the hypnotic pulse of short minor-pentatonic phrases anchored over repeating low bass notes."
+      }
+    ]
+  },
+
+  les_35_microtonal_blue_notes: {
+    tagsPt: ["Blue Note Real (3- & 7-)", "Zahfa no Lugar do Bend", "Ponte Delta Blues ↔ Rast", "Escuta 24-TET"],
+    tagsEn: ["True Blue Note (3- & 7-)", "Zahfa Instead of Bend", "Delta Blues ↔ Rast Bridge", "Live Pitch 24-TET"],
+    structurePt: "Etnomusicólogos demonstram há décadas que a 'blue note' original do canto do Delta do Mississipi e do Sahel não é uma terça menor fixa nem maior fixa, mas uma TERÇA NEUTRA (~350¢) — exatamente a mesma altura do grau Sikah (E-) do Maqam Rast!",
+    structureEn: "Ethnomusicologists have long documented that the original vocal 'blue note' of the Mississippi Delta and Sahel is neither a strict minor 3rd nor major 3rd, but a NEUTRAL THIRD (~350¢) — the exact same pitch as Sikah (E-) in Maqam Rast!",
+    temperamentPt: "Em vez de forçar a corda lateralmente (bend) como na guitarra de aço, o alaudista desliza o dedo longitudinalmente sobre o espelho (Zahfa), entrando em E- (3-) por baixo (Eb → E-) e descansando no ponto exato entre tristeza e brilho.",
+    temperamentEn: "Instead of pushing strings sideways (bending) like on a steel-string guitar, an Oud player glides smoothly along the fingerboard (Zahfa), entering E- (3-) from Eb and resting cleanly between dark and bright.",
+    pitfallPt: "Tentar fazer 'bend' puxando as cordas duplas do Oud para cima/baixo — isso desafina o par de cordas e pode deslocar o cavalete. Solução: use sempre deslize longitudinal (Zahfa) ao longo do braço.",
+    pitfallEn: "Attempting guitar-style string bends on double Oud courses, which throws pairs out of tune. Fix: always use smooth longitudinal slides (Zahfa) along the neck.",
+    repertoire: [
+      {
+        piece: "Blue Maqams / Blues Microtonal no Oud",
+        artist: "Anouar Brahem / Rabih Abou-Khalil / Rahim AlHaj",
+        query: "Oud Blues microtonal improvisation",
+        listenForPt: "Preste atenção nos deslizes expressivos sobre a terça neutra e o trítono (b5), fundindo a alma do Blues ao fraseado do Oud.",
+        listenForEn: "Listen for expressive glides across the neutral third and b5 tritone, fusing Blues soul with Oud articulation."
+      }
+    ]
+  },
+
+  les_36_blues_shuffle_bass: {
+    tagsPt: ["Call & Response", "Trítono b5 (Blue Note)", "Bordões Graves (D & A)", "Swing / Shuffle"],
+    tagsEn: ["Call & Response", "b5 Tritone (Blue Note)", "Bass Courses (D & A)", "Swing / Shuffle"],
+    structurePt: "O Blues acústico organiza-se em conversa: uma frase cantada nas cordas agudas (Call) seguida de uma resposta grave e percussiva nos bordões (Response). Esse diálogo espelha perfeitamente a estrutura de pergunta-e-resposta de um Taqsim clássico.",
+    structureEn: "Acoustic Blues is built as a conversation: a vocal phrase on treble courses (Call) answered by a percussive low bass phrase (Response) — mirroring the call-and-response logic of a classical Taqsim.",
+    temperamentPt: "Ao contrário do rock reto, o Blues balança em subdivisão ternária (shuffle: longa–curta). Na Risha, isso significa golpe descendente (↓) ligeiramente mais longo e golpe ascendente (↑) mais atrasado e relaxado.",
+    temperamentEn: "Rather than straight eighth notes, Blues swings in triplet subdivision (long–short). On the Risha, give downstrokes (↓) a slightly longer weight and lay back gently on upstrokes (↑).",
+    pitfallPt: "Abusar da nota b5 (Ab em D) parando muito tempo sobre ela. Solução: trate a b5 como nota de tempero rápido (passagem entre G e A ou A e G) para manter o groove irresistível.",
+    pitfallEn: "Camping too long on the b5 (Ab in D). Fix: treat b5 as a spicy passing inflection between G and A so the groove stays infectious.",
+    repertoire: [
+      {
+        piece: "Oud Blues & Grooves Acústicos",
+        artist: "Joseph Tawadros / Dhafer Youssef / Oud Blues",
+        query: "Joseph Tawadros Oud Blues",
+        listenForPt: "Observe como as notas graves sustentam o pulso enquanto a mão esquerda brinca com ligados e deslizes nas cordas agudas.",
+        listenForEn: "Notice how low bass strokes lock the groove while the left hand plays slurs and glides on the treble courses."
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 13 — MEDITERRÂNEO, ANDALUZIA & FLAMENCO
+  // =========================================================================
+  les_37_ziryab_andalusian: {
+    tagsPt: ["Ziryab (Córdoba, séc. IX)", "Cadência Andaluza (iv–bIII–bII–I)", "Al-Andalus", "Rumba / Tangos"],
+    tagsEn: ["Ziryab (Córdoba, 9th c.)", "Andalusian Cadence (iv–bIII–bII–I)", "Al-Andalus", "Rumba / Tangos"],
+    structurePt: "A Cadência Andaluza (em D: Gm – F – Eb – D) é o elo vivo entre o Oud medieval de Al-Andalus e o violão flamenco moderno. Ela desce grau por grau no baixo (G → F → Eb → D) concluindo com a queda magnética de semitom bII → I.",
+    structureEn: "The Andalusian Cadence (in D: Gm – F – Eb – D) is the living link between medieval Al-Andalus Oud music and modern Flamenco guitar. The bass walks stepwise downward (G → F → Eb → D), ending with the magnetic bII → I half-step drop.",
+    temperamentPt: "Em Al-Andalus (e na música andaluza preservada hoje no Marrocos, Argélia e Tunísia — a Nuba), o Oud frequentemente acompanha melodias corais com rasgueios rítmicos firmes e arpejos que antecipam a estética do compás espanhol.",
+    temperamentEn: "In the Andalusian Nuba preserved across Morocco, Algeria, and Tunisia, the Oud drives vocal ensembles with rhythmic strums and arpeggios closely related to Spanish compás.",
+    pitfallPt: "Perder o pulso do 4/4 durante a troca dos acordes no sequenciador. Solução: pratique primeiro apenas o baixo descendente (G – F – Eb – D) sobre a Rumba Flamenca antes de preencher os acordes inteiros.",
+    pitfallEn: "Losing the 4/4 groove while switching chords in the sequencer. Fix: first pluck only the descending bass line (G – F – Eb – D) over Rumba Flamenca before adding full voicings.",
+    repertoire: [
+      {
+        piece: "Zyriab (Encontro entre Flamenco & Tradição do Oud)",
+        artist: "Paco de Lucía / Eduardo Paniagua / Nuba Andaluza",
+        query: "Paco de Lucia Zyriab Oud Flamenco",
+        listenForPt: "Escute o diálogo histórico entre o compás andaluz, a cadência descendente e o colorido modal do Hijaz/Frígio.",
+        listenForEn: "Listen to the historic dialogue between Andalusian compás, the descending cadence, and Hijaz/Phrygian modal fire."
+      }
+    ]
+  },
+
+  les_38_phrygian_dom_picado: {
+    tagsPt: ["Frígio Dominante (Por Medio)", "Picado de Risha (↓↑)", "Timbre Sírio Seco", "Corridas Descendentes"],
+    tagsEn: ["Phrygian Dominant (Por Medio)", "Risha Picado (↓↑)", "Crisp Syrian Tone", "Descending Runs"],
+    structurePt: "Enquanto o Maqam Hijaz tradicional comprime levemente a segunda aumentada (Eb mais alto, F# mais baixo) e sobe pelo 6º grau neutro (B-), o Frígio Dominante do Flamenco trabalha em 12-TET brilhante com b6 (Bb) e b7 (C), valorizando corridas rápidas e finais incisivos no tempo forte.",
+    structureEn: "While traditional Maqam Hijaz subtly compresses its augmented 2nd and often ascends with a neutral 6th, Flamenco Phrygian Dominant operates in razor-sharp 12-TET with b6 (Bb) and b7 (C), favoring blazing runs and incisive downbeat landings.",
+    temperamentPt: "Para atingir velocidade de 'picado' no Oud, mantenha a Risha bem curta entre os dedos (pouca ponta sobrando), toque próximo ao cavalete e reduza o movimento do pulso ao mínimo possível — economia de gesto gera clareza e velocidade.",
+    temperamentEn: "To achieve flamenco 'picado' speed on the Oud, choke up slightly on the Risha, pluck nearer the bridge, and minimize wrist travel — economy of motion unlocks crisp velocity.",
+    pitfallPt: "Acelerar antes de sincronizar mão esquerda e direita, gerando notas abafadas. Solução: comece a 76 BPM com cada nota articulada com clareza cristalina e só suba para 108 BPM quando a alternância ↓↑ estiver automática.",
+    pitfallEn: "Speeding up before left and right hands sync, causing muted notes. Fix: start at 76 BPM with crystal-clear articulation and raise tempo to 108 BPM only once ↓↑ feels automatic.",
+    repertoire: [
+      {
+        piece: "Encuentro Flamenco & Oud (Tangos / Bulerías / Rumba)",
+        artist: "Nino Josele / Naseer Shamma / Amir ElSaffar / Oud Flamenco",
+        query: "Oud Flamenco Hijaz Phrygian Dominant",
+        listenForPt: "Note o ataque incisivo perto do cavalete e as frases curtas que explodem em corridas descendentes até a tônica.",
+        listenForEn: "Notice the biting bridge-side attack and tight motifs exploding into rapid descending runs to the tonic."
+      }
+    ]
+  },
+
+  les_39_rebetiko_tsifteteli: {
+    tagsPt: ["Rebetiko & Smyrneika", "Dromoi (Hitzaz / Ousak)", "Tsifteteli (8/4)", "Afinação Turca/Grega (D–a)"],
+    tagsEn: ["Rebetiko & Smyrneika", "Dromoi (Hitzaz / Ousak)", "Tsifteteli (8/4)", "Turkish/Greek Tuning (D–a)"],
+    structurePt: "Os 'Dromoi' (caminhos) do Rebetiko grego são primos diretos dos Maqamat árabes e Makamlar otomanos — Hitzaz (Hijaz), Ousak (Bayati/Uşşak), Sabah (Saba), Rast e Houzam. Na tradição de Esmirna (Smyrneika), o Outi (Oud grego) abre a canção com um Taximi improvisado antes da entrada do ritmo Tsifteteli (8/4).",
+    structureEn: "The 'Dromoi' (roads) of Greek Rebetiko are direct cousins of Arabic Maqamat and Ottoman Makamlar — Hitzaz (Hijaz), Ousak (Bayati/Uşşak), Sabah (Saba), Rast, and Houzam. In Smyrneika music, the Outi opens with a free Taximi before the swaying Tsifteteli (8/4) enters.",
+    temperamentPt: "O ciclo Tsifteteli (Chiftetelli em 8/4: DUM · · TAK · · TAK · DUM · DUM · TAK · · ·) tem um balanço amplo e sensual. Os dois DUMs na segunda metade do compasso funcionam como um trampolim para frases melódicas ornamentadas com mordentes rápidos.",
+    temperamentEn: "Tsifteteli (Chiftetelli in 8/4: DUM · · TAK · · TAK · DUM · DUM · TAK · · ·) has a wide, swaying groove. The twin DUM strokes in the second half act as a springboard for ornamented melodic turns.",
+    pitfallPt: "Tocar frases cheias demais sem respeitar os espaços longos do 8/4. Solução: deixe respirar após o primeiro DUM e entre com a melodia respondendo aos dois TAKs sincopados.",
+    pitfallEn: "Overplaying through the spacious rests of 8/4. Fix: let the first DUM breathe and weave your melodic answer around the syncopated TAKs.",
+    repertoire: [
+      {
+        piece: "Smyrneika Taximi & Tsifteteli (Outi / Rebetiko)",
+        artist: "Roza Eskenazi / Haig Yazdjian / Nikos Saragoudas",
+        query: "Outi Taximi Hitzaz Tsifteteli Greek",
+        listenForPt: "Aprecie o diálogo entre a afinação brilhante (D–a), os trêmulos curtos e o balanço inconfundível do Tsifteteli.",
+        listenForEn: "Enjoy the interplay of bright D–a tuning, brief tremolo accents, and the unmistakable Tsifteteli sway."
+      }
+    ]
   }
 };
 

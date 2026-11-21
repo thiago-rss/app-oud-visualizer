@@ -55,7 +55,7 @@
  */
 
 /**
- * @typedef {"foundation"|"intermediate"|"advanced"|"mastery"} StudyLevel
+ * @typedef {"foundation"|"intermediate"|"advanced"|"mastery"|"world"} StudyLevel
  */
 
 /**
@@ -1320,6 +1320,380 @@ export const STUDY_MODULES = [
         }
       }
     ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 11 — MODOS OCIDENTAIS, FOLK & ROCK MODAL (MUNDO & FUSÃO)
+  // =========================================================================
+  {
+    id: "mod_world_modes_folk",
+    order: 11,
+    level: "world",
+    icon: "🌍",
+    titlePt: "11. Modos Ocidentais, Folk & Rock Modal",
+    titleEn: "11. Western Modes, Folk & Modal Rock",
+    subtitlePt: "Leve o Oud para além do Oriente Médio: domine Dórico, Eólio, Lídio, Mixolídio e Power Voicings usando cordas soltas e shapes móveis 12-TET.",
+    subtitleEn: "Take the Oud beyond the Middle East: master Dorian, Aeolian, Lydian, Mixolydian, and Power Voicings using open courses and 12-TET movable shapes.",
+    lessons: [
+      {
+        id: "les_31_dorian_aeolian_folk",
+        moduleId: "mod_world_modes_folk",
+        number: 31,
+        duration: "6 min",
+        glossaryTerm: "maqam",
+        titlePt: "Modo Dórico & Folk Celta / Modal",
+        titleEn: "Dorian Mode & Celtic / Modal Folk",
+        summaryPt: "O Modo Dórico em D (D–E–F–G–A–B–C) é o modo menor mais versátil do Folk celta, Rock modal e trilhas cinematográficas. A 6ª maior (B natural) ilumina o modo sem perder a força melancólica.",
+        summaryEn: "D Dorian (D–E–F–G–A–B–C) is the most versatile minor mode in Celtic folk, modal rock, and film scoring. Its natural 6th (B) brightens the minor frame without losing depth.",
+        taskPt: "Com D Dórico na 1ª Posição e o Drone em D ligado, alterne frases entre a 3ª ordem (D solto) e a 2ª ordem (G solto), destacando o salto expressivo F → B (6ª maior). Experimente usar a 4ª ordem (A) como bordão rítmico.",
+        taskEn: "With D Dorian in 1st Position and the D Drone active, weave phrases across open 3rd (D) and 2nd (G) courses, spotlighting the expressive F → B (major 6th) color. Use open 4th course (A) as a rhythmic drone.",
+        earTipPt: "Para soar idiomático no Folk/Rock modal, use palhetada alternada constante (colcheias em ↓↑) deixando a corda D solta ressoar junto com a melodia.",
+        earTipEn: "For idiomatic Folk/modal Rock drive, keep steady alternating eighth-note Risha (↓↑) while letting open D ring sympathetically underneath.",
+        audioAction: "SCALE",
+        suggestDrone: true,
+        suggestIqa: true,
+        preset: {
+          tuningId: "syrian_arabic_c_c",
+          mode: "SCALE",
+          entityKeywords: ["dorian", "dorico"],
+          rootQ: 4,
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "DEGREE",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: false,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          iqaId: "iqa_waltz_34",
+          iqaKeyword: "waltz",
+          bpm: 102
+        }
+      },
+      {
+        id: "les_32_lydian_mixolydian_open",
+        moduleId: "mod_world_modes_folk",
+        number: 32,
+        duration: "6 min",
+        glossaryTerm: "qarar",
+        titlePt: "Lídio (#4) & Mixolídio — Paisagens Abertas",
+        titleEn: "Lydian (#4) & Mixolydian — Open Soundscapes",
+        summaryPt: "O Modo Lídio (1–2–3–#4–5–6–7) cria atmosferas cinematográficas e etéreas no Oud. A 4ª aumentada (F# em C) evita a gravidade fechada da escala maior e flutua com naturalidade sobre bordões abertos.",
+        summaryEn: "The Lydian Mode (1–2–3–#4–5–6–7) creates cinematic, weightless atmospheres on the Oud. Its raised 4th (F# in C) lifts away from standard major gravity and floats effortlessly over open drones.",
+        taskPt: "Ligue o Drone em C e toque lentamente o arpejo C – E – G – B – F# no espelho completo. Depois abra 'Modalidade → Modos' e troque para Mixolídio para comparar a #4 luminosa do Lídio com a b7 terrosa do Mixolídio.",
+        taskEn: "Enable the C Drone and slowly arpeggiate C – E – G – B – F# across the full neck. Then open 'Mode / Maqam → Modes' and switch to Mixolydian to contrast Lydian's soaring #4 against Mixolydian's earthy b7.",
+        earTipPt: "Use o timbre Egípcio (Encorpado) e ataque próximo à roseta para maximizar a sustentação das notas longas e harmônicos abertos.",
+        earTipEn: "Use the Egyptian (Warm) tone profile and pluck near the main rosette to maximize sustain on long ringing notes.",
+        audioAction: "SCALE",
+        suggestDrone: true,
+        suggestIqa: false,
+        suggestTimbreCompare: true,
+        preset: {
+          mode: "SCALE",
+          entityKeywords: ["lydian", "lidio"],
+          rootQ: 0,
+          shapeMode: "FULL_NECK",
+          labelMode: "NOTE_NAME",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: true,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          soundChar: "egyptian"
+        }
+      },
+      {
+        id: "les_33_power_voicings_box",
+        moduleId: "mod_world_modes_folk",
+        number: 33,
+        duration: "7 min",
+        glossaryTerm: "anf_bajak",
+        titlePt: "Power Voicings (1–5) & Shapes Móveis 12-TET",
+        titleEn: "Power Voicings (1–5) & 12-TET Movable Shapes",
+        summaryPt: "Como as 4 ordens agudas do Oud (A–d–g–c) são afinadas em quartas justas (como um baixo ou as cordas graves da guitarra), qualquer Power Chord (1–5) ou Sus4 forma um desenho geométrico fixo e transportável pelo braço.",
+        summaryEn: "Because the Oud's upper four courses (A–d–g–c) are tuned in perfect fourths (like a bass or lower guitar strings), any Power Chord (1–5) or Sus4 forms a clean movable shape across the entire neck.",
+        taskPt: "Com o voicing aberto (1–5) no Shape Móvel (Dedo 1 em 4q), pratique o rasgueio curto de 2 ordens e deslize o mesmo desenho para frente e para trás no braço mantendo a distância exata entre o dedo 1 (tônica) e o dedo 3 (quinta justa).",
+        taskEn: "With the open 1–5 voicing in the Movable Box (Finger 1 at 4q), practice tight 2-course strums and slide the exact same shape up and down the neck keeping finger 1 (root) and finger 3 (fifth) locked.",
+        earTipPt: "Abafe levemente a caixa com a lateral da palma direita (palm mute suave) para criar grooves rítmicos de Folk/Rock sem perder a clareza das cordas duplas.",
+        earTipEn: "Apply a light right-hand palm mute near the bridge for punchy Folk/Rock rhythmic grooves without muddying the double courses.",
+        audioAction: "SCALE",
+        suggestDrone: false,
+        suggestIqa: true,
+        preset: {
+          mode: "CHORD",
+          entityId: "chord_power_5",
+          entityKeywords: ["power", "5", "sus4"],
+          rootQ: 4,
+          shapeMode: "CLOSED_BOX",
+          boxAnchorQ: 4,
+          labelMode: "FINGER",
+          chordVoicingOnly: true,
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: false,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          iqaId: "iqa_baladi",
+          iqaKeyword: "baladi",
+          bpm: 96
+        }
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 12 — BLUES, PENTATÔNICAS & BLUE NOTES MICROTONAIS
+  // =========================================================================
+  {
+    id: "mod_world_blues_micro",
+    order: 12,
+    level: "world",
+    icon: "🎸",
+    titlePt: "12. Blues, Pentatônicas & Blue Notes",
+    titleEn: "12. Blues, Pentatonics & Blue Notes",
+    subtitlePt: "Descubra o superpoder do Oud sem trastes no Blues: pentatônicas ágeis, blue notes microtonais autênticas (sem precisar de bend) e diálogo de pergunta-e-resposta.",
+    subtitleEn: "Unlock the fretless Oud's superpower in Blues: agile pentatonics, authentic microtonal blue notes (no bending required), and call-and-response phrasing.",
+    lessons: [
+      {
+        id: "les_34_pentatonics_fretless",
+        moduleId: "mod_world_blues_micro",
+        number: 34,
+        duration: "6 min",
+        glossaryTerm: "anf_bajak",
+        titlePt: "Pentatônica Menor no Braço Sem Trastes",
+        titleEn: "Minor Pentatonic on the Fretless Neck",
+        summaryPt: "Sem semitons para gerar conflito harmônico, a Pentatônica Menor (1–b3–4–5–b7) é a porta mais imediata para improvisar sobre Blues, Rock, Pop ou grooves africanos (como o Desert Blues do Mali).",
+        summaryEn: "With no semitones to clash harmonically, the Minor Pentatonic (1–b3–4–5–b7) is the fastest gateway into Blues, Rock, Pop, and Saharan grooves (like Malian Desert Blues).",
+        taskPt: "Em D Pentatônica Menor (D–F–G–A–C) na 1ª Posição, toque padrões de 3 notas subindo (D–F–G, F–G–A, G–A–C) aproveitando as cordas soltas D, G, A e c. Depois teste o mesmo desenho no Shape Móvel fechado.",
+        taskEn: "In D Minor Pentatonic (D–F–G–A–C) in 1st Position, play 3-note ascending groupings (D–F–G, F–G–A, G–A–C) leveraging open D, G, A, and c. Then test the exact same pattern inside the closed Movable Box.",
+        earTipPt: "Para soar como Blues do Sahel (Ali Farka Touré / Tinariwen), acentue os contratempos com golpes ascendentes (↑) bem definidos na Risha.",
+        earTipEn: "For a Sahel Desert Blues feel (Ali Farka Touré / Tinariwen), accent offbeats with crisp upstrokes (↑) on the Risha.",
+        audioAction: "SCALE",
+        suggestDrone: true,
+        suggestIqa: false,
+        preset: {
+          mode: "SCALE",
+          entityId: "scale_pentatonic_minor",
+          entityKeywords: ["pentatonic_minor", "pentatonica menor"],
+          rootQ: 4,
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "FINGER",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: true,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true
+        }
+      },
+      {
+        id: "les_35_microtonal_blue_notes",
+        moduleId: "mod_world_blues_micro",
+        number: 35,
+        duration: "7 min",
+        glossaryTerm: "sikah_interval",
+        titlePt: "Blue Notes Reais (Terça & Sétima Neutras 24-TET)",
+        titleEn: "True Blue Notes (Neutral 3rd & 7th 24-TET)",
+        summaryPt: "Na guitarra com trastes, o músico precisa esticar a corda (bend) para buscar a blue note entre b3 e 3. No Oud sem trastes, você toca a terça neutra (3-) e a sétima neutra (7-) diretamente — conectando o Delta Blues à raiz microtonal do Maqam Rast e da África Ocidental!",
+        summaryEn: "On a fretted guitar, players must bend strings to reach the blue note between b3 and 3. On a fretless Oud, you stop the neutral 3rd (3-) and neutral 7th (7-) directly — bridging Delta Blues with Maqam Rast and West African traditions!",
+        taskPt: "Aplique a escala Blues Microtonal 24-TET em C, ligue o Drone em C e a Escuta 24-TET. Pratique deslizar suavemente (Zahfa) de Eb para E- (3-) e de Gb (b5) para G (5), observando o ponteiro travar no centro da estrela ameixa.",
+        taskEn: "Apply Microtonal Blues 24-TET in C, turn on the C Drone and Live Pitch 24-TET. Glide smoothly (Zahfa) from Eb into E- (3-) and from Gb (b5) into G (5), watching the live pointer lock onto the plum star.",
+        earTipPt: "Toque um riff lento em C usando apenas 4 notas: C – E- – F – Gb – G. Sinta como o E- neutro entrega o lamento autêntico do Blues acústico sem esforço mecânico.",
+        earTipEn: "Play a slow riff in C using just C – E- – F – Gb – G. Feel how the neutral E- delivers authentic acoustic Blues grit effortlessly.",
+        audioAction: "SCALE",
+        suggestDrone: true,
+        suggestIqa: false,
+        suggestLivePitch: true,
+        preset: {
+          mode: "SCALE",
+          entityId: "scale_blues_micro",
+          entityKeywords: ["blues_micro", "microtonal"],
+          rootQ: 0,
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "DEGREE",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: false,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true
+        }
+      },
+      {
+        id: "les_36_blues_shuffle_bass",
+        moduleId: "mod_world_blues_micro",
+        number: 36,
+        duration: "7 min",
+        glossaryTerm: "iqa",
+        titlePt: "Blues — Call & Response & Bordões Graves",
+        titleEn: "Blues — Call & Response & Bass Courses",
+        summaryPt: "A forma tradicional do Blues nasce do diálogo entre uma 'chamada' melódica nas cordas agudas e uma 'resposta' percussiva nos bordões graves (C–F–A). No Oud, os bordões graves substituem o polegar do violão fingerstyle.",
+        summaryEn: "Traditional Blues phrasing thrives on a 'call' in the treble courses answered by a gritty 'response' on the bass courses (C–F–A). On the Oud, open bass strokes anchor the groove like a fingerstyle blues thumb.",
+        taskPt: "Em D Blues (D–F–G–Ab–A–C) no espelho completo, inicie o pulso rítmico a 84 BPM. Toque uma frase curta de 3 notas na 2ª/1ª ordens (chamada) e responda com um golpe grave firme na 3ª ordem (D) ou 4ª ordem (A) no tempo forte.",
+        taskEn: "In D Blues (D–F–G–Ab–A–C) on the full neck, launch the rhythm at 84 BPM. Play a short 3-note treble motif (call) and answer with a resonant low strike on open D or A on the downbeat.",
+        earTipPt: "Explore o contraste de dinâmica: deixe o Ab (b5) soar curto e picado antes de cair no G ou subir com deslize para o A.",
+        earTipEn: "Play with dynamics: keep the Ab (b5) crisp and staccato before dropping to G or sliding up into A.",
+        audioAction: "SCALE",
+        suggestDrone: false,
+        suggestIqa: true,
+        preset: {
+          mode: "SCALE",
+          entityId: "scale_blues",
+          entityKeywords: ["scale_blues", "blues"],
+          rootQ: 4,
+          shapeMode: "FULL_NECK",
+          labelMode: "NOTE_NAME",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: true,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          iqaId: "iqa_baladi",
+          iqaKeyword: "baladi",
+          bpm: 84
+        }
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 13 — MEDITERRÂNEO, ANDALUZIA & FLAMENCO
+  // =========================================================================
+  {
+    id: "mod_world_med_flamenco",
+    order: 13,
+    level: "world",
+    icon: "💃",
+    titlePt: "13. Mediterrâneo, Andaluzia & Flamenco",
+    titleEn: "13. Mediterranean, Andalusia & Flamenco",
+    subtitlePt: "Viaje de Córdoba ao Mar Egeu: a herança de Ziryab na Cadência Andaluza, Frígio Dominante com ataque percussivo e os dromoi gregos do Rebetiko sobre Tsifteteli.",
+    subtitleEn: "Journey from Córdoba to the Aegean: Ziryab's legacy in the Andalusian Cadence, Phrygian Dominant percussive attack, and Greek Rebetiko dromoi over Tsifteteli.",
+    lessons: [
+      {
+        id: "les_37_ziryab_andalusian",
+        moduleId: "mod_world_med_flamenco",
+        number: 37,
+        duration: "7 min",
+        glossaryTerm: "qafla",
+        titlePt: "De Ziryab a Córdoba — Cadência Andaluza",
+        titleEn: "From Ziryab to Córdoba — Andalusian Cadence",
+        summaryPt: "No século IX, o mestre Ziryab levou o Oud de Bagdá a Córdoba (Al-Andalus), adicionou a 5ª ordem e plantou as sementes da música andaluza e do Flamenco. A célebre Cadência Andaluza (iv – bIII – bII – I) é irmã direta da Qafla de Hijaz/Kurd.",
+        summaryEn: "In the 9th century, master Ziryab brought the Oud from Baghdad to Córdoba (Al-Andalus), adding the 5th course and sowing the seeds of Andalusian music and Flamenco. The famous Andalusian Cadence (iv – bIII – bII – I) mirrors the Hijaz/Kurd Qafla.",
+        taskPt: "Aplique a Cadência de Hijaz/Andaluza em D sobre o ciclo Tangos/Rumba Flamenca (104 BPM). Clique em cada passo do Sequenciador acima do braço para treinar a descida G–F–Eb–D e depois dispare a Qafla completa com rasgueios firmes.",
+        taskEn: "Apply the Hijaz/Andalusian Cadence in D over Tangos/Rumba Flamenca (104 BPM). Click each Sequencer step above the neck to drill the G–F–Eb–D descent, then launch the full Qafla with crisp strums.",
+        earTipPt: "No último acorde (I Maior), acentue a chegada do Eb (bII) para o D (I) deixando a 3ª ordem solta ressoar como fechamento dramático.",
+        earTipEn: "On the final resolution (bII → I), emphasize the half-step drop from Eb down to D letting open D ring out boldly.",
+        audioAction: "SCALE",
+        suggestDrone: false,
+        suggestIqa: true,
+        preset: {
+          mode: "CADENCE",
+          entityKeywords: ["hijaz", "kurd"],
+          rootQ: 4,
+          shapeMode: "OPEN_FIRST_POS",
+          labelMode: "NOTE_NAME",
+          chordVoicingOnly: true,
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: false,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          iqaId: "iqa_rumba_flamenca",
+          iqaKeyword: "rumba",
+          bpm: 100
+        }
+      },
+      {
+        id: "les_38_phrygian_dom_picado",
+        moduleId: "mod_world_med_flamenco",
+        number: 38,
+        duration: "7 min",
+        glossaryTerm: "risha",
+        titlePt: "Frígio Dominante & Picado de Risha",
+        titleEn: "Phrygian Dominant & Risha Picado",
+        summaryPt: "O Modo Frígio Dominante (1–b2–3–4–5–b6–b7) é a face 12-TET do Maqam Hijaz no Flamenco (onde é chamado Modo Flamenco / Por Medio). Ele exige ataque percussivo rápido de Risha (equivalente ao picado do violão flamenco).",
+        summaryEn: "Phrygian Dominant (1–b2–3–4–5–b6–b7) is Maqam Hijaz's 12-TET twin in Flamenco (Por Medio). It thrives on brisk, percussive alternating Risha picking akin to flamenco guitar picado.",
+        taskPt: "Com Frígio Dominante em D (D–Eb–F#–G–A–Bb–C) e timbre Sírio (seco e articulado), ligue o ritmo Rumba Flamenca a 108 BPM. Pratique corridas descendentes rápidas (A–G–F#–Eb–D) em palhetada estritamente alternada (↓↑↓↑).",
+        taskEn: "With D Phrygian Dominant (D–Eb–F#–G–A–Bb–C) and the crisp Syrian tone profile, launch Rumba Flamenca at 108 BPM. Drill brisk descending runs (A–G–F#–Eb–D) using strict alternating Risha (↓↑↓↑).",
+        earTipPt: "Para imitar a energia do Flamenco no Oud, aproxime a Risha do cavalete e acentue o 3º tempo de cada grupo de 4 semicolcheias.",
+        earTipEn: "To channel Flamenco fire on the Oud, pluck closer to the bridge and accent the offbeats inside fast 16th-note runs.",
+        audioAction: "SCALE",
+        suggestDrone: false,
+        suggestIqa: true,
+        preset: {
+          mode: "SCALE",
+          entityId: "scale_phrygian_dominant",
+          entityKeywords: ["phrygian_dominant", "frigio dominante"],
+          rootQ: 4,
+          shapeMode: "FULL_NECK",
+          labelMode: "FINGER",
+          showSemiGuides: true,
+          showMicroGuides: false,
+          showGhostNotes: false,
+          showSayr: false,
+          showStaff: true,
+          staffMode: "SCALE",
+          showPositionsMap: true,
+          soundChar: "syrian",
+          iqaId: "iqa_rumba_flamenca",
+          iqaKeyword: "rumba",
+          bpm: 108
+        }
+      },
+      {
+        id: "les_39_rebetiko_tsifteteli",
+        moduleId: "mod_world_med_flamenco",
+        number: 39,
+        duration: "8 min",
+        glossaryTerm: "iqa",
+        titlePt: "Rebetiko Grego, Dromoi & Tsifteteli (8/4)",
+        titleEn: "Greek Rebetiko, Dromoi & Tsifteteli (8/4)",
+        summaryPt: "Nos portos de Esmirna e do Pireu (Atenas), o Oud (Outi) foi peça central do Rebetiko e da música Smyrneika. Os modos gregos (Dromoi, como Hitzaz e Ousak) compartilham a mesma família modal do Oriente Médio, pulsando sobre o ciclo lento Tsifteteli (8/4).",
+        summaryEn: "In the port cities of Smyrna and Piraeus (Athens), the Oud (Outi) anchored Rebetiko and Smyrneika music. Greek modes (Dromoi like Hitzaz and Ousak) share Eastern modal DNA, swaying over the slow Tsifteteli (8/4) cycle.",
+        taskPt: "Com a afinação Turca/Grega (D–E–A–B–e–a) em Hitzaz/Hijaz (D) e o ritmo Chiftetelli/Tsifteteli a 86 BPM, toque frases longas e arrastadas (Taximi) com ornamentos curtos na mão esquerda, repousando sempre no tempo 1 (DUM longo).",
+        taskEn: "With Turkish/Greek tuning (D–E–A–B–e–a) in Hitzaz/Hijaz (D) and Chiftetelli/Tsifteteli at 86 BPM, weave unhurried Taximi phrases with crisp grace notes, landing cleanly on beat 1 (long DUM).",
+        earTipPt: "No estilo Smyrneika, use trêmulo curto (Risha rápida) apenas nas notas de chegada mais longas para sustentar a emoção sobre o balanço lento do 8/4.",
+        earTipEn: "In the Smyrneika style, add brief tremolo bursts only on long arrival notes to sustain emotion over the slow 8/4 sway.",
+        audioAction: "TAQSIM",
+        suggestDrone: false,
+        suggestIqa: true,
+        openRadarHint: true,
+        preset: {
+          tradition: "istanbul",
+          tuningKeywords: ["turk", "turc", "greg"],
+          soundChar: "syrian",
+          mode: "MAQAM",
+          entityId: "maqam_hijaz",
+          rootQ: 4,
+          direction: "ASC",
+          shapeMode: "FULL_NECK",
+          labelMode: "NOTE_NAME",
+          jinsFilter: "ALL",
+          showSemiGuides: true,
+          showMicroGuides: true,
+          showGhostNotes: false,
+          showSayr: true,
+          sayrPhraseIndex: 0,
+          showStaff: true,
+          staffMode: "SAYR",
+          showPositionsMap: true,
+          iqaId: "iqa_chiftetelli",
+          iqaKeyword: "chiftetelli",
+          bpm: 86
+        }
+      }
+    ]
   }
 ];
 
@@ -1364,7 +1738,8 @@ export function getStudyProgressStats(completedIds) {
     foundation: { total: 0, done: 0 },
     intermediate: { total: 0, done: 0 },
     advanced: { total: 0, done: 0 },
-    mastery: { total: 0, done: 0 }
+    mastery: { total: 0, done: 0 },
+    world: { total: 0, done: 0 }
   };
 
   STUDY_MODULES.forEach(mod => {
@@ -1391,8 +1766,8 @@ export function localizeStudyModule(lang, mod) {
   const isEn = lang === "en";
   /** @type {Record<StudyLevel, string>} */
   const levelMap = isEn
-    ? { foundation: "Base", intermediate: "Interm.", advanced: "Adv.", mastery: "Master" }
-    : { foundation: "Base", intermediate: "Interm.", advanced: "Avanç.", mastery: "Mestre" };
+    ? { foundation: "Base", intermediate: "Interm.", advanced: "Adv.", mastery: "Master", world: "World" }
+    : { foundation: "Base", intermediate: "Interm.", advanced: "Avanç.", mastery: "Mestre", world: "Mundo" };
 
   return {
     ...mod,
