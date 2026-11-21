@@ -848,6 +848,195 @@ export const STUDY_DOSSIERS = {
         listenForEn: "Enjoy the interplay of bright D–a tuning, brief tremolo accents, and the unmistakable Tsifteteli sway."
       }
     ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 14 — JAZZ MODAL, HARMONIA ESTENDIDA & OUD TRIO
+  // =========================================================================
+  les_40_modal_jazz_dorian: {
+    tagsPt: ["Jazz Modal", "Centro Modal Dórico", "Quartas & 6ª Maior", "Espaço & Silêncio"],
+    tagsEn: ["Modal Jazz", "Dorian Modal Center", "Fourths & Major 6th", "Space & Silence"],
+    structurePt: "No Jazz modal, uma única escala/modo sustenta vários compassos ou uma seção inteira (como D Dórico em 'So What'). A harmonia evita cadências resolutivas óbvias e prioriza melodias construídas com intervalos de quarta justa e sexta maior.",
+    structureEn: "In Modal Jazz, a single mode anchors extended sections (like D Dorian in 'So What'). Harmony avoids obvious V–I closures and favors melodies built from fourths and natural sixths.",
+    temperamentPt: "Em contextos de Jazz modal, o Oud traz uma cor híbrida única: pode soar com afinação 12-TET limpa para dialogar com piano e contrabaixo, ou introduzir micro-inflexões de quarto de tom quando o solista busca proximidade com o Maqam.",
+    temperamentEn: "In Modal Jazz, the Oud offers a rare dual voice: clean 12-TET to lock with piano and bass, or subtle quarter-tone inflections when blending modal jazz with Maqam color.",
+    pitfallPt: "Tocar frases de Jazz cheias de cromatismos rápidos que 'fogem' do centro modal Dórico. Solução: fique fiel às 7 notas do Dórico e trabalhe variações de ritmo e articulação.",
+    pitfallEn: "Adding excessive chromatic runs that blur the Dorian modal center. Fix: stay inside the 7 Dorian notes and vary rhythm, register, and phrasing.",
+    repertoire: [
+      {
+        piece: "So What / Modal Jazz em Alaúde & Oud",
+        artist: "Miles Davis / Anouar Brahem / Rabih Abou-Khalil",
+        query: "Oud Modal Jazz Dorian improvisation",
+        listenForPt: "Observe como longos trechos permanecem sobre a mesma tônica ganhando vida por meio de ritmo, timbre e respiro.",
+        listenForEn: "Notice how long stretches over one tonic stay fresh through rhythm, tone color, and breathing room."
+      }
+    ]
+  },
+
+  les_41_seventh_chords_arpeggios: {
+    tagsPt: ["Tétrades (Maj7 · m7 · 7)", "Guide Tones (3ª & 7ª)", "Arpejo Legato", "Cor Harmônica"],
+    tagsEn: ["Seventh Chords (Maj7 · m7 · 7)", "Guide Tones (3rd & 7th)", "Legato Arpeggio", "Harmonic Color"],
+    structurePt: "Enquanto tríades têm 3 notas, as tétrades acrescentam a 7ª (maior no Maj7, menor no m7 e na Dominante 7). A 3ª e a 7ª funcionam como 'guide tones': basta ouvir a passagem entre elas para reconhecer imediatamente a função harmônica.",
+    structureEn: "Beyond 3-note triads, seventh chords add a 7th (major on Maj7, minor on m7 and Dominant 7). The 3rd and 7th act as 'guide tones' that immediately define harmonic character.",
+    temperamentPt: "Ao arpejar tétrades no Oud sem trastes, o intervalo de 7ª maior (11 semitons) e a 7ª menor (10 semitons) precisam de atenção auditiva para não soarem baixos ou altos demais em relação à tônica.",
+    temperamentEn: "When arpeggiating seventh chords on a fretless Oud, major 7ths (11 semitones) and minor 7ths (10 semitones) require careful ear check so they do not sag or pull sharp against the root.",
+    pitfallPt: "Arpejar depressa demais sem deixar a ressonância da nota anterior se somar à seguinte. Solução: reduza o andamento e mantenha os dedos no braço enquanto as notas ressoam.",
+    pitfallEn: "Rushing arpeggios so notes cut off abruptly. Fix: slow down and keep left-hand fingers planted so pitches overlap naturally.",
+    repertoire: [
+      {
+        piece: "Arpejos & Harmonia em Oud Contemporâneo",
+        artist: "Anouar Brahem / Simon Shaheen / Oud Jazz",
+        query: "Anouar Brahem arpeggio Oud solo",
+        listenForPt: "Escute como os arpejos desenhados em sequência criam transparência harmônica sem pesar a textura.",
+        listenForEn: "Hear how rolled arpeggios create harmonic shimmer without weighing down the texture."
+      }
+    ]
+  },
+
+  les_42_contemporary_oud_trio: {
+    tagsPt: ["Oud Trio", "Menor Melódica", "Diálogo Camerístico", "Dinâmica & Timbre"],
+    tagsEn: ["Oud Trio", "Melodic Minor", "Chamber Dialogue", "Dynamics & Tone"],
+    structurePt: "A escala Menor Melódica (1–2–b3–4–5–6–7) une a base menor à subida luminosa com 6ª e 7ª maiores, tornando-se uma ponte natural entre o Jazz contemporâneo, a música erudita moderna e o fraseado modal.",
+    structureEn: "Melodic Minor (1–2–b3–4–5–6–7) pairs a minor base with a bright ascending 6th and 7th, bridging contemporary Jazz, modern chamber music, and modal phrasing.",
+    temperamentPt: "Em um trio com baixo e percussão, o Oud ganha espaço para explorar nuances de timbre — alternando ataque macio próximo à roseta e articulação mais presente quando o motivo pede destaque.",
+    temperamentEn: "In a trio with bass and percussion, the Oud has room for subtle tone shifts — moving smoothly between warm rosette strokes and more articulate attack when a motif leads.",
+    pitfallPt: "Tocar o tempo todo no mesmo volume médio ('parede sonora') sem altos e baixos expressivos. Solução: trabalhe contrastes entre frases sussurradas e picos cantados.",
+    pitfallEn: "Playing at one flat volume throughout. Fix: shape phrases with soft hushed openings and singing dynamic peaks.",
+    repertoire: [
+      {
+        piece: "Blue Maqams / Chamber Oud Trio",
+        artist: "Anouar Brahem Trio",
+        query: "Anouar Brahem Blue Maqams Oud",
+        listenForPt: "Repare na escuta mútua entre os instrumentos e na elegância com que cada frase começa e termina.",
+        listenForEn: "Notice the intimate ensemble listening and the poise of every phrase entrance and release."
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 15 — MÚSICA BRASILEIRA NO OUD: NORDESTE, CHORO & BOSSA
+  // =========================================================================
+  les_43_nordestino_lydian_b7_baiao: {
+    tagsPt: ["Modo Nordestino (Lídio b7)", "Baião & Zabumba (2/4)", "Rabeca & Viola", "Swing Brasileiro"],
+    tagsEn: ["Northeastern Mode (Lydian b7)", "Baião & Zabumba (2/4)", "Rabeca & Viola", "Brazilian Swing"],
+    structurePt: "O Lídio b7 (1–2–3–#4–5–6–b7) combina a #4 característica da escala acústica/nordestina com a b7 do modo mixolídio. No Oud, essa combinação soa surpreendentemente natural tanto no Baião e no forró quanto em diálogos com modos orientais.",
+    structureEn: "Lydian b7 (1–2–3–#4–5–6–b7) pairs the acoustic/Northeastern #4 with a Mixolydian b7. On the Oud, it feels remarkably at home in Baião and Northeastern folk while echoing modal colors.",
+    temperamentPt: "O ritmo de Baião / Zabumba (2/4) pede ginga e clareza rítmica: os graves marcam o chão com firmeza enquanto os acentos intermediários dão impulso para a frase melódica.",
+    temperamentEn: "Baião / Zabumba (2/4) thrives on rhythmic bounce and clarity: low strokes ground the floor while intermediate accents propel the melody forward.",
+    pitfallPt: "Tocar a melodia de forma quadrada ou dura em cima de um ritmo que pede ginga. Solução: cante o swing do Baião antes de tocar e acentue os encontros com os tempos graves.",
+    pitfallEn: "Playing stiff, square phrasing over a bouncy rhythm. Fix: sing the Baião swing first and lock accents naturally onto the low pulse.",
+    repertoire: [
+      {
+        piece: "Asa Branca / Baião & Lídio b7 (Adaptações Instrumentais)",
+        artist: "Luiz Gonzaga / Dominguinhos / Música Instrumental Brasileira",
+        query: "Baiao Lydian b7 instrumental acoustic",
+        listenForPt: "Sinta o balanço característico do 2/4 nordestino e o brilho particular do #4 e da b7 na melodia.",
+        listenForEn: "Feel the unmistakable Northeastern 2/4 bounce and the warm lift of #4 and b7 in the melody."
+      }
+    ]
+  },
+
+  les_44_choro_bass_counterpoint: {
+    tagsPt: ["Choro Brasileiro", "Baixarias nos Bordões", "Articulação em Colcheias", "Espelho Completo"],
+    tagsEn: ["Brazilian Choro", "Bass Counterpoint", "Eighth-Note Clarity", "Full Fingerboard"],
+    structurePt: "O Choro apoia-se em linhas melódicas articuladas, contraponto de baixo (baixarias) e fluência entre registros. No Oud, usar as ordens graves e o espelho completo permite conectar graves cantantes às frases agudas.",
+    structureEn: "Choro relies on articulate melodic lines, singing bass counterpoint (baixarias), and smooth register links. On the Oud, low courses and full-neck reach connect expressive bass lines to upper phrases.",
+    temperamentPt: "Em frases rápidas de Choro, a precisão do ponto de contato no braço sem trastes e a sincronia exata entre Risha e mão esquerda evitam notas 'emboladas'.",
+    temperamentEn: "In brisk Choro passages, accurate fretless finger placement and tight left/right-hand coordination keep fast eighth notes clean and singing.",
+    pitfallPt: "Perder a afinação ao cruzar rapidamente das cordas graves para as agudas. Solução: estude trechos curtos em andamento lento, ouvindo cada nota antes de acelerar.",
+    pitfallEn: "Drifting out of tune when crossing fast from bass to treble courses. Fix: practice short cells slowly, hearing each pitch clearly before increasing tempo.",
+    repertoire: [
+      {
+        piece: "Carinhoso / Pixinguinha & Choro Instrumental",
+        artist: "Pixinguinha / Jacob do Bandolim / Raphael Rabello",
+        query: "Pixinguinha Choro baixaria violao Oud",
+        listenForPt: "Observe como as linhas de baixo caminham com intenção melódica própria em vez de apenas marcar acordes.",
+        listenForEn: "Notice how bass lines walk with their own singing melody rather than merely marking roots."
+      }
+    ]
+  },
+
+  les_45_bossa_nova_open_harmony: {
+    tagsPt: ["Bossa Nova", "Acordes Maj7 & m7", "Dinâmica Contida", "Toque na Roseta"],
+    tagsEn: ["Bossa Nova", "Maj7 & m7 Chords", "Understated Touch", "Rosette Plucking"],
+    structurePt: "A Bossa Nova combina melodias suaves com acordes ricos em sétimas e tensão contida. No Oud, arpejos abertos e notas escolhidas com parcimônia valorizam o timbre quente da madeira.",
+    structureEn: "Bossa Nova pairs gentle melodies with seventh-rich harmonies and understated tension. On the Oud, open arpeggios and sparse, well-chosen notes highlight the warm wood tone.",
+    temperamentPt: "A afinação limpa em 12-TET permite que as sétimas maiores e menores ressoem com nitidez sobre a tônica sem batimentos indesejados.",
+    temperamentEn: "Clean 12-TET tuning lets major and minor sevenths ring clearly over the root without unwanted beating.",
+    pitfallPt: "Exagerar no volume ou na velocidade da Risha, tirando a leveza da Bossa Nova. Solução: toque com leveza e deixe as notas respirarem.",
+    pitfallEn: "Overplaying volume or Risha speed and losing Bossa Nova's ease. Fix: play with light touch and let notes breathe naturally.",
+    repertoire: [
+      {
+        piece: "Garota de Ipanema / Chega de Saudade (Bossa Nova)",
+        artist: "João Gilberto / Antônio Carlos Jobim",
+        query: "Joao Gilberto Bossa Nova acoustic guitar",
+        listenForPt: "Repare na contenção rítmica, no equilíbrio entre baixo e harmonia e na naturalidade da pulsação.",
+        listenForEn: "Listen to the rhythmic restraint, balance between bass and harmony, and effortless pulse."
+      }
+    ]
+  },
+
+  // =========================================================================
+  // CAPÍTULO 16 — MÚSICA ANTIGA (ALAÚDE) & COMPOSIÇÃO GLOBAL
+  // =========================================================================
+  les_46_oud_to_renaissance_lute: {
+    tagsPt: ["Oud → Alaúde", "Contraponto a 2 Vozes", "Pulso Ternário (3/4)", "Independência de Vozes"],
+    tagsEn: ["Oud → Lute", "2-Voice Counterpoint", "Triple Pulse (3/4)", "Voice Independence"],
+    structurePt: "O contraponto a duas vozes organiza uma linha grave mais estável e uma voz superior mais móvel. No Oud, essa escrita dialoga diretamente com a história comum entre o Oud e o alaúde europeu.",
+    structureEn: "Two-voice counterpoint balances a steadier bass line against a more mobile upper voice. On the Oud, this texture connects directly to the shared history of the Oud and European lute.",
+    temperamentPt: "Manter duas vozes audíveis no Oud exige controle de timbre e duração: o baixo sustenta o compasso enquanto a voz aguda articula o desenho melódico.",
+    temperamentEn: "Keeping two voices clear on the Oud takes touch and duration control: the bass anchors the meter while the upper voice shapes the melody.",
+    pitfallPt: "Deixar a voz aguda abafar o baixo ou cortar o baixo cedo demais. Solução: segure o baixo no tempo 1 e toque os tempos seguintes com leveza.",
+    pitfallEn: "Letting the upper voice drown out the bass or cutting the bass short. Fix: sustain beat 1's bass and articulate following beats lightly.",
+    repertoire: [
+      {
+        piece: "Danças & Peças Renascentistas para Alaúde / Oud",
+        artist: "Julian Bream / Hopkinson Smith / Jordi Savall",
+        query: "Renaissance lute prelude counterpoint",
+        listenForPt: "Observe como duas linhas independentes se entrelaçam mantendo clareza melódica em ambas.",
+        listenForEn: "Notice how two independent lines weave together while keeping both melodies clear."
+      }
+    ]
+  },
+
+  les_47_polyphonic_preludes: {
+    tagsPt: ["Prelúdios Polifônicos", "Arpejos Sobrepostos", "Sustentação", "Precisão Sem Trastes"],
+    tagsEn: ["Polyphonic Preludes", "Overlapping Arpeggios", "Sustain", "Fretless Precision"],
+    structurePt: "Prelúdios arpejados desenvolvem fluidez harmônica e controle de mão direita ao desdobrar acordes (como Sus4 e Maj7) em linhas contínuas ascendentes e descendentes.",
+    structureEn: "Arpeggiated preludes build harmonic fluency and right-hand poise by unfolding chords (such as Sus4 and Maj7) into smooth ascending and descending lines.",
+    temperamentPt: "A ressonância contínua do Oud faz com que notas de um mesmo arpejo soem juntas no ar — exigindo afinação precisa de cada dedo no espelho.",
+    temperamentEn: "The Oud's natural sustain lets arpeggio notes ring together in the air — demanding accurate finger placement on every pitch.",
+    pitfallPt: "Acelerar o arpejo e perder a regularidade rítmica entre as cordas. Solução: mantenha um pulso constante e uniforme em cada nota do arpejo.",
+    pitfallEn: "Rushing arpeggios and losing even timing across courses. Fix: keep a steady, even pulse on every arpeggiated note.",
+    repertoire: [
+      {
+        piece: "Prelúdios para Alaúde & Oud Solo",
+        artist: "John Dowland / Sylvius Leopold Weiss / Oud Solo",
+        query: "Lute prelude arpeggio solo",
+        listenForPt: "Escute como o arpejo desenha a harmonia de fundo enquanto a nota mais aguda sugere uma linha de canto.",
+        listenForEn: "Hear how the arpeggio outlines harmony while top notes suggest a singing melody."
+      }
+    ]
+  },
+
+  les_48_universal_oud_synthesis: {
+    tagsPt: ["Síntese das 48 Lições", "Maqam + Groove + Mundo", "Zen Stage", "Autoria no Oud"],
+    tagsEn: ["48-Lesson Synthesis", "Maqam + Groove + World", "Zen Stage", "Personal Oud Voice"],
+    structurePt: "A lição 48 convida você a unir tudo o que construiu: modos árabes e seus Ajnas, modulação pelo Ghammaz, ciclos rítmicos diversos, harmonia aberta e a liberdade microtonal do braço sem trastes.",
+    structureEn: "Lesson 48 brings together everything you have built: Arabic modes and Ajnas, Ghammaz modulation, varied rhythmic cycles, open harmony, and fretless microtonal freedom.",
+    temperamentPt: "Independentemente do estilo escolhido — árabe clássico, blues, mediterrâneo, jazz ou brasileiro — o segredo no Oud continua sendo ouvir com atenção, afinar com intenção e tocar com alma.",
+    temperamentEn: "Whatever style you explore — classical Arabic, blues, Mediterranean, jazz, or Brazilian — the heart of the Oud remains deep listening, intentional pitch, and honest expression.",
+    pitfallPt: "Achar que existe uma única 'forma certa' de tocar o Oud fora da tradição estrita. Solução: conheça bem as raízes e use esse domínio como base para a sua própria voz musical.",
+    pitfallEn: "Thinking there is only one rigid way to play the Oud. Fix: honor the roots deeply and use that mastery as a springboard for your own voice.",
+    repertoire: [
+      {
+        piece: "Improvisação Livre & Fusão Global no Oud",
+        artist: "Munir Bashir / Anouar Brahem / Rabih Abou-Khalil / Simon Shaheen",
+        query: "Oud solo improvisation world fusion",
+        listenForPt: "Observe como grandes músicos transitam entre rigor técnico, escuta e liberdade expressiva sem perder identidade.",
+        listenForEn: "Notice how seasoned players balance technical rigor, listening, and expressive freedom with unmistakable identity."
+      }
+    ]
   }
 };
 

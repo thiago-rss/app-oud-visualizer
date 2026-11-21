@@ -1440,7 +1440,7 @@ function renderStudyGuidePane() {
     { id: "intermediate", pt: "✨ Interm. (3–4)", en: "✨ Interm. (3–4)" },
     { id: "advanced", pt: "🪶 Avanç. (5–8)", en: "🪶 Adv. (5–8)" },
     { id: "mastery", pt: "👑 Mestre (9–10)", en: "👑 Master (9–10)" },
-    { id: "world", pt: "🌍 Mundo & Fusão (11–13)", en: "🌍 World & Fusion (11–13)" }
+    { id: "world", pt: "🌍 Mundo & Fusão (11–16)", en: "🌍 World & Fusion (11–16)" }
   ];
 
   const levelFilterHtml = levelFilters.map(lf => `
