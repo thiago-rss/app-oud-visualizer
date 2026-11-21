@@ -183,5 +183,70 @@ export const GLOSSARY_ENTRIES = [
     category: "Graus Históricos",
     definition: "Nomenclatura tradicional de cada grau da escala fundamental: Rast (C), Dukah (D), Sikah (Eb-), Jaharkah (F), Nawa (G), Husayni (A), Awj (Bb-) e Mahur (B).",
     oudApplication: "Selecione 'Nome Árabe' no menu 'Inscrição' da barra do instrumento para exibir esses nomes dentro das joias."
+  },
+  {
+    id: "heterophony",
+    category: "Fraseado & Forma",
+    term: "Heterofonia",
+    termEn: "Heterophony",
+    arabic: "هتروفونيا / تعدد الألحان",
+    literal: "Variação simultânea da mesma linha",
+    literalEn: "Simultaneous variation of one line",
+    definition: "Textura em que diferentes vozes ou instrumentos executam versões ornamentadas, rítmicas ou microtonalmente coloridas de uma mesma linha melódica em vez de acordes verticais fixos.",
+    definitionEn: "A musical texture in which voices or instruments perform ornamented, rhythmically varied, or microtonally colored versions of a shared melody rather than fixed vertical chords.",
+    oudApplication: "Ajuda a compreender quando o Oud deve dobrar, ornamentar ou responder à melodia principal em vez de tocar acordes fechados, e como adaptar esse papel em conjuntos de outros estilos.",
+    oudApplicationEn: "Clarifies when the Oud should ornament or echo a shared melody rather than strum closed chords, and how to shift that role in cross-style ensembles."
+  },
+  {
+    id: "drone_pedal",
+    category: "Fraseado & Forma",
+    term: "Bordão & Pedal",
+    termEn: "Drone & Pedal",
+    arabic: "قرار ممتد / وتر مطلق",
+    literal: "Sustentação contínua de apoio",
+    literalEn: "Sustained grounding pitch",
+    definition: "Nota grave, corda solta ou intervalo fixo mantido como ponto de referência acústico e modal enquanto outras vozes ou melodias se movem acima.",
+    definitionEn: "A low pitch, open course, or fixed interval held as an acoustic and modal anchor while melodic lines move above it.",
+    oudApplication: "No Oud, cordas soltas e o Drone reforçam a gravidade da tônica ou da dominante em improvisações, folk, blues, música brasileira e passagens modais.",
+    oudApplicationEn: "On the Oud, open courses and the Drone anchor tonal gravity across improvisations, folk, blues, Brazilian music, and modal passages."
+  },
+  {
+    id: "open_voicing",
+    category: "Teoria Modal",
+    term: "Voicing Aberto",
+    termEn: "Open Voicing",
+    arabic: "توزيع صوتي مفتوح",
+    literal: "Disposição espaçada de intervalos",
+    literalEn: "Spaced interval layout",
+    definition: "Organização de notas com espaçamento amplo (como quintas, quartas, sétimas ou 1 nota por ordem) que evita acúmulo harmônico nos graves e médios.",
+    definitionEn: "Arrangement of chord tones with wide spacing (such as fifths, fourths, sevenths, or 1 note per course) that prevents low-mid muddiness.",
+    oudApplication: "Evita que ordens duplas soem emboladas e permite que o Oud dialogue com violão, piano, baixo ou sopros em jazz, bossa nova e fusão.",
+    oudApplicationEn: "Prevents double-course muddiness and lets the Oud blend cleanly with guitar, piano, bass, or winds in jazz, bossa nova, and fusion."
+  },
+  {
+    id: "two_voice_counterpoint",
+    category: "Fraseado & Forma",
+    term: "Contraponto a 2 Vozes",
+    termEn: "Two-Voice Counterpoint",
+    arabic: "طباق صوتي ثنائي",
+    literal: "Diálogo independente entre duas linhas",
+    literalEn: "Independent interplay of two lines",
+    definition: "Condução simultânea de duas linhas melódicas com ritmos e contornos próprios — em geral um baixo mais estável e uma voz superior mais móvel.",
+    definitionEn: "Simultaneous leading of two melodic lines with distinct rhythms and contours — typically a steadier bass line and a more agile upper voice.",
+    oudApplication: "Conecta a escrita do Oud à história do alaúde europeu, a prelúdios arpejados e a baixarias em estilos como o choro e a música antiga.",
+    oudApplicationEn: "Links Oud writing to European lute history, arpeggiated preludes, and singing bass lines in styles like choro and early music."
+  },
+  {
+    id: "taswir_adaptation",
+    category: "Teoria Modal",
+    term: "Adaptação & Taswir",
+    termEn: "Adaptation & Taswir",
+    arabic: "تصوير المقام / تكييف الأسلوبي",
+    literal: "Transposição e ajuste contextual",
+    literalEn: "Transposition and contextual fit",
+    definition: "Prática de transpor modos, escalas ou motivos para outra altura (taswir) e calibrar afinação e articulação conforme o contexto musical ou o conjunto.",
+    definitionEn: "Practicing modes, scales, or motifs at another pitch level (taswir) while calibrating tuning and articulation to suit the musical context or ensemble.",
+    oudApplication: "Permite transitar entre microtonalidade e sistemas temperados (12-TET ou comas) preservando o fraseado e a identidade sonora do Oud em qualquer estilo.",
+    oudApplicationEn: "Lets you bridge microtonality and tempered systems (12-TET or commas) while keeping the Oud's phrasing and voice intact across styles."
   }
 ];
