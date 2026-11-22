@@ -1,5 +1,5 @@
 // @ts-nocheck
-const CACHE_NAME = "oud-visualizer-v3.7.0";
+const CACHE_NAME = "oud-visualizer-v3.7.1";
 
 const CORE_ASSETS = [
   "./",
@@ -15,6 +15,7 @@ const CORE_ASSETS = [
   "./js/core/i18n.js",
   "./js/core/studyGuide.js",
   "./js/core/studyDossiers.js",
+  "./js/core/stateTransitions.js",
   "./js/core/technicalEtudes.js",
   "./js/audio/synthEngine.js",
   "./js/audio/pitchEngine.js",

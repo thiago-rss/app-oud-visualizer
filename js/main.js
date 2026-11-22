@@ -1176,95 +1176,72 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   clearShiftOverlay(false);
   selectedStaffOrNeckPitch = null;
   modulationOrigin = null;
-  state.anchorAbsQ = null;
-  state.octavePathOnly = false;
 
   const p = lesson.preset;
-  if (p.tuningId || p.tuningKeywords) {
-    const resolvedTuning = resolveStudyTuningId(p.tuningId, p.tuningKeywords);
-    if (resolvedTuning) {
-      state.tuningId = resolvedTuning;
-      setLockedTunerCourse(null);
-    }
+  const resolvedTuning = (typeof resolveStudyTuningId === "function" && (p.tuningId || p.tuningKeywords))
+    ? resolveStudyTuningId(p.tuningId, p.tuningKeywords)
+    : p.tuningId;
+  if (resolvedTuning && typeof setLockedTunerCourse === "function") {
+    setLockedTunerCourse(null);
   }
+
+  const resolvedEntity = typeof resolveStudyEntityId === "function"
+    ? resolveStudyEntityId(p.mode, p.entityId, p.entityKeywords)
+    : p.entityId;
+
+  /** @type {Record<string, any>} */
+  const patch = {
+    anchorAbsQ: null,
+    octavePathOnly: false,
+    mode: p.mode,
+    rootQ: p.rootQ,
+    direction: p.direction || "ASC",
+    shapeMode: p.shapeMode,
+    labelMode: p.labelMode,
+    jinsFilter: p.jinsFilter || "ALL",
+    showSemiGuides: p.showSemiGuides,
+    showMicroGuides: p.showMicroGuides,
+    showGhostNotes: p.showGhostNotes,
+    showSayr: p.showSayr,
+    sayrPhraseIndex: typeof p.sayrPhraseIndex === "number" ? p.sayrPhraseIndex : 0,
+    showStaff: p.showStaff,
+    staffMode: p.staffMode || "SCALE",
+    showPositionsMap: p.showPositionsMap,
+    cadenceStepIndex: 0,
+  };
+
+  if (resolvedTuning) patch.tuningId = resolvedTuning;
+  if (p.tradition) patch.tradition = p.tradition;
+  if (resolvedEntity) patch.entityId = resolvedEntity;
+  if (typeof p.chordVoicingOnly === "boolean") patch.chordVoicingOnly = p.chordVoicingOnly;
+  if (typeof p.boxAnchorQ === "number") patch.boxAnchorQ = p.boxAnchorQ;
+  if (p.iqaId) patch.iqaId = p.iqaId;
+  if (typeof p.bpm === "number") patch.bpm = p.bpm;
+
+  commitStatePatch(patch, { syncControls: false, refresh: false });
+
   if (p.tradition) {
-    state.tradition = p.tradition;
     document.body.setAttribute("data-tradition", state.tradition);
   }
 
-  state.mode = p.mode;
-  const resolvedEntity = resolveStudyEntityId(p.mode, p.entityId, p.entityKeywords);
-  if (resolvedEntity) state.entityId = resolvedEntity;
-  if (typeof p.chordVoicingOnly === "boolean") {
-    state.chordVoicingOnly = p.chordVoicingOnly;
-  }
-
-  state.rootQ = p.rootQ;
-  state.direction = p.direction || "ASC";
-  state.shapeMode = p.shapeMode;
-  if (typeof p.boxAnchorQ === "number") {
-    state.boxAnchorQ = p.boxAnchorQ;
-    const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
-    const labelBoxPos = document.getElementById("label-box-pos");
-    if (sliderBox) sliderBox.value = String(state.boxAnchorQ);
-    if (labelBoxPos) {
-      const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
-      labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
-    }
-  }
-  state.labelMode = p.labelMode;
-  state.jinsFilter = p.jinsFilter || "ALL";
-  state.showSemiGuides = p.showSemiGuides;
-  state.showMicroGuides = p.showMicroGuides;
-  state.showGhostNotes = p.showGhostNotes;
-  state.showSayr = p.showSayr;
-  state.sayrPhraseIndex = typeof p.sayrPhraseIndex === "number" ? p.sayrPhraseIndex : 0;
-  state.showStaff = p.showStaff;
-  state.staffMode = p.staffMode || "SCALE";
-  state.showPositionsMap = p.showPositionsMap;
-  state.cadenceStepIndex = 0;
-
-  if (p.iqaId || p.iqaKeyword) {
-    const resolvedIqa = resolveStudyIqaId(p.iqaId, p.iqaKeyword);
-    if (resolvedIqa) state.iqaId = resolvedIqa;
-  }
-
-  if (p.soundChar === "syrian" || p.soundChar === "egyptian") {
-    setOudTimbreProfile(p.soundChar);
-    try {
-      localStorage.setItem("oud_timbre_pref", p.soundChar);
-    } catch {
-      // Ignora
-    }
-  }
-
   if (typeof p.bpm === "number") {
-    state.bpm = p.bpm;
     const sliderBpm = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-bpm"));
     const labelBpm = document.getElementById("label-bpm");
     if (sliderBpm) sliderBpm.value = String(state.bpm);
     if (labelBpm) labelBpm.textContent = String(state.bpm);
-    restartIqaIfPlaying();
+    if (typeof restartIqaIfPlaying === "function") restartIqaIfPlaying();
   }
 
   activeStudyLessonId = lesson.id;
   activeStudyModuleId = lesson.moduleId;
   appliedStudyLessonId = lesson.id;
-
-  // Garante que o capítulo da lição recém-aplicada permaneça visível se o filtro por nível estiver ativo
-  const lessonMod = STUDY_MODULES.find(m => m.id === lesson.moduleId);
-  if (lessonMod && activeStudyLevelFilter !== "ALL" && lessonMod.level !== activeStudyLevelFilter) {
-    activeStudyLevelFilter = lessonMod.level;
-  }
-
   saveStudyProgress();
-
   syncControlsWithState();
   refreshAll();
 
   if (opts.playConfirmTone !== false) {
     suspendPitchDetection(650);
-    const confirmFreq = 130.81278 * Math.pow(2, ((state.rootQ % 24) + 24) % 24 / 24);
+    const confirmFreq = 130.81278 * Math.pow(2, (((state.rootQ % 24) + 24) % 24) / 24);
     playPluckedNote(confirmFreq, 1.15, 0.28);
   }
 
