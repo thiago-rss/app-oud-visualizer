@@ -175,13 +175,23 @@ function buildStudyDossierHtml(lessonId, isEn) {
   `;
 }
 
+function syncEtudeStepChips(activeIdx) {
+  const pane = getStudyPaneElement();
+  if (!pane) return;
+  pane.querySelectorAll(".study-etude-step-chip").forEach((chip, i) => {
+    chip.classList.toggle("is-playing", activeIdx === i);
+  });
+}
+
 function stopTechnicalEtudePlayback(shouldRefresh = false) {
   const activeTimers = getEtudePlaybackTimers() || [];
   activeTimers.forEach(id => window.clearTimeout(id));
   setEtudePlaybackTimers([]);
   const hadStep = readHighlightedStep() !== -1 || isEtudeLoopPlaying;
   isEtudeLoopPlaying = false;
+  if (typeof deps?.setIsEtudeLoopPlaying === "function") deps.setIsEtudeLoopPlaying(false);
   writeHighlightedStep(-1);
+  syncEtudeStepChips(-1);
   if (shouldRefresh && hadStep) {
     refreshAll();
   }
@@ -211,6 +221,7 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
   if (!spec.steps.length) return;
 
   isEtudeLoopPlaying = Boolean(loop);
+  if (typeof deps?.setIsEtudeLoopPlaying === "function") deps.setIsEtudeLoopPlaying(isEtudeLoopPlaying);
   const speedFactor = Math.max(0.4, Math.min(1.5, activeEtudeSpeed || 0.85));
 
   const runCycle = () => {
@@ -223,6 +234,7 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
       const dur = Math.max(150, Math.round(st.baseDurMs / speedFactor));
       const tId = window.setTimeout(() => {
         writeHighlightedStep(idx);
+        syncEtudeStepChips(idx);
         const freq = 65.41 * Math.pow(2, (st.absQ * 50 + st.centsDev) / 1200);
         const vel = st.risha === "UP" ? 0.24 : 0.34;
         playPluckedNote(freq, Math.max(0.55, dur / 320), vel);
@@ -240,6 +252,7 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
         runCycle();
       } else {
         writeHighlightedStep(-1);
+        syncEtudeStepChips(-1);
         refreshAll();
       }
     }, totalMs);
@@ -550,6 +563,46 @@ function renderStudyGuidePane() {
 
     ${activeDetailHtml}
   `;
+
+  pane.querySelectorAll(".study-etude-kind-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const k = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.etudeKind);
+      if (!k) return;
+      stopTechnicalEtudePlayback(false);
+      activeEtudeKind = k;
+      if (typeof deps?.setActiveEtudeKind === "function") deps.setActiveEtudeKind(activeEtudeKind);
+      renderStudyGuidePane();
+    });
+  });
+
+  pane.querySelectorAll(".study-etude-speed-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sp = parseFloat(/** @type {HTMLElement} */ (btn).dataset.etudeSpeed || "0.85");
+      if (!Number.isFinite(sp)) return;
+      activeEtudeSpeed = sp;
+      if (typeof deps?.setActiveEtudeSpeed === "function") deps.setActiveEtudeSpeed(activeEtudeSpeed);
+      if (isEtudeLoopPlaying && currentLesson) {
+        playTechnicalEtudeSequence(currentLesson.id, true);
+      } else {
+        renderStudyGuidePane();
+      }
+    });
+  });
+
+  pane.querySelector(".btn-etude-play")?.addEventListener("click", () => {
+    if (!currentLesson) return;
+    playTechnicalEtudeSequence(currentLesson.id, false);
+  });
+
+  pane.querySelector(".btn-etude-loop")?.addEventListener("click", () => {
+    if (!currentLesson) return;
+    if (isEtudeLoopPlaying) {
+      stopTechnicalEtudePlayback(true);
+      renderStudyGuidePane();
+    } else {
+      playTechnicalEtudeSequence(currentLesson.id, true);
+    }
+  });
 
   pane.querySelector(".study-dossier-toggle")?.addEventListener("click", () => {
     isStudyDossierOpen = !isStudyDossierOpen;

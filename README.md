@@ -1,4 +1,4 @@
-# 🪕 App Oud Visualizer — v3.7.9 Studio & PWA
+# 🪕 App Oud Visualizer — v3.7.10 Studio & PWA
 
 **Tratado e Estúdio Interativo 24-TET para Oud (Alaúde Árabe): Guia de Estudos Progressivo (17 Capítulos, 51 Lições, 51 Dossiês Bilíngues & Estudos Técnicos Procedurais), Detector de Intonação Microtonal em Tempo Real (Mic & Modo Linha DI), Afinador 6 Ordens, Síntese Física Karplus-Strong Estendida (Sírio/Egípcio), Cabeçote (*Banjak*) Interativo, Partitura Sincronizada, Radar de Modulação (*Intiqal*), Motor Rítmico (*Iqa'at*) e PWA 100% Offline.**
 
@@ -6,7 +6,7 @@
 
 ---
 
-## ✨ Principais Recursos (v3.7.9)
+## ✨ Principais Recursos (v3.7.10)
 
 ### 🎓 Guia de Estudos Progressivo — 17 Capítulos, 51 Lições & 51 Dossiês (PT / EN)
 * **Trilha estruturada em 5 filtros rápidos** (*Todos · Base · Interm. · Avanç. · Mestre · Mundo & Fusão*) com progresso persistido em `localStorage`:
@@ -51,7 +51,7 @@
 * **Arquitetura Limpa:** cabeçalho com Cápsula de Áudio (`▶ Tocar ▾`) + Menu Unificado (`⋯`), Barra Única de Comando com 4 *Popovers* (Desktop) / *Bottom Sheets* (Mobile) e Deck Horizontal com 3 abas (*Teoria & Sayr · Radar de Modulação · Guia de Estudos*).
 * **Temas *Layl* (Escuro) & *Nahar* (Claro — Pergaminho Iluminado):** contenção cromática em latão, ameixa e madrepérola + **Modo Imersivo (*Zen Stage* — tecla `F`)** com HUD flutuante.
 * **Mobile (`<= 768px`) & iOS:** braço vertical automático (*Auto-Portrait*), barra inferior fixa de 4 botões (**▶ Tocar · 🎶 Taqsim · 🎙 Mic/Linha · 📖 Estudo**), lupa microtonal flutuante (*Touch Loupe*) e gestão limpa de sessão de áudio sem player fantasma na tela de bloqueio do iOS.
-* **PWA 100% Offline & Compartilhamento:** instalável via `manifest.json` + `sw.js` (`v3.7.9`) e exportação instantânea do estado completo por link (`#hash`).
+* **PWA 100% Offline & Compartilhamento:** instalável via `manifest.json` + `sw.js` (`v3.7.10`) e exportação instantânea do estado completo por link (`#hash`).
 
 ---
 
@@ -90,7 +90,7 @@
 app-oud-visualizer/
 ├── index.html                    # Estrutura semântica (Cabeçalho, Barra Única, Faixa de Escuta, Palco, Deck e Dock Mobile)
 ├── manifest.json                 # Manifesto de instalação Standalone (PWA)
-├── sw.js                         # Service Worker offline (cache oud-visualizer-v3.7.9)
+├── sw.js                         # Service Worker offline (cache oud-visualizer-v3.7.10)
 ├── README.md                     # Documentação do projeto
 ├── assets/
 │   └── icon-oud.svg              # Ícone vetorial geométrico (Shamsiyya & Octagrama)
@@ -139,6 +139,7 @@ Acesse **`http://localhost:8000`** no navegador (ou utilize a extensão *Live Se
 
 ## 📌 Histórico de Versões
 
+* **v3.7.10:** Restauração dos controles interativos da aba de **Estudo Técnico Procedural** (`studyGuideView.js` e `main.js`): seleção de padrão, velocidades (`0.65× / 0.85× / 1.0×`), `▶ Tocar Estudo`, `🔁 Loop` / `⏹ Parar Loop` e realce em tempo real nos chips de *Risha* (`↓`/`↑`).
 * **v3.7.9:** Correção dos controladores extraídos de UI (`overlaysAndModals.js`, `deckPanelsView.js` e `studyGuideView.js`): restauração completa dos menus do cabeçalho (`⋯` e `▾`) com fechamento mútuo de popovers, remoção de *snapshots* de estado congelados (*Iqa'* ao vivo, Modo Zen, colapso do Deck, barra de cadências e Radar de Modulação), correção do botão **`↩ Voltar à Origem`** e sincronização em tempo real do destaque de passos nos Estudos Técnicos.
 * **v3.7.0–v3.7.8:** Refatoração arquitetural completa em módulos desacoplados (`stateTransitions.js`, `uiRuntime.js`, `studyResolver.js`, `overlaysAndModals.js`, `tunerController.js`, `deckPanelsView.js`, `studyGuideView.js`), centralização das mutações via `applyStatePatch` e expansão do currículo para **17 capítulos, 51 lições e 51 dossiês** com o **Capítulo 17 — Integração Estilística & Sonoridade Multiestilo** + gerador de **Estudos Técnicos Procedurais** (`technicalEtudes.js`).
 * **v3.6.0:** Lançamento da **Parte II — Mundo & Fusão (Capítulos 11–16 · Lições 31–48)** com escalas universais, *blue notes* 24-TET, Mediterrâneo/Flamenco/Rebetiko, Jazz Modal, Música Brasileira, Música Antiga e novos ritmos globais.
