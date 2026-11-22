@@ -41,6 +41,8 @@ export function createDeckPanelsView(deps) {
   const renderStudyGuidePane = typeof deps?.renderStudyGuidePane === "function" ? deps.renderStudyGuidePane : () => {};
   const handlePlayTaqsim = typeof deps?.handlePlayTaqsim === "function" ? deps.handlePlayTaqsim : () => {};
   const syncMobileMicButton = typeof deps?.syncMobileMicButton === "function" ? deps.syncMobileMicButton : () => {};
+  const syncControlsWithState = typeof deps?.syncControlsWithState === "function" ? deps.syncControlsWithState : () => {};
+  const playPluckedNote = typeof deps?.playPluckedNote === "function" ? deps.playPluckedNote : () => {};
 
   const state = new Proxy({}, {
     get(_, prop) {
@@ -64,19 +66,14 @@ export function createDeckPanelsView(deps) {
     },
   });
 
-  let activeIqaBeatIdx = getActiveIqaBeatIdx ? getActiveIqaBeatIdx() : -1;
-  let modulationOrigin = getModulationOrigin ? getModulationOrigin() : null;
-  let currentChordVoicingFreqs = getCurrentChordVoicingFreqs ? getCurrentChordVoicingFreqs() : [];
-  let selectedStaffOrNeckPitch = getSelectedStaffOrNeckPitch ? getSelectedStaffOrNeckPitch() : null;
-  const isIqaPlaying = getIsIqaPlaying ? getIsIqaPlaying() : false;
-  const isSidebarCollapsed = getIsSidebarCollapsed ? getIsSidebarCollapsed() : false;
-  const completedStudyLessons = getCompletedStudyLessons ? getCompletedStudyLessons() : new Set();
+  // Estado dinâmico lido sempre sob demanda via getters de deps
 
 function renderIqaBeatGrid() {
   const grid = document.getElementById("iqa-beat-grid");
   if (!grid) return;
   grid.innerHTML = "";
 
+  const activeIqaBeatIdx = getActiveIqaBeatIdx ? getActiveIqaBeatIdx() : -1;
   const iqa = DB.iqaat.find(x => x.id === state.iqaId) || DB.iqaat[0];
   iqa.pattern.forEach((step, idx) => {
     const cell = document.createElement("div");
@@ -130,7 +127,7 @@ function renderCadenceBar() {
       commitStatePatch({ cadenceStepIndex: idx }, { syncControls: false, refresh: false });
       refreshAll();
       suspendPitchDetection(950);
-      strumChordVoicing(currentChordVoicingFreqs);
+      strumChordVoicing(getCurrentChordVoicingFreqs ? getCurrentChordVoicingFreqs() : []);
     });
 
     container.appendChild(card);
@@ -158,6 +155,7 @@ function renderModulationRadarCard() {
   radarListEl.innerHTML = "";
   if (originSlotEl) originSlotEl.innerHTML = "";
 
+  const modulationOrigin = getModulationOrigin ? getModulationOrigin() : null;
   if (modulationOrigin) {
     const isSameAsOrigin = modulationOrigin.mode === state.mode &&
       modulationOrigin.entityId === state.entityId &&
@@ -178,16 +176,17 @@ function renderModulationRadarCard() {
       (originSlotEl || radarListEl).appendChild(originBanner);
 
       originBanner.querySelector("#btn-return-mod-origin")?.addEventListener("click", () => {
-        if (!modulationOrigin) return;
+        const curOrigin = getModulationOrigin ? getModulationOrigin() : null;
+        if (!curOrigin) return;
         clearAllActivePlayback();
         clearShiftOverlay(false);
         setSelectedStaffOrNeckPitch(null);
         commitStatePatch({
-          mode: modulationOrigin.mode,
-          entityId: modulationOrigin.entityId,
-          rootQ: modulationOrigin.rootQ,
-          anchorAbsQ: modulationOrigin.anchorAbsQ,
-          octavePathOnly: Boolean(modulationOrigin.anchorAbsQ !== null),
+          mode: curOrigin.mode,
+          entityId: curOrigin.entityId,
+          rootQ: curOrigin.rootQ,
+          anchorAbsQ: curOrigin.anchorAbsQ,
+          octavePathOnly: Boolean(curOrigin.anchorAbsQ !== null),
         }, { syncControls: false, refresh: false });
         setModulationOrigin(null);
         suspendPitchDetection(700);
@@ -258,17 +257,17 @@ function renderModulationRadarCard() {
       clearAllActivePlayback();
       clearShiftOverlay(false);
       setSelectedStaffOrNeckPitch(null);
-      if (!modulationOrigin) {
+      if (!(getModulationOrigin && getModulationOrigin())) {
         const curStruct = getActiveStructure(state);
         const curLoc = localizeEntity(state.lang, curStruct.entity);
         const curRootName = PITCH_CLASSES_24[((state.rootQ % 24) + 24) % 24]?.flat || "C";
-        modulationOrigin = {
+        setModulationOrigin({
           mode: state.mode,
           entityId: state.entityId,
           rootQ: state.rootQ,
           anchorAbsQ: state.anchorAbsQ,
           label: `${curLoc.name} (${curRootName})`
-        };
+        });
       }
 
       commitStatePatch({
@@ -403,6 +402,9 @@ function updateInfoPanel() {
 }
 
 function syncCommandBarSummaries() {
+  const isIqaPlaying = Boolean(getIsIqaPlaying && getIsIqaPlaying());
+  const isSidebarCollapsed = Boolean(getIsSidebarCollapsed && getIsSidebarCollapsed());
+  const completedStudyLessons = (getCompletedStudyLessons && getCompletedStudyLessons()) || new Set();
   const activeStruct = getActiveStructure(state);
   const entity = localizeEntity(state.lang, activeStruct.entity);
   const safeRootQ = ((state.rootQ % 24) + 24) % 24;

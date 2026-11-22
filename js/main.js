@@ -1250,9 +1250,14 @@ const studyGuideView = createStudyGuideView({
   clearSequenceTimers: (...args) => clearSequenceTimers(...args),
   suspendPitchDetection: (...args) => suspendPitchDetection(...args),
   escapeHtml: (...args) => escapeHtml(...args),
-  safeT: (...args) => safeT(...args),  getActiveStudyLevelFilter: () => typeof activeStudyLevelFilter !== "undefined" ? activeStudyLevelFilter : "ALL",
-  setActiveStudyLevelFilter: (v) => { if (typeof activeStudyLevelFilter !== "undefined") activeStudyLevelFilter = v; },  getActiveEtudeKind: () => typeof activeEtudeKind !== "undefined" ? activeEtudeKind : "ALL",
-  setActiveEtudeKind: (v) => { if (typeof activeEtudeKind !== "undefined") activeEtudeKind = v; },  setAppliedStudyLessonId: (v) => { appliedStudyLessonId = v; },
+  safeT: (...args) => safeT(...args),
+  getActiveStudyLevelFilter: () => typeof activeStudyLevelFilter !== "undefined" ? activeStudyLevelFilter : "ALL",
+  setActiveStudyLevelFilter: (v) => { if (typeof activeStudyLevelFilter !== "undefined") activeStudyLevelFilter = v; },
+  getActiveEtudeKind: () => typeof activeEtudeKind !== "undefined" ? activeEtudeKind : "ALL",
+  setActiveEtudeKind: (v) => { if (typeof activeEtudeKind !== "undefined") activeEtudeKind = v; },
+  setAppliedStudyLessonId: (v) => { appliedStudyLessonId = v; },
+  getHighlightedSequenceStep: () => highlightedSequenceStep,
+  setHighlightedSequenceStep: (v) => { highlightedSequenceStep = v; },
   getIsIqaPlaying: () => isIqaPlaying,
   isPitchListening: (...args) => isPitchListening(...args),
   getOudTimbreProfile: (...args) => getOudTimbreProfile(...args),
@@ -1261,12 +1266,9 @@ const studyGuideView = createStudyGuideView({
   toggleZenMode: (...args) => toggleZenMode(...args),
   refreshAll: (...args) => refreshAll(...args),
   syncControlsWithState: (...args) => syncControlsWithState(...args),
-  clearAllActivePlayback: (...args) => clearAllActivePlayback(...args),  getIsStudyDossierOpen: () => typeof isStudyDossierOpen !== "undefined" ? isStudyDossierOpen : false,
+  clearAllActivePlayback: (...args) => clearAllActivePlayback(...args),
+  getIsStudyDossierOpen: () => typeof isStudyDossierOpen !== "undefined" ? isStudyDossierOpen : false,
   setIsStudyDossierOpen: (v) => { if (typeof isStudyDossierOpen !== "undefined") isStudyDossierOpen = Boolean(v); },
-
-
-
-
 });
 
 const {
@@ -1589,6 +1591,7 @@ const deckPanelsView = createDeckPanelsView({
   suspendPitchDetection: (...args) => suspendPitchDetection(...args),
   strumChordVoicing: (...args) => strumChordVoicing(...args),
   playScaleSequence: (...args) => playScaleSequence(...args),
+  playPluckedNote: (...args) => playPluckedNote(...args),
   setActivePopover,
   setActiveDeckTab,
   syncMobileMicButton: (...args) => syncMobileMicButton(...args),

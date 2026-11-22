@@ -45,7 +45,6 @@ export function createStudyGuideView(deps) {
     escapeHtml,
     safeT,
   } = deps;
-  const isIqaPlaying = typeof deps?.getIsIqaPlaying === "function" ? deps.getIsIqaPlaying() : (typeof deps?.isIqaPlaying === "boolean" ? deps.isIqaPlaying : false);
   let activeEtudeKind = typeof deps?.getActiveEtudeKind === "function" ? deps.getActiveEtudeKind() : (deps?.activeEtudeKind ?? "ALL");
   let activeStudyLevelFilter = typeof deps?.getActiveStudyLevelFilter === "function" ? deps.getActiveStudyLevelFilter() : (deps?.activeStudyLevelFilter ?? "ALL");
   const STUDY_MODULES = typeof deps?.getStudyModules === "function" ? deps.getStudyModules() : (deps?.STUDY_MODULES || []);
@@ -66,12 +65,21 @@ export function createStudyGuideView(deps) {
   let activeStudyLessonId = getActiveStudyLessonId();
   let appliedStudyLessonId = getAppliedStudyLessonId();
   let completedStudyLessons = getCompletedStudyLessons();
-  let etudePlaybackTimers = getEtudePlaybackTimers() || [];
   let etudeKindFilter = getEtudeKindFilter ? getEtudeKindFilter() : "ALL";
   let etudeRootOverrideQ = getEtudeRootOverrideQ ? getEtudeRootOverrideQ() : null;
 
   
-  let highlightedSequenceStep = typeof deps?.getHighlightedSequenceStep === "function" ? deps.getHighlightedSequenceStep() : -1;
+  let _localHighlightedSequenceStep = typeof deps?.getHighlightedSequenceStep === "function" ? deps.getHighlightedSequenceStep() : -1;
+  const readHighlightedStep = () =>
+    typeof deps?.getHighlightedSequenceStep === "function"
+      ? deps.getHighlightedSequenceStep()
+      : _localHighlightedSequenceStep;
+  const writeHighlightedStep = (v) => {
+    _localHighlightedSequenceStep = v;
+    if (typeof deps?.setHighlightedSequenceStep === "function") {
+      deps.setHighlightedSequenceStep(v);
+    }
+  };
   let isEtudeLoopPlaying = typeof deps?.getIsEtudeLoopPlaying === "function" ? deps.getIsEtudeLoopPlaying() : false;
   let activeEtudeSpeed = typeof deps?.getActiveEtudeSpeed === "function" ? deps.getActiveEtudeSpeed() : 0.85;
 
@@ -88,24 +96,6 @@ export function createStudyGuideView(deps) {
     : (v) => { appliedStudyLessonId = v; };
 
     let isStudyDossierOpen = typeof deps?.getIsStudyDossierOpen === "function" ? Boolean(deps.getIsStudyDossierOpen()) : Boolean(deps?.isStudyDossierOpen ?? false);
-  function syncLocalRefs() {
-    setActiveStudyModuleId(getActiveStudyModuleId());
-    setActiveStudyLessonId(getActiveStudyLessonId());
-    setAppliedStudyLessonId(getAppliedStudyLessonId());
-    completedStudyLessons = getCompletedStudyLessons();
-    setEtudePlaybackTimers(getEtudePlaybackTimers() || []);
-    if (getEtudeKindFilter) etudeKindFilter = getEtudeKindFilter();
-    if (getEtudeRootOverrideQ) etudeRootOverrideQ = getEtudeRootOverrideQ();
-  }
-
-  function commitRefs() {
-    setActiveStudyModuleId(activeStudyModuleId);
-    setActiveStudyLessonId(activeStudyLessonId);
-    setEtudePlaybackTimers(etudePlaybackTimers);
-    if (setEtudeKindFilter) setEtudeKindFilter(etudeKindFilter);
-    if (setEtudeRootOverrideQ) setEtudeRootOverrideQ(etudeRootOverrideQ);
-  }
-
   function getStudyPaneElement() {
     return /** @type {HTMLElement | null} */ (
       document.getElementById("deck-pane-study") ||
@@ -186,11 +176,12 @@ function buildStudyDossierHtml(lessonId, isEn) {
 }
 
 function stopTechnicalEtudePlayback(shouldRefresh = false) {
-  etudePlaybackTimers.forEach(id => window.clearTimeout(id));
+  const activeTimers = getEtudePlaybackTimers() || [];
+  activeTimers.forEach(id => window.clearTimeout(id));
   setEtudePlaybackTimers([]);
-  const hadStep = highlightedSequenceStep !== -1 || isEtudeLoopPlaying;
+  const hadStep = readHighlightedStep() !== -1 || isEtudeLoopPlaying;
   isEtudeLoopPlaying = false;
-  highlightedSequenceStep = -1;
+  writeHighlightedStep(-1);
   if (shouldRefresh && hadStep) {
     refreshAll();
   }
@@ -207,7 +198,7 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
   const lesson = getStudyLessonById(lessonId);
   if (!lesson) return;
 
-  if (appliedStudyLessonId !== lesson.id) {
+  if (getAppliedStudyLessonId() !== lesson.id) {
     applyStudyLessonPreset(lesson.id, { playConfirmTone: false, scrollToStage: false });
   }
 
@@ -223,19 +214,21 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
   const speedFactor = Math.max(0.4, Math.min(1.5, activeEtudeSpeed || 0.85));
 
   const runCycle = () => {
-    etudePlaybackTimers.forEach(id => window.clearTimeout(id));
-    setEtudePlaybackTimers([]);
+    const prevTimers = getEtudePlaybackTimers() || [];
+    prevTimers.forEach(id => window.clearTimeout(id));
+    const nextTimers = [];
+    setEtudePlaybackTimers(nextTimers);
     let elapsedMs = 0;
     spec.steps.forEach((st, idx) => {
       const dur = Math.max(150, Math.round(st.baseDurMs / speedFactor));
       const tId = window.setTimeout(() => {
-        highlightedSequenceStep = idx;
+        writeHighlightedStep(idx);
         const freq = 65.41 * Math.pow(2, (st.absQ * 50 + st.centsDev) / 1200);
         const vel = st.risha === "UP" ? 0.24 : 0.34;
         playPluckedNote(freq, Math.max(0.55, dur / 320), vel);
         refreshAll();
       }, elapsedMs);
-      etudePlaybackTimers.push(tId);
+      nextTimers.push(tId);
       elapsedMs += dur;
     });
 
@@ -246,11 +239,11 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
       if (isEtudeLoopPlaying) {
         runCycle();
       } else {
-        highlightedSequenceStep = -1;
+        writeHighlightedStep(-1);
         refreshAll();
       }
     }, totalMs);
-    etudePlaybackTimers.push(endId);
+    nextTimers.push(endId);
   };
 
   syncControlsWithState();
@@ -279,7 +272,7 @@ function buildTechnicalEtudesHtml(lesson, isEn) {
 
   const stepsStripHtml = spec.steps.slice(0, 12).map((st, idx) => {
     const arrow = st.risha === "DOWN" ? "↓" : "↑";
-    const isHi = highlightedSequenceStep === idx;
+    const isHi = readHighlightedStep() === idx;
     return `
       <span class="study-etude-step-chip ${st.risha === "DOWN" ? "is-down" : "is-up"} ${isHi ? "is-playing" : ""}">
         <span class="risha-arrow">${arrow}</span>
@@ -331,6 +324,8 @@ function renderStudyGuidePane() {
   if (typeof deps?.getActiveStudyModuleId === "function") activeStudyModuleId = deps.getActiveStudyModuleId();
   if (typeof deps?.getActiveStudyLessonId === "function") activeStudyLessonId = deps.getActiveStudyLessonId();
   if (typeof deps?.getAppliedStudyLessonId === "function") appliedStudyLessonId = deps.getAppliedStudyLessonId();
+  completedStudyLessons = getCompletedStudyLessons();
+  const isIqaPlaying = typeof deps?.getIsIqaPlaying === "function" ? Boolean(deps.getIsIqaPlaying()) : false;
 
   const isEn = state.lang === "en";
   const allLessons = getAllStudyLessons();
@@ -351,7 +346,10 @@ function renderStudyGuidePane() {
   let currentLesson = getStudyLessonById(activeStudyLessonId);
   if (!currentLesson || currentLesson.moduleId !== currentMod.id) {
     currentLesson = currentMod.lessons[0];
-    if (currentLesson) activeStudyLessonId = currentLesson.id;
+    if (currentLesson) {
+      activeStudyLessonId = currentLesson.id;
+      setActiveStudyLessonId(currentLesson.id);
+    }
   }
   const locLesson = currentLesson ? localizeStudyLesson(state.lang, currentLesson) : null;
   const nextLesson = currentLesson ? getNextStudyLesson(currentLesson.id) : null;
@@ -569,9 +567,13 @@ function renderStudyGuidePane() {
         : STUDY_MODULES.filter(m => m.level === lvl);
       if (matchingMods.length && !matchingMods.some(m => m.id === activeStudyModuleId)) {
         const nextMod = matchingMods[0];
+        activeStudyModuleId = nextMod.id;
         setActiveStudyModuleId(nextMod.id);
         const firstPending = nextMod.lessons.find(l => !completedStudyLessons.has(l.id)) || nextMod.lessons[0];
-        if (firstPending) activeStudyLessonId = firstPending.id;
+        if (firstPending) {
+          activeStudyLessonId = firstPending.id;
+          setActiveStudyLessonId(firstPending.id);
+        }
         saveStudyProgress();
       }
       renderStudyGuidePane();
@@ -637,7 +639,7 @@ function renderStudyGuidePane() {
   });
 
   pane.querySelector(".btn-study-live-pitch")?.addEventListener("click", () => {
-    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+    if (currentLesson && getAppliedStudyLessonId() !== currentLesson.id) {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
     }
     openLiveTunerBar("MAQAM_24TET", true);
@@ -659,7 +661,7 @@ function renderStudyGuidePane() {
   });
 
   pane.querySelector(".btn-study-iqa")?.addEventListener("click", () => {
-    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+    if (currentLesson && getAppliedStudyLessonId() !== currentLesson.id) {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
     }
     toggleIqaPlayback();
@@ -668,14 +670,14 @@ function renderStudyGuidePane() {
   });
 
   pane.querySelector(".btn-study-zen")?.addEventListener("click", () => {
-    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+    if (currentLesson && getAppliedStudyLessonId() !== currentLesson.id) {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
     }
     toggleZenMode(true);
   });
 
   pane.querySelector(".btn-study-open-radar")?.addEventListener("click", () => {
-    if (currentLesson && appliedStudyLessonId !== currentLesson.id) {
+    if (currentLesson && getAppliedStudyLessonId() !== currentLesson.id) {
       applyStudyLessonPreset(currentLesson.id, { playConfirmTone: false, scrollToStage: false });
     }
     setActiveDeckTab("modulation");

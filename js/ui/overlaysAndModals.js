@@ -6,16 +6,19 @@
  */
 export function createOverlaysAndModals(deps) {
   /**
-   * @param {"main" | null} menuKey
+   * @param {"main" | "audio" | null} menuKey
    */
   function setActiveHeaderMenu(menuKey) {
-    const curMenu = deps.getActiveHeaderMenu();
-    const nextMenu = curMenu === menuKey ? null : menuKey;
+    const nextMenu = menuKey === "main" || menuKey === "audio" ? menuKey : null;
     deps.setActiveHeaderMenu(nextMenu);
 
+    if (nextMenu !== null && deps.getActivePopoverIdx && deps.getActivePopoverIdx() !== null) {
+      setActivePopover(null);
+    }
+
     const isMainOpen = nextMenu === "main";
-    const mainDrop = document.getElementById("header-main-dropdown");
-    const mainBtn = document.getElementById("btn-header-main-menu");
+    const mainDrop = document.getElementById("header-menu-popover");
+    const mainBtn = document.getElementById("btn-header-menu");
     if (mainDrop) {
       mainDrop.classList.toggle("open", isMainOpen);
       mainDrop.setAttribute("aria-hidden", isMainOpen ? "false" : "true");
@@ -23,6 +26,18 @@ export function createOverlaysAndModals(deps) {
     if (mainBtn) {
       mainBtn.classList.toggle("active-menu-btn", isMainOpen);
       mainBtn.setAttribute("aria-expanded", isMainOpen ? "true" : "false");
+    }
+
+    const isAudioOpen = nextMenu === "audio";
+    const audioDrop = document.getElementById("audio-dropdown");
+    const audioBtn = document.getElementById("btn-audio-menu");
+    if (audioDrop) {
+      audioDrop.classList.toggle("open", isAudioOpen);
+      audioDrop.setAttribute("aria-hidden", isAudioOpen ? "false" : "true");
+    }
+    if (audioBtn) {
+      audioBtn.classList.toggle("active-menu-btn", isAudioOpen);
+      audioBtn.setAttribute("aria-expanded", isAudioOpen ? "true" : "false");
     }
   }
 
