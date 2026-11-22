@@ -902,9 +902,9 @@ function handleTogglePositionRegion(regionId) {
   clearShiftOverlay(false);
 
   if (state.shapeMode === regionId) {
-    state.shapeMode = "FULL_NECK";
+    commitStatePatch({ shapeMode: "FULL_NECK" }, { syncControls: false, refresh: false });
   } else {
-    state.shapeMode = /** @type {any} */ (regionId);
+    commitStatePatch({ shapeMode: /** @type {any} */ (regionId) }, { syncControls: false, refresh: false });
   }
 
   syncControlsWithState();
@@ -1022,7 +1022,7 @@ function handlePivotAction(payload) {
       return isEn ? "Full" : "I";
     };
 
-    state.shapeMode = /** @type {any} */ (nextMode);
+    commitStatePatch({ shapeMode: /** @type {any} */ (nextMode) }, { syncControls: false, refresh: false });
     suspendPitchDetection(700);
     playPluckedNote(payload.freq, 1.35);
 
@@ -2544,7 +2544,7 @@ function applySelectedPitchAsRoot(targetPitch) {
   clearShiftOverlay(false);
 
   if (targetPitch && typeof targetPitch.absQ === "number" && !Number.isNaN(targetPitch.absQ)) {
-    state.octavePathDir = "ASC";
+    commitStatePatch({ octavePathDir: "ASC" }, { syncControls: false, refresh: false });
   } else {
   }
 
@@ -2555,7 +2555,7 @@ function applySelectedPitchAsRoot(targetPitch) {
   if (selRoot) selRoot.value = String(state.rootQ);
 
   if (state.shapeMode === "CLOSED_BOX" && targetPitch && typeof targetPitch.qFromNut === "number" && targetPitch.qFromNut >= 1) {
-    state.boxAnchorQ = Math.max(1, Math.min(10, targetPitch.qFromNut));
+    commitStatePatch({ boxAnchorQ: Math.max(1, Math.min(10, targetPitch.qFromNut)) }, { syncControls: false, refresh: false });
     const sliderBox = /** @type {HTMLInputElement | null} */ (document.getElementById("slider-box"));
     const labelBoxPos = document.getElementById("label-box-pos");
     if (sliderBox) sliderBox.value = String(state.boxAnchorQ);
@@ -2893,7 +2893,7 @@ function renderCadenceBar() {
       clearAllActivePlayback();
       clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
-      state.cadenceStepIndex = idx;
+      commitStatePatch({ cadenceStepIndex: idx }, { syncControls: false, refresh: false });
       refreshAll();
       suspendPitchDetection(950);
       strumChordVoicing(currentChordVoicingFreqs);
@@ -3182,7 +3182,7 @@ function handlePrimaryAudioAction() {
     const cad = DB.cadences.find(x => x.id === state.entityId) || DB.cadences[0];
     suspendPitchDetection(cad.steps.length * 1150 + 500);
     scheduleCadenceSequence(cad.steps.length, (stepIdx) => {
-      state.cadenceStepIndex = stepIdx;
+      commitStatePatch({ cadenceStepIndex: stepIdx }, { syncControls: false, refresh: false });
       refreshAll();
       strumChordVoicing(currentChordVoicingFreqs);
     });
@@ -3211,7 +3211,7 @@ function handlePlayTaqsim() {
 
   state.octavePathOnly = false;
   state.showSayr = true;
-  state.staffMode = "SAYR";
+  commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
   syncControlsWithState();
 
   const totalDur = phrase.steps.reduce((/** @type {number} */ acc, /** @type {any} */ st) => acc + (st.dur_ms || 360), 0);
@@ -4009,7 +4009,7 @@ function initApp() {
       e.preventDefault();
       clearAllActivePlayback();
       state.octavePathOnly = true;
-      state.staffMode = "SCALE";
+      commitStatePatch({ staffMode: "SCALE" }, { syncControls: false, refresh: false });
       refreshAll();
       return;
     }
@@ -4017,7 +4017,7 @@ function initApp() {
     if (target.closest("#btn-oct-dir-asc")) {
       e.preventDefault();
       clearAllActivePlayback();
-      state.octavePathDir = "ASC";
+      commitStatePatch({ octavePathDir: "ASC" }, { syncControls: false, refresh: false });
       state.octavePathOnly = true;
       refreshAll();
       return;
@@ -4026,7 +4026,7 @@ function initApp() {
     if (target.closest("#btn-oct-dir-desc")) {
       e.preventDefault();
       clearAllActivePlayback();
-      state.octavePathDir = "DESC";
+      commitStatePatch({ octavePathDir: "DESC" }, { syncControls: false, refresh: false });
       state.octavePathOnly = true;
       refreshAll();
       return;
@@ -4041,7 +4041,7 @@ function initApp() {
     if (target.closest("#btn-close-octave-bar")) {
       e.preventDefault();
       clearAllActivePlayback();
-      state.anchorAbsQ = null;
+      commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
       state.octavePathOnly = false;
       refreshAll();
     }
@@ -4105,14 +4105,14 @@ function initApp() {
   });
 
   document.getElementById("btn-staff-mode-scale")?.addEventListener("click", () => {
-    state.staffMode = "SCALE";
+    commitStatePatch({ staffMode: "SCALE" }, { syncControls: false, refresh: false });
     selectedStaffOrNeckPitch = null;
     syncControlsWithState();
     refreshAll();
   });
 
   document.getElementById("btn-staff-mode-sayr")?.addEventListener("click", () => {
-    state.staffMode = "SAYR";
+    commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
     state.octavePathOnly = false;
     selectedStaffOrNeckPitch = null;
     syncControlsWithState();
@@ -4140,7 +4140,7 @@ function initApp() {
     clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
-    state.anchorAbsQ = null;
+    commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
     state.octavePathOnly = false;
     commitStatePatch({ rootQ: parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0 }, { syncControls: false, refresh: false });
     refreshAll();
@@ -4152,7 +4152,7 @@ function initApp() {
     clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
-    state.anchorAbsQ = null;
+    commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
     state.octavePathOnly = false;
     const active = /** @type {any} */ (getActiveStructure(state).entity);
     if (active.traditional_root_q !== undefined) {
@@ -4172,7 +4172,7 @@ function initApp() {
     state.iqaId = /** @type {HTMLSelectElement} */ (e.target).value;
     const found = DB.iqaat.find(x => x.id === state.iqaId);
     if (found) {
-      state.bpm = found.default_bpm;
+      commitStatePatch({ bpm: found.default_bpm }, { syncControls: false, refresh: false });
       if (sliderBpm) sliderBpm.value = String(state.bpm);
       if (labelBpm) labelBpm.textContent = String(state.bpm);
     }
@@ -4183,7 +4183,7 @@ function initApp() {
   });
 
   sliderBpm?.addEventListener("input", (e) => {
-    state.bpm = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10);
+    commitStatePatch({ bpm: parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10) }, { syncControls: false, refresh: false });
     if (labelBpm) labelBpm.textContent = String(state.bpm);
     restartIqaIfPlaying();
     syncCommandBarSummaries();
@@ -4202,9 +4202,9 @@ function initApp() {
       selectedStaffOrNeckPitch = null;
       modulationOrigin = null;
       commitStatePatch({ mode: /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode) }, { syncControls: false, refresh: false });
-      state.cadenceStepIndex = 0;
+      commitStatePatch({ cadenceStepIndex: 0 }, { syncControls: false, refresh: false });
       if ((state.mode === "CHORD" || state.mode === "CADENCE") && state.shapeMode === "FULL_NECK") {
-        state.shapeMode = "OPEN_FIRST_POS";
+        commitStatePatch({ shapeMode: "OPEN_FIRST_POS" }, { syncControls: false, refresh: false });
       }
       syncControlsWithState();
       if (!hasValidAnchor()) {
@@ -4224,7 +4224,7 @@ function initApp() {
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     state.entityId = /** @type {HTMLSelectElement} */ (e.target).value;
-    state.cadenceStepIndex = 0;
+    commitStatePatch({ cadenceStepIndex: 0 }, { syncControls: false, refresh: false });
     if (!hasValidAnchor()) {
       const active = /** @type {any} */ (getActiveStructure(state).entity);
       if (active.traditional_root_q !== undefined) {
@@ -4247,9 +4247,9 @@ function initApp() {
       clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
       state.octavePathOnly = false;
-      state.sayrPhraseIndex = Number(/** @type {HTMLElement} */ (btn).dataset.phrase);
+      commitStatePatch({ sayrPhraseIndex: Number(/** @type {HTMLElement} */ (btn).dataset.phrase) }, { syncControls: false, refresh: false });
       state.showSayr = true;
-      state.staffMode = "SAYR";
+      commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
       syncControlsWithState();
       refreshAll();
     });
@@ -4268,13 +4268,13 @@ function initApp() {
   });
 
   document.getElementById("btn-dir-asc")?.addEventListener("click", () => {
-    state.direction = "ASC";
+    commitStatePatch({ direction: "ASC" }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
 
   document.getElementById("btn-dir-desc")?.addEventListener("click", () => {
-    state.direction = "DESC";
+    commitStatePatch({ direction: "DESC" }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4283,7 +4283,7 @@ function initApp() {
   selShape?.addEventListener("change", (e) => {
     clearAllActivePlayback();
     clearShiftOverlay(false);
-    state.shapeMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
+    commitStatePatch({ shapeMode: /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value) }, { syncControls: false, refresh: false });
     if (
       state.shapeMode === "CLOSED_BOX" ||
       state.shapeMode === "POS_SECOND" ||
@@ -4303,7 +4303,7 @@ function initApp() {
     labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
   }
   sliderBox?.addEventListener("input", (e) => {
-    state.boxAnchorQ = parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10);
+    commitStatePatch({ boxAnchorQ: parseInt(/** @type {HTMLInputElement} */ (e.target).value, 10) }, { syncControls: false, refresh: false });
     if (labelBoxPos) {
       const semiApprox = (state.boxAnchorQ / 2).toFixed(1).replace(".0", "");
       labelBoxPos.textContent = `S${semiApprox} (q=${state.boxAnchorQ})`;
