@@ -2542,19 +2542,13 @@ function applySelectedPitchAsRoot(targetPitch) {
 
   clearAllActivePlayback();
   clearShiftOverlay(false);
-  state.rootQ = newRootQ;
 
   if (targetPitch && typeof targetPitch.absQ === "number" && !Number.isNaN(targetPitch.absQ)) {
-    state.anchorAbsQ = targetPitch.absQ;
-    state.octavePathOnly = true;
     state.octavePathDir = "ASC";
   } else {
-    state.anchorAbsQ = null;
-    state.octavePathOnly = false;
   }
 
   if (state.mode === "CADENCE") {
-    state.cadenceStepIndex = 0;
   }
 
   const selRoot = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-root"));
@@ -2580,6 +2574,14 @@ function applySelectedPitchAsRoot(targetPitch) {
   selectedStaffOrNeckPitch = null;
   syncControlsWithState();
   refreshAll();
+  commitStatePatch({
+    rootQ: newRootQ,
+    anchorAbsQ: targetPitch.absQ,
+    octavePathOnly: true,
+    anchorAbsQ: null,
+    octavePathOnly: false,
+    cadenceStepIndex: 0,
+  }, { syncControls: false, refresh: false });
 }
 
 function handlePlayAnchoredOctavePath() {
@@ -2946,11 +2948,13 @@ function renderModulationRadarCard() {
         clearAllActivePlayback();
         clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
-        state.mode = modulationOrigin.mode;
-        state.entityId = modulationOrigin.entityId;
-        state.rootQ = modulationOrigin.rootQ;
-        state.anchorAbsQ = modulationOrigin.anchorAbsQ;
-        state.octavePathOnly = Boolean(modulationOrigin.anchorAbsQ !== null);
+        commitStatePatch({
+          mode: modulationOrigin.mode,
+          entityId: modulationOrigin.entityId,
+          rootQ: modulationOrigin.rootQ,
+          anchorAbsQ: modulationOrigin.anchorAbsQ,
+          octavePathOnly: Boolean(modulationOrigin.anchorAbsQ !== null),
+        }, { syncControls: false, refresh: false });
         modulationOrigin = null;
         suspendPitchDetection(700);
         playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
@@ -3034,11 +3038,13 @@ function renderModulationRadarCard() {
         };
       }
 
-      state.mode = route.targetMode;
-      state.entityId = route.targetId;
-      state.rootQ = route.absTargetRootQ;
-      state.anchorAbsQ = null;
-      state.octavePathOnly = false;
+      commitStatePatch({
+        mode: route.targetMode,
+        entityId: route.targetId,
+        rootQ: route.absTargetRootQ,
+        anchorAbsQ: null,
+        octavePathOnly: false,
+      }, { syncControls: false, refresh: false });
 
       suspendPitchDetection(700);
       playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
@@ -3127,12 +3133,11 @@ function updateInfoPanel() {
         clearAllActivePlayback();
         clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
-        state.mode = "CADENCE";
-        state.entityId = entity.linked_cadence;
-        state.cadenceStepIndex = 0;
-        if (state.shapeMode === "FULL_NECK") {
-          state.shapeMode = "OPEN_FIRST_POS";
-        }
+        commitStatePatch({
+          mode: "CADENCE",
+          entityId: entity.linked_cadence,
+          cadenceStepIndex: 0,
+        }, { syncControls: false, refresh: false });
         syncControlsWithState();
         refreshAll();
       });
@@ -3150,8 +3155,10 @@ function updateInfoPanel() {
         clearAllActivePlayback();
         clearShiftOverlay(false);
         selectedStaffOrNeckPitch = null;
-        state.mode = "MAQAM";
-        state.entityId = entity.bridge_maqam;
+        commitStatePatch({
+          mode: "MAQAM",
+          entityId: entity.bridge_maqam,
+        }, { syncControls: false, refresh: false });
         syncControlsWithState();
         refreshAll();
       });
@@ -4135,7 +4142,7 @@ function initApp() {
     modulationOrigin = null;
     state.anchorAbsQ = null;
     state.octavePathOnly = false;
-    state.rootQ = parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0;
+    commitStatePatch({ rootQ: parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0 }, { syncControls: false, refresh: false });
     refreshAll();
   });
 
@@ -4149,7 +4156,7 @@ function initApp() {
     state.octavePathOnly = false;
     const active = /** @type {any} */ (getActiveStructure(state).entity);
     if (active.traditional_root_q !== undefined) {
-      state.rootQ = active.traditional_root_q;
+      commitStatePatch({ rootQ: active.traditional_root_q }, { syncControls: false, refresh: false });
       if (selRoot) selRoot.value = String(state.rootQ);
       refreshAll();
     }
@@ -4194,7 +4201,7 @@ function initApp() {
       clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
       modulationOrigin = null;
-      state.mode = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode);
+      commitStatePatch({ mode: /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.mode) }, { syncControls: false, refresh: false });
       state.cadenceStepIndex = 0;
       if ((state.mode === "CHORD" || state.mode === "CADENCE") && state.shapeMode === "FULL_NECK") {
         state.shapeMode = "OPEN_FIRST_POS";
@@ -4203,7 +4210,7 @@ function initApp() {
       if (!hasValidAnchor()) {
         const active = /** @type {any} */ (getActiveStructure(state).entity);
         if (active.traditional_root_q !== undefined) {
-          state.rootQ = active.traditional_root_q;
+          commitStatePatch({ rootQ: active.traditional_root_q }, { syncControls: false, refresh: false });
           if (selRoot) selRoot.value = String(state.rootQ);
         }
       }
@@ -4221,7 +4228,7 @@ function initApp() {
     if (!hasValidAnchor()) {
       const active = /** @type {any} */ (getActiveStructure(state).entity);
       if (active.traditional_root_q !== undefined) {
-        state.rootQ = active.traditional_root_q;
+        commitStatePatch({ rootQ: active.traditional_root_q }, { syncControls: false, refresh: false });
         if (selRoot) selRoot.value = String(state.rootQ);
       }
     }
