@@ -1,4 +1,5 @@
 import { createTunerController } from "./ui/tunerController.js";
+import { createOverlaysAndModals } from "./ui/overlaysAndModals.js";
 // @ts-check
 import { DB, PITCH_CLASSES_24 } from "./core/database.js";
 import {
@@ -1893,62 +1894,37 @@ function resolvePitchClassQ(targetPitch) {
  * Abre ou fecha os menus flutuantes do cabeçalho ("audio" | "main" | null).
  * @param {"audio"|"main"|null} which
  */
-function setActiveHeaderMenu(which) {
-  activeHeaderMenu = which;
-
-  if (which !== null && activePopoverIdx !== null) {
-    setActivePopover(null);
-  }
-
-  const audioDrop = document.getElementById("audio-dropdown");
-  const audioBtn = document.getElementById("btn-audio-menu");
-  const mainDrop = document.getElementById("header-menu-popover");
-  const mainBtn = document.getElementById("btn-header-menu");
-
-  const isAudioOpen = which === "audio";
-  const isMainOpen = which === "main";
-
-  audioDrop?.classList.toggle("open", isAudioOpen);
-  audioDrop?.setAttribute("aria-hidden", isAudioOpen ? "false" : "true");
-  audioBtn?.setAttribute("aria-expanded", isAudioOpen ? "true" : "false");
-
-  mainDrop?.classList.toggle("open", isMainOpen);
-  mainDrop?.setAttribute("aria-hidden", isMainOpen ? "false" : "true");
-  mainBtn?.classList.toggle("active-menu-btn", isMainOpen);
-  mainBtn?.setAttribute("aria-expanded", isMainOpen ? "true" : "false");
-}
-
 /**
  * Abre ou fecha um dos 4 painéis da Barra Única (Popover no Desktop / Bottom Sheet no Mobile).
  * @param {number | null} idx
  */
-function setActivePopover(idx) {
-  activePopoverIdx = idx;
 
-  if (idx !== null && activeHeaderMenu !== null) {
-    setActiveHeaderMenu(null);
-  }
+const overlaysAndModals = createOverlaysAndModals({
+  getState: () => state,
+  getPitchClasses24: () => PITCH_CLASSES_24,
+  getGlossaryEntries: () => GLOSSARY_ENTRIES,
+  getActiveHeaderMenu: () => activeHeaderMenu,
+  setActiveHeaderMenu: (val) => { activeHeaderMenu = val; },
+  getActivePopoverIdx: () => activePopoverIdx,
+  setActivePopoverIdx: (val) => { activePopoverIdx = val; },
+  getGlossaryQuery: () => glossaryQuery,
+  setGlossaryQuery: (val) => { glossaryQuery = val; },
+  getGlossaryCategory: () => glossaryCategory,
+  setGlossaryCategory: (val) => { glossaryCategory = val; },
+  localizeGlossaryEntry,
+  t,
+  escapeHtml,
+  scheduleUiTimeout,
+});
 
-  const backdrop = document.getElementById("popover-backdrop");
-
-  document.querySelectorAll(".cmd-popover").forEach(el => {
-    const panel = /** @type {HTMLElement} */ (el);
-    const isOpen = idx !== null && Number(panel.dataset.panelId) === idx;
-    panel.classList.toggle("open", isOpen);
-    panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
-  });
-
-  document.querySelectorAll(".cmd-trigger").forEach(el => {
-    const btn = /** @type {HTMLElement} */ (el);
-    const isActive = idx !== null && Number(btn.dataset.panel) === idx;
-    btn.classList.toggle("active-trigger", isActive);
-    btn.setAttribute("aria-expanded", isActive ? "true" : "false");
-  });
-
-  if (backdrop) {
-    backdrop.classList.toggle("open", idx !== null);
-  }
-}
+const {
+  setActiveHeaderMenu,
+  setActivePopover,
+  showTouchLoupeFeedback,
+  renderGlossaryList,
+  openGlossary,
+  closeGlossary,
+} = overlaysAndModals;
 
 function toggleAppTheme() {
   commitStatePatch({ theme: state.theme === "light" ? "dark" : "light" }, { syncControls: false, refresh: false });
@@ -2026,42 +2002,6 @@ function toggleIqaPlayback() {
   }
   syncCommandBarSummaries();
   syncLiveTunerUI();
-}
-
-function showTouchLoupeFeedback(noteInfo) {
-  const loupe = document.getElementById("touch-loupe-badge");
-  if (!loupe || noteInfo.pitchClassQ === null) return;
-
-  const pcIdx = ((noteInfo.pitchClassQ % 24) + 24) % 24;
-  const pc = PITCH_CLASSES_24[pcIdx] || PITCH_CLASSES_24[0];
-  const isEn = state.lang === "en";
-
-  const courseTxt = noteInfo.course
-    ? (isEn ? `${noteInfo.course}th Course` : `${noteInfo.course}ª Ordem`)
-    : "";
-  const fingerTxt = noteInfo.qFromNut === 0
-    ? (isEn ? "Open" : "Solta")
-    : (noteInfo.finger !== undefined ? (isEn ? `F${noteInfo.finger}` : `Dedo ${noteInfo.finger}`) : "");
-
-  loupe.innerHTML = `
-    <span style="color:var(--accent);">${pc.flat} (${pc.arabic})</span>
-    ${courseTxt ? `<span style="color:var(--plum);">• ${courseTxt}</span>` : ""}
-    ${fingerTxt ? `<span style="color:var(--text-muted); font-size:0.74rem;">• ${fingerTxt}</span>` : ""}
-  `;
-  loupe.classList.add("visible");
-
-  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-    try {
-      navigator.vibrate(10);
-    } catch {
-      // Ignora
-    }
-  }
-
-  window.clearTimeout(loupeHideTimer);
-  loupeHideTimer = window.setTimeout(() => {
-    loupe.classList.remove("visible");
-  }, 2400);
 }
 
 function applySelectedPitchAsRoot(targetPitch) {
@@ -2279,91 +2219,6 @@ function syncCommandBarSummaries() {
   if (btnInstall) {
     btnInstall.textContent = state.lang === "en" ? "📲 Install App" : "📲 Instalar App";
   }
-}
-
-function renderGlossaryList(focusTermId) {
-  const listEl = document.getElementById("glossary-list");
-  if (!listEl) return;
-  listEl.innerHTML = "";
-
-  const normalize = (/** @type {string} */ str) =>
-    str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  const qNorm = normalize(glossaryQuery.trim());
-
-  const filtered = GLOSSARY_ENTRIES.filter(rawEntry => {
-    const matchCat = glossaryCategory === "ALL" || rawEntry.category === glossaryCategory;
-    if (!matchCat) return false;
-    if (!qNorm) return true;
-    const locEntry = localizeGlossaryEntry(state.lang, rawEntry);
-    const haystack = normalize(
-      `${rawEntry.term} ${rawEntry.literal} ${rawEntry.definition} ${locEntry.term} ${locEntry.literal} ${locEntry.definition} ${locEntry.oudApplication}`
-    ) + " " + rawEntry.arabic;
-    return haystack.includes(qNorm);
-  });
-
-  if (!filtered.length) {
-    listEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:24px; font-size:0.84rem;">${t(state.lang, "glossaryEmpty")} "${glossaryQuery}".</div>`;
-    return;
-  }
-
-  filtered.forEach(rawEntry => {
-    const entry = localizeGlossaryEntry(state.lang, rawEntry);
-    const card = document.createElement("article");
-    const isFocused = focusTermId === entry.id;
-    card.className = `glossary-item ${isFocused ? "highlighted" : ""}`;
-    card.id = `gloss-entry-${entry.id}`;
-    card.innerHTML = `
-      <div class="glossary-item-top">
-        <span class="glossary-term-title">${entry.term}</span>
-        <span class="glossary-arabic" lang="ar">${entry.arabic}</span>
-      </div>
-      <div class="glossary-meta-row">
-        <span class="glossary-literal">${t(state.lang, "glossaryTranslationLbl")}: "${entry.literal}"</span>
-        <span class="glossary-cat-tag">${entry.categoryLabel}</span>
-      </div>
-      <p class="glossary-def">${entry.definition}</p>
-      <div class="glossary-app-note">🪕 <strong>${t(state.lang, "glossaryAppLbl")}:</strong> ${entry.oudApplication}</div>
-    `;
-    listEl.appendChild(card);
-  });
-
-  if (focusTermId) {
-    requestAnimationFrame(() => {
-      document.getElementById(`gloss-entry-${focusTermId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-  }
-}
-
-function openGlossary(termId) {
-  setActivePopover(null);
-  setActiveHeaderMenu(null);
-  const drawer = document.getElementById("glossary-drawer");
-  const backdrop = document.getElementById("glossary-backdrop");
-  if (!drawer || !backdrop) return;
-
-  if (termId) {
-    glossaryCategory = "ALL";
-    glossaryQuery = "";
-    const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById("glossary-search-input"));
-    if (searchInput) searchInput.value = "";
-    document.querySelectorAll(".gloss-cat-btn").forEach(b => {
-      b.classList.toggle("selected", /** @type {HTMLElement} */ (b).dataset.cat === "ALL");
-    });
-  }
-
-  renderGlossaryList(termId);
-  drawer.classList.add("open");
-  drawer.setAttribute("aria-hidden", "false");
-  backdrop.classList.add("open");
-}
-
-function closeGlossary() {
-  const drawer = document.getElementById("glossary-drawer");
-  const backdrop = document.getElementById("glossary-backdrop");
-  drawer?.classList.remove("open");
-  drawer?.setAttribute("aria-hidden", "true");
-  backdrop?.classList.remove("open");
 }
 
 function renderIqaBeatGrid() {
