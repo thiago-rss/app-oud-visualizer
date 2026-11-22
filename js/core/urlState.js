@@ -1,178 +1,242 @@
 // @ts-check
+import { DB } from "./database.js";
 
 /**
- * @typedef {Object} OudAppState
- * @property {"pt"|"en"} lang
- * @property {"dark"|"light"} theme
- * @property {string} tradition
- * @property {"HORIZONTAL"|"VERTICAL"} orientation
- * @property {string} tuningId
- * @property {"MAQAM"|"JINS"|"SCALE"|"CHORD"|"CADENCE"} mode
- * @property {string} entityId
- * @property {number} rootQ
- * @property {number | null} anchorAbsQ
- * @property {boolean} octavePathOnly
- * @property {"ASC"|"DESC"} octavePathDir
- * @property {"ASC"|"DESC"} direction
- * @property {"FULL_NECK"|"OPEN_FIRST_POS"|"POS_SECOND"|"POS_THIRD_BODY"|"CLOSED_BOX"} shapeMode
- * @property {number} boxAnchorQ
- * @property {"ALL"|"LOWER"|"UPPER"} jinsFilter
- * @property {"NOTE_NAME"|"DEGREE"|"FINGER"|"ARABIC"} labelMode
- * @property {boolean} showSemiGuides
- * @property {boolean} showMicroGuides
- * @property {boolean} showGhostNotes
- * @property {boolean} showPositionsMap
- * @property {boolean} showSayr
- * @property {number} sayrPhraseIndex
- * @property {boolean} chordVoicingOnly
- * @property {number} cadenceStepIndex
- * @property {string} iqaId
- * @property {number} bpm
- * @property {boolean} showStaff
- * @property {"SCALE"|"SAYR"} staffMode
- * @property {boolean} droneActive
- * @property {boolean} leftHanded
- */
+* @typedef {Object} OudAppState
+* @property {"pt"|"en"} lang
+* @property {string} tradition
+* @property {"HORIZONTAL"|"VERTICAL"} orientation
+* @property {string} tuningId
+* @property {"MAQAM"|"JINS"|"SCALE"|"CHORD"|"CADENCE"} mode
+* @property {string} entityId
+* @property {number} rootQ
+* @property {number | null} anchorAbsQ
+* @property {boolean} octavePathOnly
+* @property {"ASC"|"DESC"} octavePathDir
+* @property {"ASC"|"DESC"} direction
+* @property {"FULL_NECK"|"OPEN_FIRST_POS"|"POS_SECOND"|"POS_THIRD_BODY"|"CLOSED_BOX"} shapeMode
+* @property {number} boxAnchorQ
+* @property {"ALL"|"LOWER"|"UPPER"} jinsFilter
+* @property {"NOTE_NAME"|"DEGREE"|"FINGER"|"ARABIC"} labelMode
+* @property {boolean} showSemiGuides
+* @property {boolean} showMicroGuides
+* @property {boolean} showGhostNotes
+* @property {boolean} showSayr
+* @property {number} sayrPhraseIndex
+* @property {boolean} chordVoicingOnly
+* @property {number} cadenceStepIndex
+* @property {string} iqaId
+* @property {number} bpm
+* @property {boolean} showStaff
+* @property {"SCALE"|"SAYR"} staffMode
+* @property {boolean} droneActive
+* @property {boolean} leftHanded
+*/
+
+const VALID_TRADITIONS = new Set(["damascus", "cairo", "istanbul"]);
+const VALID_ORIENTATIONS = new Set(["HORIZONTAL", "VERTICAL"]);
+const VALID_MODES = new Set(["MAQAM", "JINS", "SCALE", "CHORD", "CADENCE"]);
+const VALID_DIRS = new Set(["ASC", "DESC"]);
+const VALID_SHAPES = new Set(["FULL_NECK", "OPEN_FIRST_POS", "POS_SECOND", "POS_THIRD_BODY", "CLOSED_BOX"]);
+const VALID_JINS_FILTERS = new Set(["ALL", "LOWER", "UPPER"]);
+const VALID_LABEL_MODES = new Set(["NOTE_NAME", "DEGREE", "FINGER", "ARABIC"]);
+const VALID_STAFF_MODES = new Set(["SCALE", "SAYR"]);
+
+/**
+* Converte um valor em inteiro limitado ao intervalo [min, max].
+* @param {string | null} raw
+* @param {number} fallback
+* @param {number} min
+* @param {number} max
+* @returns {number}
+*/
+function parseBoundedInt(raw, fallback, min, max) {
+if (raw === null || raw.trim() === "") return fallback;
+const num = Number(raw);
+if (!Number.isFinite(num)) return fallback;
+const truncated = Math.trunc(num);
+return Math.min(max, Math.max(min, truncated));
+}
+
+/**
+* Verifica se um ID existe em uma coleção do banco de dados.
+* @param {Array<{ id?: string }> | undefined} list
+* @param {string | null} candidate
+* @param {string} fallback
+* @returns {string}
+*/
+function sanitizeCatalogId(list, candidate, fallback) {
+if (!candidate || typeof candidate !== "string") return fallback;
+const clean = candidate.trim();
+if (!clean || clean.length > 80) return fallback;
+if (!Array.isArray(list) || list.length === 0) return clean;
+return list.some(item => item && item.id === clean) ? clean : fallback;
+}
 
 /** @returns {OudAppState} */
 export function getDefaultState() {
-  return {
-    lang: "pt",
-    theme: "dark",
-    tradition: "damascus",
-    orientation: "HORIZONTAL",
-    tuningId: "syrian_arabic_c_c",
-    mode: "MAQAM",
-    entityId: "maqam_rast",
-    rootQ: 0,
-    anchorAbsQ: null,
-    octavePathOnly: false,
-    octavePathDir: "ASC",
-    direction: "ASC",
-    shapeMode: "FULL_NECK",
-    boxAnchorQ: 2,
-    jinsFilter: "ALL",
-    labelMode: "NOTE_NAME",
-    showSemiGuides: true,
-    showMicroGuides: true,
-    showGhostNotes: true,
-    showPositionsMap: true,
-    showSayr: true,
-    sayrPhraseIndex: 0,
-    chordVoicingOnly: true,
-    cadenceStepIndex: 0,
-    iqaId: "iqa_maqsum",
-    bpm: 96,
-    showStaff: true,
-    staffMode: "SCALE",
-    droneActive: false,
-    leftHanded: false
-  };
+return {
+lang: "pt",
+tradition: "damascus",
+orientation: "HORIZONTAL",
+tuningId: "syrian_arabic_c_c",
+mode: "MAQAM",
+entityId: "maqam_rast",
+rootQ: 0,
+anchorAbsQ: null,
+octavePathOnly: false,
+octavePathDir: "ASC",
+direction: "ASC",
+shapeMode: "FULL_NECK",
+boxAnchorQ: 2,
+jinsFilter: "ALL",
+labelMode: "NOTE_NAME",
+showSemiGuides: true,
+showMicroGuides: true,
+showGhostNotes: true,
+showSayr: true,
+sayrPhraseIndex: 0,
+chordVoicingOnly: true,
+cadenceStepIndex: 0,
+iqaId: "iqa_maqsum",
+bpm: 96,
+showStaff: true,
+staffMode: "SCALE",
+droneActive: false,
+leftHanded: false
+};
 }
 
 /** @returns {OudAppState} */
 export function getInitialStateFromUrl() {
-  const state = getDefaultState();
-  try {
-    const savedTheme = localStorage.getItem("oud_theme_pref");
-    if (savedTheme === "light" || savedTheme === "dark") {
-      state.theme = savedTheme;
-    }
-  } catch {
-    // Ignora se localStorage estiver indisponível
-  }
+const state = getDefaultState();
+const rawHash = window.location.hash.replace(/^#/, "");
+if (!rawHash) return state;
 
-  const rawHash = window.location.hash.replace(/^#/, "");
-  if (!rawHash) return state;
+const p = new URLSearchParams(rawHash);
+const langParam = p.get("lang");
+if (langParam === "en" || langParam === "pt") state.lang = langParam;
 
-  const p = new URLSearchParams(rawHash);
-  if (p.get("lang") === "en" || p.get("lang") === "pt") state.lang = /** @type {"pt"|"en"} */ (p.get("lang"));
-  if (p.get("th") === "light" || p.get("th") === "dark") state.theme = /** @type {"dark"|"light"} */ (p.get("th"));
-  if (p.has("tr")) state.tradition = p.get("tr") || state.tradition;
-  if (p.get("or") === "VERTICAL" || p.get("or") === "HORIZONTAL") state.orientation = /** @type {"HORIZONTAL"|"VERTICAL"} */ (p.get("or"));
-  if (p.has("t")) state.tuningId = p.get("t") || state.tuningId;
-  if (p.has("m")) state.mode = /** @type {any} */ (p.get("m"));
-  if (p.has("id")) state.entityId = p.get("id") || state.entityId;
+const trParam = p.get("tr");
+if (trParam && VALID_TRADITIONS.has(trParam)) state.tradition = trParam;
 
-  if (p.has("r")) {
-    const rVal = Number(p.get("r"));
-    state.rootQ = (!Number.isNaN(rVal) && rVal >= 0 && rVal < 24) ? rVal : 0;
-  }
+const orParam = p.get("or");
+if (orParam && VALID_ORIENTATIONS.has(orParam)) {
+state.orientation = /** @type {"HORIZONTAL"|"VERTICAL"} */ (orParam);
+}
 
-  if (p.has("anc")) {
-    const rawAnc = p.get("anc");
-    if (rawAnc !== null && rawAnc.trim() !== "") {
-      const ancVal = Number(rawAnc);
-      if (!Number.isNaN(ancVal) && ancVal >= 0) {
-        state.anchorAbsQ = ancVal;
-      }
-    }
-  }
+state.tuningId = sanitizeCatalogId(DB.tunings, p.get("t"), state.tuningId);
 
-  if (p.has("oct")) state.octavePathOnly = p.get("oct") === "1";
-  if (p.get("odir") === "DESC" || p.get("odir") === "ASC") state.octavePathDir = /** @type {"ASC"|"DESC"} */ (p.get("odir"));
-  if (p.get("d") === "DESC" || p.get("d") === "ASC") state.direction = /** @type {"ASC"|"DESC"} */ (p.get("d"));
-  if (p.has("sh")) state.shapeMode = /** @type {any} */ (p.get("sh"));
-  if (p.has("bx")) state.boxAnchorQ = Number(p.get("bx")) || 2;
-  if (p.has("jf")) state.jinsFilter = /** @type {any} */ (p.get("jf"));
-  if (p.has("lb")) state.labelMode = /** @type {any} */ (p.get("lb"));
-  if (p.has("gs")) state.showSemiGuides = p.get("gs") === "1";
-  if (p.has("gm")) state.showMicroGuides = p.get("gm") === "1";
-  if (p.has("gh")) state.showGhostNotes = p.get("gh") === "1";
-  if (p.has("pm")) state.showPositionsMap = p.get("pm") === "1";
-  if (p.has("sy")) state.showSayr = p.get("sy") === "1";
-  if (p.has("sp")) state.sayrPhraseIndex = Number(p.get("sp")) || 0;
-  if (p.has("cv")) state.chordVoicingOnly = p.get("cv") === "1";
-  if (p.has("cs")) state.cadenceStepIndex = Number(p.get("cs")) || 0;
-  if (p.has("iq")) state.iqaId = p.get("iq") || state.iqaId;
-  if (p.has("bpm")) state.bpm = Number(p.get("bpm")) || 96;
-  if (p.has("st")) state.showStaff = p.get("st") === "1";
-  if (p.get("sm") === "SAYR" || p.get("sm") === "SCALE") state.staffMode = /** @type {"SCALE"|"SAYR"} */ (p.get("sm"));
-  if (p.get("lh") === "1") state.leftHanded = true;
+const modeParam = p.get("m");
+if (modeParam && VALID_MODES.has(modeParam)) {
+state.mode = /** @type {"MAQAM"|"JINS"|"SCALE"|"CHORD"|"CADENCE"} */ (modeParam);
+}
 
-  return state;
+const entParam = p.get("id");
+if (entParam && typeof entParam === "string" && entParam.trim().length > 0 && entParam.trim().length <= 80) {
+state.entityId = entParam.trim();
+}
+
+state.rootQ = parseBoundedInt(p.get("r"), state.rootQ, 0, 23);
+
+if (p.has("anc")) {
+const ancVal = Number(p.get("anc"));
+if (Number.isFinite(ancVal)) {
+  state.anchorAbsQ = Math.min(240, Math.max(-48, Math.trunc(ancVal)));
+}
+}
+
+if (p.has("oct")) state.octavePathOnly = p.get("oct") === "1";
+
+const odirParam = p.get("odir");
+if (odirParam && VALID_DIRS.has(odirParam)) {
+state.octavePathDir = /** @type {"ASC"|"DESC"} */ (odirParam);
+}
+
+const dirParam = p.get("d");
+if (dirParam && VALID_DIRS.has(dirParam)) {
+state.direction = /** @type {"ASC"|"DESC"} */ (dirParam);
+}
+
+const shapeParam = p.get("sh");
+if (shapeParam && VALID_SHAPES.has(shapeParam)) {
+state.shapeMode = /** @type {"FULL_NECK"|"OPEN_FIRST_POS"|"POS_SECOND"|"POS_THIRD_BODY"|"CLOSED_BOX"} */ (shapeParam);
+}
+
+state.boxAnchorQ = parseBoundedInt(p.get("bx"), state.boxAnchorQ, 1, 10);
+
+const jfParam = p.get("jf");
+if (jfParam && VALID_JINS_FILTERS.has(jfParam)) {
+state.jinsFilter = /** @type {"ALL"|"LOWER"|"UPPER"} */ (jfParam);
+}
+
+const lbParam = p.get("lb");
+if (lbParam && VALID_LABEL_MODES.has(lbParam)) {
+state.labelMode = /** @type {"NOTE_NAME"|"DEGREE"|"FINGER"|"ARABIC"} */ (lbParam);
+}
+
+if (p.has("gs")) state.showSemiGuides = p.get("gs") === "1";
+if (p.has("gm")) state.showMicroGuides = p.get("gm") === "1";
+if (p.has("gh")) state.showGhostNotes = p.get("gh") === "1";
+if (p.has("sy")) state.showSayr = p.get("sy") === "1";
+
+state.sayrPhraseIndex = parseBoundedInt(p.get("sp"), state.sayrPhraseIndex, 0, 4);
+if (p.has("cv")) state.chordVoicingOnly = p.get("cv") === "1";
+state.cadenceStepIndex = parseBoundedInt(p.get("cs"), state.cadenceStepIndex, 0, 24);
+
+state.iqaId = sanitizeCatalogId(DB.iqaat, p.get("iq"), state.iqaId);
+state.bpm = parseBoundedInt(p.get("bpm"), state.bpm, 50, 175);
+
+if (p.has("st")) state.showStaff = p.get("st") === "1";
+
+const smParam = p.get("sm");
+if (smParam && VALID_STAFF_MODES.has(smParam)) {
+state.staffMode = /** @type {"SCALE"|"SAYR"} */ (smParam);
+}
+
+if (p.has("lh")) state.leftHanded = p.get("lh") === "1";
+
+return state;
 }
 
 /** @param {OudAppState} state */
 export function syncStateToUrl(state) {
-  const p = new URLSearchParams();
-  p.set("lang", state.lang);
-  p.set("th", state.theme || "dark");
-  p.set("tr", state.tradition);
-  p.set("or", state.orientation);
-  p.set("t", state.tuningId);
-  p.set("m", state.mode);
-  p.set("id", state.entityId);
-  p.set("r", String(state.rootQ));
-  if (typeof state.anchorAbsQ === "number" && !Number.isNaN(state.anchorAbsQ)) {
-    p.set("anc", String(state.anchorAbsQ));
-  }
-  if (state.octavePathOnly) p.set("oct", "1");
-  if (state.octavePathDir === "DESC") p.set("odir", "DESC");
-  p.set("d", state.direction);
-  p.set("sh", state.shapeMode);
-  p.set("bx", String(state.boxAnchorQ));
-  p.set("jf", state.jinsFilter);
-  p.set("lb", state.labelMode);
-  p.set("gs", state.showSemiGuides ? "1" : "0");
-  p.set("gm", state.showMicroGuides ? "1" : "0");
-  p.set("gh", state.showGhostNotes ? "1" : "0");
-  p.set("pm", state.showPositionsMap ? "1" : "0");
-  p.set("sy", state.showSayr ? "1" : "0");
-  p.set("sp", String(state.sayrPhraseIndex));
-  p.set("cv", state.chordVoicingOnly ? "1" : "0");
-  p.set("cs", String(state.cadenceStepIndex));
-  p.set("iq", state.iqaId);
-  p.set("bpm", String(state.bpm));
-  p.set("st", state.showStaff ? "1" : "0");
-  p.set("sm", state.staffMode);
-  if (state.leftHanded) p.set("lh", "1");
+const p = new URLSearchParams();
+p.set("lang", state.lang);
+p.set("tr", state.tradition);
+p.set("or", state.orientation);
+p.set("t", state.tuningId);
+p.set("m", state.mode);
+p.set("id", state.entityId);
+p.set("r", String(parseBoundedInt(String(state.rootQ), 0, 0, 23)));
+if (state.anchorAbsQ !== null && Number.isFinite(state.anchorAbsQ)) {
+p.set("anc", String(Math.trunc(state.anchorAbsQ)));
+}
+if (state.octavePathOnly) p.set("oct", "1");
+if (state.octavePathDir !== "ASC") p.set("odir", state.octavePathDir);
+p.set("d", state.direction);
+p.set("sh", state.shapeMode);
+p.set("bx", String(parseBoundedInt(String(state.boxAnchorQ), 2, 1, 10)));
+p.set("jf", state.jinsFilter);
+p.set("lb", state.labelMode);
+p.set("gs", state.showSemiGuides ? "1" : "0");
+p.set("gm", state.showMicroGuides ? "1" : "0");
+p.set("gh", state.showGhostNotes ? "1" : "0");
+p.set("sy", state.showSayr ? "1" : "0");
+p.set("sp", String(parseBoundedInt(String(state.sayrPhraseIndex), 0, 0, 4)));
+p.set("cv", state.chordVoicingOnly ? "1" : "0");
+p.set("cs", String(parseBoundedInt(String(state.cadenceStepIndex), 0, 0, 24)));
+p.set("iq", state.iqaId);
+p.set("bpm", String(parseBoundedInt(String(state.bpm), 96, 50, 175)));
+p.set("st", state.showStaff ? "1" : "0");
+p.set("sm", state.staffMode);
+if (state.leftHanded) p.set("lh", "1");
 
-  const fullHash = `#${p.toString()}`;
-  try {
-    window.history.replaceState(null, "", fullHash);
-  } catch {
-    // Ignora em ambientes sandboxed
-  }
-  return `${window.location.origin}${window.location.pathname}${fullHash}`;
+const fullHash = `#${p.toString()}`;
+try {
+window.history.replaceState(null, "", fullHash);
+} catch {
+// Ignora em ambientes sandboxed
+}
+return `${window.location.origin}${window.location.pathname}${fullHash}`;
 }

@@ -4515,3 +4515,56 @@ window.addEventListener("beforeinstallprompt", (e) => {
     pwaSlot.appendChild(installBtn);
   }
 });
+
+
+// --- Reforço de UI: Escape HTML, Timers de Interface e Visibilidade ---
+/**
+ * Escapa caracteres especiais para interpolação segura em strings HTML.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** @type {Set<number>} */
+const uiTimeouts = new Set();
+
+/**
+ * Agenda um timer de interface rastreado para limpeza centralizada.
+ * @param {() => void} fn
+ * @param {number} delayMs
+ * @returns {number}
+ */
+function scheduleUiTimeout(fn, delayMs) {
+  const id = window.setTimeout(() => {
+    uiTimeouts.delete(id);
+    fn();
+  }, delayMs);
+  uiTimeouts.add(id);
+  return id;
+}
+
+function clearUiTimeouts() {
+  uiTimeouts.forEach((id) => window.clearTimeout(id));
+  uiTimeouts.clear();
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearUiTimeouts();
+      if (typeof setActivePopover === "function") {
+        try { setActivePopover(null); } catch (_) {}
+      }
+      if (typeof setActiveHeaderMenu === "function") {
+        try { setActiveHeaderMenu(null); } catch (_) {}
+      }
+    }
+  });
+}
