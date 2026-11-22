@@ -64,6 +64,7 @@ import {
   clearLivePitchOverlayOnNeck
 } from "./ui/neckRenderer.js";
 import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
+import { applyStatePatch } from "./core/stateTransitions.js";
 
 const state = getInitialStateFromUrl();
 
@@ -4615,5 +4616,23 @@ function safeStorageRemove(key) {
     return true;
   } catch {
     return false;
+  }
+}
+
+
+// --- Despachante Centralizado de Transições de Estado ---
+/**
+ * Atualiza o estado global aplicando normalização pura e sincronizando UI/URL.
+ * @param {Record<string, any>} patch
+ * @param {{ syncControls?: boolean, refresh?: boolean }} [options]
+ */
+function commitStatePatch(patch, options = {}) {
+  const normalized = applyStatePatch(state, patch);
+  Object.assign(state, normalized);
+  if (options.syncControls) {
+    syncControlsWithState();
+  }
+  if (options.refresh !== false) {
+    refreshAll();
   }
 }
