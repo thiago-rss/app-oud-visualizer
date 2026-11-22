@@ -2593,7 +2593,7 @@ function handlePlayAnchoredOctavePath() {
   clearShiftOverlay(false);
 
   if (!state.octavePathOnly) {
-    state.octavePathOnly = true;
+    commitStatePatch({ octavePathOnly: true }, { syncControls: false, refresh: false });
     syncControlsWithState();
   }
 
@@ -3209,8 +3209,8 @@ function handlePlayTaqsim() {
   const phrase = entity.sayr_phrases?.[state.sayrPhraseIndex];
   if (!phrase) return;
 
-  state.octavePathOnly = false;
-  state.showSayr = true;
+  commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
+  commitStatePatch({ showSayr: true }, { syncControls: false, refresh: false });
   commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
   syncControlsWithState();
 
@@ -3299,7 +3299,7 @@ function populateEntitySelect() {
   });
 
   if (!list.some(x => x.id === state.entityId)) {
-    state.entityId = list[0].id;
+    commitStatePatch({ entityId: list[0].id }, { syncControls: false, refresh: false });
   }
   sel.value = state.entityId;
 }
@@ -3968,7 +3968,7 @@ function initApp() {
 
     if (target.closest("#btn-hide-staff-inline, #btn-inline-toggle-staff")) {
       e.preventDefault();
-      state.showStaff = !state.showStaff;
+      commitStatePatch({ showStaff: !state.showStaff }, { syncControls: false, refresh: false });
       syncControlsWithState();
       refreshAll();
       return;
@@ -3976,7 +3976,7 @@ function initApp() {
 
     if (target.closest("#btn-pos-map")) {
       e.preventDefault();
-      state.showPositionsMap = !state.showPositionsMap;
+      commitStatePatch({ showPositionsMap: !state.showPositionsMap }, { syncControls: false, refresh: false });
       clearShiftOverlay(false);
       syncControlsWithState();
       refreshAll();
@@ -4000,7 +4000,7 @@ function initApp() {
     if (target.closest("#btn-oct-mode-all")) {
       e.preventDefault();
       clearAllActivePlayback();
-      state.octavePathOnly = false;
+      commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
       refreshAll();
       return;
     }
@@ -4008,7 +4008,7 @@ function initApp() {
     if (target.closest("#btn-oct-mode-single")) {
       e.preventDefault();
       clearAllActivePlayback();
-      state.octavePathOnly = true;
+      commitStatePatch({ octavePathOnly: true }, { syncControls: false, refresh: false });
       commitStatePatch({ staffMode: "SCALE" }, { syncControls: false, refresh: false });
       refreshAll();
       return;
@@ -4018,7 +4018,7 @@ function initApp() {
       e.preventDefault();
       clearAllActivePlayback();
       commitStatePatch({ octavePathDir: "ASC" }, { syncControls: false, refresh: false });
-      state.octavePathOnly = true;
+      commitStatePatch({ octavePathOnly: true }, { syncControls: false, refresh: false });
       refreshAll();
       return;
     }
@@ -4027,7 +4027,7 @@ function initApp() {
       e.preventDefault();
       clearAllActivePlayback();
       commitStatePatch({ octavePathDir: "DESC" }, { syncControls: false, refresh: false });
-      state.octavePathOnly = true;
+      commitStatePatch({ octavePathOnly: true }, { syncControls: false, refresh: false });
       refreshAll();
       return;
     }
@@ -4042,7 +4042,7 @@ function initApp() {
       e.preventDefault();
       clearAllActivePlayback();
       commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
-      state.octavePathOnly = false;
+      commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
       refreshAll();
     }
   });
@@ -4099,7 +4099,7 @@ function initApp() {
   });
 
   document.getElementById("btn-toggle-staff")?.addEventListener("click", () => {
-    state.showStaff = !state.showStaff;
+    commitStatePatch({ showStaff: !state.showStaff }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4113,7 +4113,7 @@ function initApp() {
 
   document.getElementById("btn-staff-mode-sayr")?.addEventListener("click", () => {
     commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
-    state.octavePathOnly = false;
+    commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
     selectedStaffOrNeckPitch = null;
     syncControlsWithState();
     refreshAll();
@@ -4141,7 +4141,7 @@ function initApp() {
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
-    state.octavePathOnly = false;
+    commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
     commitStatePatch({ rootQ: parseInt(/** @type {HTMLSelectElement} */ (e.target).value, 10) || 0 }, { syncControls: false, refresh: false });
     refreshAll();
   });
@@ -4153,7 +4153,7 @@ function initApp() {
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
     commitStatePatch({ anchorAbsQ: null }, { syncControls: false, refresh: false });
-    state.octavePathOnly = false;
+    commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
     const active = /** @type {any} */ (getActiveStructure(state).entity);
     if (active.traditional_root_q !== undefined) {
       commitStatePatch({ rootQ: active.traditional_root_q }, { syncControls: false, refresh: false });
@@ -4169,7 +4169,7 @@ function initApp() {
   if (labelBpm) labelBpm.textContent = String(state.bpm);
 
   selIqa?.addEventListener("change", (e) => {
-    state.iqaId = /** @type {HTMLSelectElement} */ (e.target).value;
+    commitStatePatch({ iqaId: /** @type {HTMLSelectElement} */ (e.target).value }, { syncControls: false, refresh: false });
     const found = DB.iqaat.find(x => x.id === state.iqaId);
     if (found) {
       commitStatePatch({ bpm: found.default_bpm }, { syncControls: false, refresh: false });
@@ -4223,7 +4223,7 @@ function initApp() {
     clearShiftOverlay(false);
     selectedStaffOrNeckPitch = null;
     modulationOrigin = null;
-    state.entityId = /** @type {HTMLSelectElement} */ (e.target).value;
+    commitStatePatch({ entityId: /** @type {HTMLSelectElement} */ (e.target).value }, { syncControls: false, refresh: false });
     commitStatePatch({ cadenceStepIndex: 0 }, { syncControls: false, refresh: false });
     if (!hasValidAnchor()) {
       const active = /** @type {any} */ (getActiveStructure(state).entity);
@@ -4236,7 +4236,7 @@ function initApp() {
   });
 
   document.getElementById("btn-toggle-sayr")?.addEventListener("click", () => {
-    state.showSayr = !state.showSayr;
+    commitStatePatch({ showSayr: !state.showSayr }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4246,9 +4246,9 @@ function initApp() {
       clearAllActivePlayback();
       clearShiftOverlay(false);
       selectedStaffOrNeckPitch = null;
-      state.octavePathOnly = false;
+      commitStatePatch({ octavePathOnly: false }, { syncControls: false, refresh: false });
       commitStatePatch({ sayrPhraseIndex: Number(/** @type {HTMLElement} */ (btn).dataset.phrase) }, { syncControls: false, refresh: false });
-      state.showSayr = true;
+      commitStatePatch({ showSayr: true }, { syncControls: false, refresh: false });
       commitStatePatch({ staffMode: "SAYR" }, { syncControls: false, refresh: false });
       syncControlsWithState();
       refreshAll();
@@ -4256,13 +4256,13 @@ function initApp() {
   });
 
   document.getElementById("btn-chord-voicing")?.addEventListener("click", () => {
-    state.chordVoicingOnly = true;
+    commitStatePatch({ chordVoicingOnly: true }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
 
   document.getElementById("btn-chord-all")?.addEventListener("click", () => {
-    state.chordVoicingOnly = false;
+    commitStatePatch({ chordVoicingOnly: false }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4289,7 +4289,7 @@ function initApp() {
       state.shapeMode === "POS_SECOND" ||
       state.shapeMode === "POS_THIRD_BODY"
     ) {
-      state.labelMode = "FINGER";
+      commitStatePatch({ labelMode: "FINGER" }, { syncControls: false, refresh: false });
     }
     syncControlsWithState();
     refreshAll();
@@ -4313,31 +4313,31 @@ function initApp() {
 
   document.querySelectorAll(".jins-filter").forEach(btn => {
     btn.addEventListener("click", () => {
-      state.jinsFilter = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.filter);
+      commitStatePatch({ jinsFilter: /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.filter) }, { syncControls: false, refresh: false });
       syncControlsWithState();
       refreshAll();
     });
   });
 
   document.getElementById("select-label")?.addEventListener("change", (e) => {
-    state.labelMode = /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value);
+    commitStatePatch({ labelMode: /** @type {any} */ (/** @type {HTMLSelectElement} */ (e.target).value) }, { syncControls: false, refresh: false });
     refreshAll();
   });
 
   document.getElementById("btn-guide-semi")?.addEventListener("click", () => {
-    state.showSemiGuides = !state.showSemiGuides;
+    commitStatePatch({ showSemiGuides: !state.showSemiGuides }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
 
   document.getElementById("btn-guide-micro")?.addEventListener("click", () => {
-    state.showMicroGuides = !state.showMicroGuides;
+    commitStatePatch({ showMicroGuides: !state.showMicroGuides }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
 
   document.getElementById("btn-ghost-notes")?.addEventListener("click", () => {
-    state.showGhostNotes = !state.showGhostNotes;
+    commitStatePatch({ showGhostNotes: !state.showGhostNotes }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
