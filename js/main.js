@@ -8,6 +8,13 @@ import {
 } from "./core/modalEngine.js";
 import { getInitialStateFromUrl, syncStateToUrl } from "./core/urlState.js";
 import {
+  normalizeStudyKey,
+  normalizeDeckTab,
+  resolveStudyIqaId as resolveStudyIqaIdFromDb,
+  resolveStudyTuningId as resolveStudyTuningIdFromDb,
+  resolveStudyEntityId as resolveStudyEntityIdFromDb
+} from "./core/studyResolver.js";
+import {
   escapeHtml,
   safeStorageGet,
   safeStorageSet,
@@ -282,12 +289,6 @@ function safeT(key, fallbackPt, fallbackEn) {
  * @param {string | undefined} rawTab
  * @returns {"theory"|"modulation"|"study"}
  */
-function normalizeDeckTab(rawTab) {
-  if (rawTab === "modulation") return "modulation";
-  if (rawTab === "study" || rawTab === "guide") return "study";
-  return "theory";
-}
-
 function stopRegionPlayback(shouldRefresh = false) {
   regionPlaybackTimers.forEach(id => window.clearTimeout(id));
   regionPlaybackTimers = [];
@@ -1059,10 +1060,6 @@ function handlePivotAction(payload) {
  * Normaliza texto para busca segura sem acentos.
  * @param {string} str
  */
-function normalizeStudyKey(str) {
-  return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
 /**
  * Resolve o ID real de um Iqa' a partir de DB.iqaat (ou do <select> no DOM como fallback),
  * garantindo compatibilidade mesmo se o ID em database.js variar (ex.: iqa_samai vs iqa_samai_thaqil).
@@ -1070,60 +1067,12 @@ function normalizeStudyKey(str) {
  * @param {string | undefined} keyword
  * @returns {string | null}
  */
-function resolveStudyIqaId(preferredId, keyword) {
-  if (Array.isArray(DB.iqaat)) {
-    if (preferredId && DB.iqaat.some(x => x.id === preferredId)) {
-      return preferredId;
-    }
-    if (keyword) {
-      const normKey = normalizeStudyKey(keyword);
-      const found = DB.iqaat.find(x =>
-        normalizeStudyKey(x.id).includes(normKey) ||
-        normalizeStudyKey(x.name || "").includes(normKey)
-      );
-      if (found) return found.id;
-    }
-  }
-
-  const selectIqa = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-iqa"));
-  if (selectIqa) {
-    const options = Array.from(selectIqa.options);
-    if (preferredId && options.some(opt => opt.value === preferredId)) {
-      return preferredId;
-    }
-    if (keyword) {
-      const normKey = normalizeStudyKey(keyword);
-      const match = options.find(opt =>
-        normalizeStudyKey(opt.value).includes(normKey) ||
-        normalizeStudyKey(opt.textContent || "").includes(normKey)
-      );
-      if (match) return match.value;
-    }
-  }
-
-  return preferredId || null;
-}
-
 /**
  * Resolve o ID real de uma afinação em DB.tunings por ID exato ou palavras-chave.
  * @param {string | undefined} preferredId
  * @param {string[] | undefined} keywords
  * @returns {string | null}
  */
-function resolveStudyTuningId(preferredId, keywords) {
-  if (!Array.isArray(DB.tunings) || !DB.tunings.length) return preferredId || null;
-  if (preferredId && DB.tunings.some(x => x.id === preferredId)) return preferredId;
-  if (Array.isArray(keywords) && keywords.length) {
-    const normKeys = keywords.map(normalizeStudyKey);
-    const found = DB.tunings.find(x => {
-      const hay = normalizeStudyKey(`${x.id} ${x.name || ""} ${(/** @type {any} */ (x)).name_en || ""}`);
-      return normKeys.some(k => hay.includes(k));
-    });
-    if (found) return found.id;
-  }
-  return preferredId || null;
-}
-
 /**
  * Resolve o ID real de um Maqam, Jins, Escala, Acorde ou Cadência em DB.
  * @param {"MAQAM"|"JINS"|"SCALE"|"CHORD"|"CADENCE"} mode
@@ -1131,30 +1080,22 @@ function resolveStudyTuningId(preferredId, keywords) {
  * @param {string[] | undefined} keywords
  * @returns {string | null}
  */
-function resolveStudyEntityId(mode, preferredId, keywords) {
-  /** @type {any[]} */
-  let list = DB.maqamat;
-  if (mode === "JINS") list = DB.ajnas;
-  else if (mode === "SCALE") list = DB.scales;
-  else if (mode === "CHORD") list = DB.chords;
-  else if (mode === "CADENCE") list = DB.cadences;
-
-  if (!Array.isArray(list) || !list.length) return preferredId || null;
-  if (preferredId && list.some(x => x.id === preferredId)) return preferredId;
-  if (Array.isArray(keywords) && keywords.length) {
-    const normKeys = keywords.map(normalizeStudyKey);
-    const found = list.find(x => {
-      const hay = normalizeStudyKey(`${x.id} ${x.name || ""} ${x.name_en || ""} ${x.short_symbol || ""}`);
-      return normKeys.some(k => hay.includes(k));
-    });
-    if (found) return found.id;
-  }
-  return list[0].id;
-}
-
 /**
  * Alterna o caráter sonoro Sírio/Egípcio, persiste a preferência e toca uma prévia na tônica ativa.
  */
+
+function resolveStudyIqaId(preferredId, keyword) {
+  return resolveStudyIqaIdFromDb(DB, preferredId, keyword, document);
+}
+
+function resolveStudyTuningId(preferredId, keywords) {
+  return resolveStudyTuningIdFromDb(DB, preferredId, keywords);
+}
+
+function resolveStudyEntityId(mode, preferredId, keywords) {
+  return resolveStudyEntityIdFromDb(DB, mode, preferredId, keywords);
+}
+
 function toggleOudTimbreProfileWithPreview() {
   const nextProfile = getOudTimbreProfile() === "syrian" ? "egyptian" : "syrian";
   setOudTimbreProfile(nextProfile);
