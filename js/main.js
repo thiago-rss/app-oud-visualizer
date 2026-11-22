@@ -76,13 +76,13 @@ function isMobileViewport() {
 }
 
 if (isMobileViewport()) {
-  state.orientation = "VERTICAL";
+  commitStatePatch({ orientation: "VERTICAL" }, { syncControls: false, refresh: false });
 }
 
 try {
   const savedTheme = localStorage.getItem("oud_theme_pref");
   if (!window.location.hash.includes("th=") && (savedTheme === "light" || savedTheme === "dark")) {
-    state.theme = savedTheme;
+    commitStatePatch({ theme: savedTheme }, { syncControls: false, refresh: false });
   }
 } catch {
   // Ignora se localStorage estiver bloqueado
@@ -1846,7 +1846,7 @@ function renderStudyGuidePane() {
   pane.querySelector(".btn-study-drone")?.addEventListener("click", () => {
     const droneBtn = document.getElementById("btn-drone");
     if (droneBtn) {
-      state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, droneBtn);
+      commitStatePatch({ droneActive: toggleDroneAudio(state.droneActive, state.rootQ, droneBtn) }, { syncControls: false, refresh: false });
     }
     syncCommandBarSummaries();
     syncLiveTunerUI();
@@ -2423,7 +2423,7 @@ function setActivePopover(idx) {
 }
 
 function toggleAppTheme() {
-  state.theme = state.theme === "light" ? "dark" : "light";
+  commitStatePatch({ theme: state.theme === "light" ? "dark" : "light" }, { syncControls: false, refresh: false });
   try {
     localStorage.setItem("oud_theme_pref", state.theme);
   } catch {
@@ -3399,7 +3399,7 @@ function syncControlsWithState() {
   populateAllLocalizedSelects();
 
   if (isMobileViewport()) {
-    state.orientation = "VERTICAL";
+    commitStatePatch({ orientation: "VERTICAL" }, { syncControls: false, refresh: false });
   }
 
   document.documentElement.setAttribute("data-theme", state.theme);
@@ -3599,7 +3599,7 @@ function syncControlsWithState() {
 
 function refreshAll() {
   if (isMobileViewport()) {
-    state.orientation = "VERTICAL";
+    commitStatePatch({ orientation: "VERTICAL" }, { syncControls: false, refresh: false });
     document.body.setAttribute("data-orientation", "VERTICAL");
   }
 
@@ -3699,7 +3699,7 @@ function initApp() {
   ensureStudyGuideScaffold();
 
   if (isMobileViewport()) {
-    state.orientation = "VERTICAL";
+    commitStatePatch({ orientation: "VERTICAL" }, { syncControls: false, refresh: false });
   }
 
   const metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -3713,14 +3713,14 @@ function initApp() {
     if (nowMobile && !wasMobile) {
       setActivePopover(null);
       setActiveHeaderMenu(null);
-      state.orientation = "VERTICAL";
+      commitStatePatch({ orientation: "VERTICAL" }, { syncControls: false, refresh: false });
       if (!userOverrodeSidebar) isSidebarCollapsed = true;
       syncControlsWithState();
       refreshAll();
     } else if (!nowMobile && wasMobile) {
       setActivePopover(null);
       setActiveHeaderMenu(null);
-      state.orientation = desktopPreferredOrientation;
+      commitStatePatch({ orientation: desktopPreferredOrientation }, { syncControls: false, refresh: false });
       if (!userOverrodeSidebar) isSidebarCollapsed = false;
       syncControlsWithState();
       refreshAll();
@@ -4079,13 +4079,13 @@ function initApp() {
 
   const selTradition = /** @type {HTMLSelectElement | null} */ (document.getElementById("select-tradition"));
   selTradition?.addEventListener("change", (e) => {
-    state.tradition = /** @type {HTMLSelectElement} */ (e.target).value;
+    commitStatePatch({ tradition: /** @type {HTMLSelectElement} */ (e.target).value }, { syncControls: false, refresh: false });
     document.body.setAttribute("data-tradition", state.tradition);
     refreshAll();
   });
 
   document.getElementById("btn-lang")?.addEventListener("click", () => {
-    state.lang = state.lang === "pt" ? "en" : "pt";
+    commitStatePatch({ lang: state.lang === "pt" ? "en" : "pt" }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4093,7 +4093,7 @@ function initApp() {
   document.getElementById("btn-orientation")?.addEventListener("click", () => {
     if (isMobileViewport()) return;
     desktopPreferredOrientation = state.orientation === "HORIZONTAL" ? "VERTICAL" : "HORIZONTAL";
-    state.orientation = desktopPreferredOrientation;
+    commitStatePatch({ orientation: desktopPreferredOrientation }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
@@ -4128,7 +4128,7 @@ function initApp() {
   document.getElementById("select-tuning")?.addEventListener("change", (e) => {
     clearAllActivePlayback();
     clearShiftOverlay(false);
-    state.tuningId = /** @type {HTMLSelectElement} */ (e.target).value;
+    commitStatePatch({ tuningId: /** @type {HTMLSelectElement} */ (e.target).value }, { syncControls: false, refresh: false });
     selectedStaffOrNeckPitch = null;
     setLockedTunerCourse(null);
     refreshAll();
@@ -4369,7 +4369,7 @@ function initApp() {
 
   const btnDrone = document.getElementById("btn-drone");
   btnDrone?.addEventListener("click", () => {
-    state.droneActive = toggleDroneAudio(state.droneActive, state.rootQ, btnDrone);
+    commitStatePatch({ droneActive: toggleDroneAudio(state.droneActive, state.rootQ, btnDrone) }, { syncControls: false, refresh: false });
     syncCommandBarSummaries();
     syncLiveTunerUI();
     renderStudyGuidePane();
@@ -4388,7 +4388,7 @@ function initApp() {
   });
 
   document.getElementById("btn-hand")?.addEventListener("click", () => {
-    state.leftHanded = !state.leftHanded;
+    commitStatePatch({ leftHanded: !state.leftHanded }, { syncControls: false, refresh: false });
     syncControlsWithState();
     refreshAll();
   });
