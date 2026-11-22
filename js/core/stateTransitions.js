@@ -10,7 +10,7 @@ const VALID_SHAPES = new Set([
 ]);
 const VALID_DIRS = new Set(["ASC", "DESC"]);
 const VALID_STAFF_MODES = new Set(["SCALE", "SAYR"]);
-const VALID_LABEL_MODES = new Set(["NOTE", "DEGREE", "FINGER", "CENTS"]);
+const VALID_LABEL_MODES = new Set(["NOTE_NAME", "DEGREE", "FINGER", "ARABIC", "NOTE", "CENTS"]);
 const VALID_JINS_FILTERS = new Set(["ALL", "LOWER", "UPPER"]);
 
 const BOOLEAN_STATE_KEYS = [

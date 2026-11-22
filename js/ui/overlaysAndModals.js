@@ -78,7 +78,7 @@ export function createOverlaysAndModals(deps) {
     loupe.classList.add("visible");
 
     if (deps.scheduleUiTimeout) {
-      deps.scheduleUiTimeout("touchLoupeHide", () => {
+      deps.scheduleUiTimeout(() => {
         loupe.classList.remove("visible");
       }, 1100);
     }

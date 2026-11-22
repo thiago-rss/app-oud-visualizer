@@ -45,6 +45,10 @@ export function createStudyGuideView(deps) {
     escapeHtml,
     safeT,
   } = deps;
+  const isIqaPlaying = typeof deps?.getIsIqaPlaying === "function" ? deps.getIsIqaPlaying() : (typeof deps?.isIqaPlaying === "boolean" ? deps.isIqaPlaying : false);
+  let activeEtudeKind = typeof deps?.getActiveEtudeKind === "function" ? deps.getActiveEtudeKind() : (deps?.activeEtudeKind ?? "ALL");
+  let activeStudyLevelFilter = typeof deps?.getActiveStudyLevelFilter === "function" ? deps.getActiveStudyLevelFilter() : (deps?.activeStudyLevelFilter ?? "ALL");
+  const STUDY_MODULES = typeof deps?.getStudyModules === "function" ? deps.getStudyModules() : (deps?.STUDY_MODULES || []);
 
   const state = new Proxy({}, {
     get(_, prop) {
@@ -66,12 +70,30 @@ export function createStudyGuideView(deps) {
   let etudeKindFilter = getEtudeKindFilter ? getEtudeKindFilter() : "ALL";
   let etudeRootOverrideQ = getEtudeRootOverrideQ ? getEtudeRootOverrideQ() : null;
 
+  
+  let highlightedSequenceStep = typeof deps?.getHighlightedSequenceStep === "function" ? deps.getHighlightedSequenceStep() : -1;
+  let isEtudeLoopPlaying = typeof deps?.getIsEtudeLoopPlaying === "function" ? deps.getIsEtudeLoopPlaying() : false;
+  let activeEtudeSpeed = typeof deps?.getActiveEtudeSpeed === "function" ? deps.getActiveEtudeSpeed() : 0.85;
+
+  const isPitchListening = typeof deps?.isPitchListening === "function" ? deps.isPitchListening : () => false;
+  const getOudTimbreProfile = typeof deps?.getOudTimbreProfile === "function" ? deps.getOudTimbreProfile : () => "syrian";
+  const toggleOudTimbreProfileWithPreview = typeof deps?.toggleOudTimbreProfileWithPreview === "function" ? deps.toggleOudTimbreProfileWithPreview : () => {};
+  const commitStatePatch = typeof deps?.commitStatePatch === "function" ? deps.commitStatePatch : () => {};
+  const toggleZenMode = typeof deps?.toggleZenMode === "function" ? deps.toggleZenMode : () => {};
+  const refreshAll = typeof deps?.refreshAll === "function" ? deps.refreshAll : () => {};
+  const syncControlsWithState = typeof deps?.syncControlsWithState === "function" ? deps.syncControlsWithState : () => {};
+  const clearAllActivePlayback = typeof deps?.clearAllActivePlayback === "function" ? deps.clearAllActivePlayback : () => {};
+  const setAppliedStudyLessonId = typeof deps?.setAppliedStudyLessonId === "function"
+    ? deps.setAppliedStudyLessonId
+    : (v) => { appliedStudyLessonId = v; };
+
+    let isStudyDossierOpen = typeof deps?.getIsStudyDossierOpen === "function" ? Boolean(deps.getIsStudyDossierOpen()) : Boolean(deps?.isStudyDossierOpen ?? false);
   function syncLocalRefs() {
-    activeStudyModuleId = getActiveStudyModuleId();
-    activeStudyLessonId = getActiveStudyLessonId();
-    appliedStudyLessonId = getAppliedStudyLessonId();
+    setActiveStudyModuleId(getActiveStudyModuleId());
+    setActiveStudyLessonId(getActiveStudyLessonId());
+    setAppliedStudyLessonId(getAppliedStudyLessonId());
     completedStudyLessons = getCompletedStudyLessons();
-    etudePlaybackTimers = getEtudePlaybackTimers() || [];
+    setEtudePlaybackTimers(getEtudePlaybackTimers() || []);
     if (getEtudeKindFilter) etudeKindFilter = getEtudeKindFilter();
     if (getEtudeRootOverrideQ) etudeRootOverrideQ = getEtudeRootOverrideQ();
   }
@@ -165,7 +187,7 @@ function buildStudyDossierHtml(lessonId, isEn) {
 
 function stopTechnicalEtudePlayback(shouldRefresh = false) {
   etudePlaybackTimers.forEach(id => window.clearTimeout(id));
-  etudePlaybackTimers = [];
+  setEtudePlaybackTimers([]);
   const hadStep = highlightedSequenceStep !== -1 || isEtudeLoopPlaying;
   isEtudeLoopPlaying = false;
   highlightedSequenceStep = -1;
@@ -202,8 +224,7 @@ function playTechnicalEtudeSequence(lessonId, loop = false) {
 
   const runCycle = () => {
     etudePlaybackTimers.forEach(id => window.clearTimeout(id));
-    etudePlaybackTimers = [];
-
+    setEtudePlaybackTimers([]);
     let elapsedMs = 0;
     spec.steps.forEach((st, idx) => {
       const dur = Math.max(150, Math.round(st.baseDurMs / speedFactor));
@@ -306,6 +327,10 @@ function buildTechnicalEtudesHtml(lesson, isEn) {
 function renderStudyGuidePane() {
   const pane = getStudyPaneElement();
   if (!pane) return;
+
+  if (typeof deps?.getActiveStudyModuleId === "function") activeStudyModuleId = deps.getActiveStudyModuleId();
+  if (typeof deps?.getActiveStudyLessonId === "function") activeStudyLessonId = deps.getActiveStudyLessonId();
+  if (typeof deps?.getAppliedStudyLessonId === "function") appliedStudyLessonId = deps.getAppliedStudyLessonId();
 
   const isEn = state.lang === "en";
   const allLessons = getAllStudyLessons();
@@ -530,19 +555,21 @@ function renderStudyGuidePane() {
 
   pane.querySelector(".study-dossier-toggle")?.addEventListener("click", () => {
     isStudyDossierOpen = !isStudyDossierOpen;
+    if (typeof deps?.setIsStudyDossierOpen === "function") deps.setIsStudyDossierOpen(isStudyDossierOpen);
     renderStudyGuidePane();
   });
 
   pane.querySelectorAll(".study-level-pill").forEach(btn => {
     btn.addEventListener("click", () => {
       const lvl = /** @type {any} */ (/** @type {HTMLElement} */ (btn).dataset.studyLevel || "ALL");
-      activeStudyLevelFilter = lvl;
+      activeStudyLevelFilter = lvl
+      if (typeof deps?.setActiveStudyLevelFilter === "function") deps.setActiveStudyLevelFilter(activeStudyLevelFilter);
       const matchingMods = lvl === "ALL"
         ? STUDY_MODULES
         : STUDY_MODULES.filter(m => m.level === lvl);
       if (matchingMods.length && !matchingMods.some(m => m.id === activeStudyModuleId)) {
         const nextMod = matchingMods[0];
-        activeStudyModuleId = nextMod.id;
+        setActiveStudyModuleId(nextMod.id);
         const firstPending = nextMod.lessons.find(l => !completedStudyLessons.has(l.id)) || nextMod.lessons[0];
         if (firstPending) activeStudyLessonId = firstPending.id;
         saveStudyProgress();
@@ -555,11 +582,11 @@ function renderStudyGuidePane() {
     btn.addEventListener("click", () => {
       const modId = /** @type {HTMLElement} */ (btn).dataset.studyModule;
       if (!modId) return;
-      activeStudyModuleId = modId;
+      setActiveStudyModuleId(modId);
       const foundMod = STUDY_MODULES.find(m => m.id === modId);
       if (foundMod && foundMod.lessons.length) {
         const firstUnfinished = foundMod.lessons.find(l => !completedStudyLessons.has(l.id)) || foundMod.lessons[0];
-        activeStudyLessonId = firstUnfinished.id;
+        setActiveStudyLessonId(firstUnfinished.id);
       }
       saveStudyProgress();
       renderStudyGuidePane();
@@ -572,7 +599,7 @@ function renderStudyGuidePane() {
       if (targetEl?.closest("button")) return;
       const lesId = /** @type {HTMLElement} */ (card).dataset.studySelect;
       if (!lesId) return;
-      activeStudyLessonId = lesId;
+      setActiveStudyLessonId(lesId);
       saveStudyProgress();
       renderStudyGuidePane();
     });
@@ -665,10 +692,11 @@ function renderStudyGuidePane() {
       : "Deseja zerar o progresso de todas as lições do Guia de Estudos?";
     if (!window.confirm(msg)) return;
     completedStudyLessons.clear();
-    activeStudyLevelFilter = "ALL";
-    activeStudyModuleId = STUDY_MODULES[0]?.id || "mod_foundation";
-    activeStudyLessonId = STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos";
-    appliedStudyLessonId = null;
+    activeStudyLevelFilter = "ALL"
+    if (typeof deps?.setActiveStudyLevelFilter === "function") deps.setActiveStudyLevelFilter(activeStudyLevelFilter);
+    setActiveStudyModuleId(STUDY_MODULES[0]?.id || "mod_foundation");
+    setActiveStudyLessonId(STUDY_MODULES[0]?.lessons[0]?.id || "les_01_open_first_pos");
+    setAppliedStudyLessonId(null);
     saveStudyProgress();
     syncCommandBarSummaries();
     renderStudyGuidePane();

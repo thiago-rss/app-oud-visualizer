@@ -1,8 +1,8 @@
+// @ts-check
 import { createTunerController } from "./ui/tunerController.js";
 import { createOverlaysAndModals } from "./ui/overlaysAndModals.js";
 import { createStudyGuideView } from "./ui/studyGuideView.js";
 import { createDeckPanelsView } from "./ui/deckPanelsView.js";
-// @ts-check
 import { DB, PITCH_CLASSES_24 } from "./core/database.js";
 import {
   getActiveStructure,
@@ -376,10 +376,10 @@ const tunerController = createTunerController({
   getLatestPitchDetection: () => latestPitchDetection,
   isTunerBarOpen: () => isTunerBarOpen,
   isIqaPlaying: () => isIqaPlaying,
-  listAudioInputDevices,
+  listAudioInputDevices: (...args) => listAudioInputDevices(...args),
   getPitchInputDeviceId,
   getPitchNoiseGate,
-  isPitchListening,
+  isPitchListening: (...args) => isPitchListening(...args),
   getPitchInputProfile,
   getPitchDetectionMode,
   getPitchInputChannel,
@@ -829,15 +829,6 @@ function toggleStudyLessonComplete(lessonId) {
   renderStudyGuidePane();
 }
 
-function getStudyPaneElement() {
-  return (
-    document.getElementById("deck-pane-study") ||
-    document.querySelector('[data-deck-pane="study"]') ||
-    document.getElementById("deck-pane-guide") ||
-    document.querySelector('[data-deck-pane="guide"]')
-  );
-}
-
 /**
  * Renderiza toda a aba "Guia de Estudos" (barra de progresso, filtro por nível, 10 capítulos, cartões e missão ativa).
  */
@@ -1239,27 +1230,43 @@ const studyGuideView = createStudyGuideView({
   getAllStudyLessons,
   getStudyLessonById,
   getNextStudyLesson,
-  localizeStudyModule,
-  localizeStudyLesson,
+  localizeStudyModule: (...args) => localizeStudyModule(...args),
+  localizeStudyLesson: (...args) => localizeStudyLesson(...args),
   getLocalizedStudyDossier,
   getAvailableEtudeKinds,
-  generateTechnicalEtude,
-  applyStudyLessonPreset,
-  playStudyLessonExample,
-  toggleStudyLessonComplete,
-  saveStudyProgress,
-  syncCommandBarSummaries,
-  syncLiveTunerUI,
-  openLiveTunerBar,
-  toggleDroneAudio,
-  toggleIqaPlayback,
+  generateTechnicalEtude: (...args) => generateTechnicalEtude(...args),
+  applyStudyLessonPreset: (...args) => applyStudyLessonPreset(...args),
+  playStudyLessonExample: (...args) => playStudyLessonExample(...args),
+  toggleStudyLessonComplete: (...args) => toggleStudyLessonComplete(...args),
+  saveStudyProgress: (...args) => saveStudyProgress(...args),
+  syncCommandBarSummaries: (...args) => syncCommandBarSummaries(...args),
+  syncLiveTunerUI: (...args) => syncLiveTunerUI(...args),
+  openLiveTunerBar: (...args) => openLiveTunerBar(...args),
+  toggleDroneAudio: (...args) => toggleDroneAudio(...args),
+  toggleIqaPlayback: (...args) => toggleIqaPlayback(...args),
   setActiveDeckTab,
-  openGlossary,
-  playPluckedNote,
-  clearSequenceTimers,
-  suspendPitchDetection,
-  escapeHtml,
-  safeT,
+  openGlossary: (...args) => openGlossary(...args),
+  playPluckedNote: (...args) => playPluckedNote(...args),
+  clearSequenceTimers: (...args) => clearSequenceTimers(...args),
+  suspendPitchDetection: (...args) => suspendPitchDetection(...args),
+  escapeHtml: (...args) => escapeHtml(...args),
+  safeT: (...args) => safeT(...args),  getActiveStudyLevelFilter: () => typeof activeStudyLevelFilter !== "undefined" ? activeStudyLevelFilter : "ALL",
+  setActiveStudyLevelFilter: (v) => { if (typeof activeStudyLevelFilter !== "undefined") activeStudyLevelFilter = v; },  getActiveEtudeKind: () => typeof activeEtudeKind !== "undefined" ? activeEtudeKind : "ALL",
+  setActiveEtudeKind: (v) => { if (typeof activeEtudeKind !== "undefined") activeEtudeKind = v; },  setAppliedStudyLessonId: (v) => { appliedStudyLessonId = v; },
+  getIsIqaPlaying: () => isIqaPlaying,
+  isPitchListening: (...args) => isPitchListening(...args),
+  getOudTimbreProfile: (...args) => getOudTimbreProfile(...args),
+  toggleOudTimbreProfileWithPreview: (...args) => toggleOudTimbreProfileWithPreview(...args),
+  commitStatePatch: (...args) => commitStatePatch(...args),
+  toggleZenMode: (...args) => toggleZenMode(...args),
+  refreshAll: (...args) => refreshAll(...args),
+  syncControlsWithState: (...args) => syncControlsWithState(...args),
+  clearAllActivePlayback: (...args) => clearAllActivePlayback(...args),  getIsStudyDossierOpen: () => typeof isStudyDossierOpen !== "undefined" ? isStudyDossierOpen : false,
+  setIsStudyDossierOpen: (v) => { if (typeof isStudyDossierOpen !== "undefined") isStudyDossierOpen = Boolean(v); },
+
+
+
+
 });
 
 const {
@@ -1384,10 +1391,10 @@ const overlaysAndModals = createOverlaysAndModals({
   setGlossaryQuery: (val) => { glossaryQuery = val; },
   getGlossaryCategory: () => glossaryCategory,
   setGlossaryCategory: (val) => { glossaryCategory = val; },
-  localizeGlossaryEntry,
-  t,
-  escapeHtml,
-  scheduleUiTimeout,
+  localizeGlossaryEntry: (...args) => localizeGlossaryEntry(...args),
+  t: (...args) => t(...args),
+  escapeHtml: (...args) => escapeHtml(...args),
+  scheduleUiTimeout: (...args) => scheduleUiTimeout(...args),
 });
 
 const {
@@ -1569,21 +1576,25 @@ const deckPanelsView = createDeckPanelsView({
   getAllStudyLessons,
   getActiveStructure,
   getModulationRoutesForCurrentState,
-  hasValidAnchor,
-  resolvePitchClassQ,
-  localizeEntity,
-  t,
-  safeT,
-  escapeHtml,
-  commitStatePatch,
-  refreshAll,
-  clearAllActivePlayback,
-  clearShiftOverlay,
-  suspendPitchDetection,
-  strumChordVoicing,
-  playScaleSequence,
+  hasValidAnchor: (...args) => hasValidAnchor(...args),
+  resolvePitchClassQ: (...args) => resolvePitchClassQ(...args),
+  localizeEntity: (...args) => localizeEntity(...args),
+  t: (...args) => t(...args),
+  safeT: (...args) => safeT(...args),
+  escapeHtml: (...args) => escapeHtml(...args),
+  commitStatePatch: (...args) => commitStatePatch(...args),
+  refreshAll: (...args) => refreshAll(...args),
+  clearAllActivePlayback: (...args) => clearAllActivePlayback(...args),
+  clearShiftOverlay: (...args) => clearShiftOverlay(...args),
+  suspendPitchDetection: (...args) => suspendPitchDetection(...args),
+  strumChordVoicing: (...args) => strumChordVoicing(...args),
+  playScaleSequence: (...args) => playScaleSequence(...args),
   setActivePopover,
   setActiveDeckTab,
+  syncMobileMicButton: (...args) => syncMobileMicButton(...args),
+  handlePlayTaqsim: (...args) => typeof handlePlayTaqsim === "function" ? handlePlayTaqsim(...args) : undefined,
+  renderStudyGuidePane: (...args) => typeof renderStudyGuidePane === "function" ? renderStudyGuidePane(...args) : undefined,
+  syncControlsWithState: (...args) => typeof syncControlsWithState === "function" ? syncControlsWithState(...args) : undefined,
 });
 
 const {

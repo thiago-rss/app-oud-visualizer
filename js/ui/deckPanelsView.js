@@ -38,6 +38,9 @@ export function createDeckPanelsView(deps) {
     setActivePopover,
     setActiveDeckTab,
   } = deps;
+  const renderStudyGuidePane = typeof deps?.renderStudyGuidePane === "function" ? deps.renderStudyGuidePane : () => {};
+  const handlePlayTaqsim = typeof deps?.handlePlayTaqsim === "function" ? deps.handlePlayTaqsim : () => {};
+  const syncMobileMicButton = typeof deps?.syncMobileMicButton === "function" ? deps.syncMobileMicButton : () => {};
 
   const state = new Proxy({}, {
     get(_, prop) {
@@ -123,7 +126,7 @@ function renderCadenceBar() {
     card.addEventListener("click", () => {
       clearAllActivePlayback();
       clearShiftOverlay(false);
-      selectedStaffOrNeckPitch = null;
+      setSelectedStaffOrNeckPitch(null);
       commitStatePatch({ cadenceStepIndex: idx }, { syncControls: false, refresh: false });
       refreshAll();
       suspendPitchDetection(950);
@@ -178,7 +181,7 @@ function renderModulationRadarCard() {
         if (!modulationOrigin) return;
         clearAllActivePlayback();
         clearShiftOverlay(false);
-        selectedStaffOrNeckPitch = null;
+        setSelectedStaffOrNeckPitch(null);
         commitStatePatch({
           mode: modulationOrigin.mode,
           entityId: modulationOrigin.entityId,
@@ -186,7 +189,7 @@ function renderModulationRadarCard() {
           anchorAbsQ: modulationOrigin.anchorAbsQ,
           octavePathOnly: Boolean(modulationOrigin.anchorAbsQ !== null),
         }, { syncControls: false, refresh: false });
-        modulationOrigin = null;
+        setModulationOrigin(null);
         suspendPitchDetection(700);
         playPluckedNote(130.81 * Math.pow(2, state.rootQ / 24), 1.4);
         syncControlsWithState();
@@ -254,8 +257,7 @@ function renderModulationRadarCard() {
       ev.stopPropagation();
       clearAllActivePlayback();
       clearShiftOverlay(false);
-      selectedStaffOrNeckPitch = null;
-
+      setSelectedStaffOrNeckPitch(null);
       if (!modulationOrigin) {
         const curStruct = getActiveStructure(state);
         const curLoc = localizeEntity(state.lang, curStruct.entity);
@@ -363,7 +365,7 @@ function updateInfoPanel() {
       document.getElementById("btn-jump-cadence")?.addEventListener("click", () => {
         clearAllActivePlayback();
         clearShiftOverlay(false);
-        selectedStaffOrNeckPitch = null;
+        setSelectedStaffOrNeckPitch(null);
         commitStatePatch({
           mode: "CADENCE",
           entityId: entity.linked_cadence,
@@ -385,7 +387,7 @@ function updateInfoPanel() {
       document.getElementById("btn-jump-maqam")?.addEventListener("click", () => {
         clearAllActivePlayback();
         clearShiftOverlay(false);
-        selectedStaffOrNeckPitch = null;
+        setSelectedStaffOrNeckPitch(null);
         commitStatePatch({
           mode: "MAQAM",
           entityId: entity.bridge_maqam,
@@ -416,24 +418,23 @@ function syncCommandBarSummaries() {
   const shortTuning = tuning.name.split("(")[0].trim();
   const shortIqa = iqa.name.split("(")[0].split("—")[0].trim();
   const dirArrow = state.mode === "MAQAM" ? (state.direction === "ASC" ? " ↑" : " ↓") : "";
-
   const shapeShort = state.shapeMode === "FULL_NECK"
     ? (state.lang === "en" ? "Full" : "Completo")
-    : (state.shapeMode === "OPEN_FIRST_POS"
+    : state.shapeMode === "OPEN_FIRST_POS"
       ? (state.lang === "en" ? "I · 1st Pos" : "I · 1ª Pos")
-      : (state.shapeMode === "POS_SECOND"
+      : state.shapeMode === "POS_SECOND"
         ? (state.lang === "en" ? "II · 2nd Pos" : "II · 2ª Pos")
-        : (state.shapeMode === "POS_THIRD_BODY"
+        : state.shapeMode === "POS_THIRD_BODY"
           ? (state.lang === "en" ? "III · Body" : "III · Tampo")
-          : (state.lang === "en" ? "Box" : "Móvel"))));
-
+          : (state.lang === "en" ? "Box" : "Móvel");
   const lblShort = state.labelMode === "NOTE_NAME"
     ? (state.lang === "en" ? "Notes" : "Cifra")
-    : (state.labelMode === "DEGREE"
+    : state.labelMode === "DEGREE"
       ? (state.lang === "en" ? "Deg" : "Grau")
-      : (state.labelMode === "FINGER"
+      : state.labelMode === "FINGER"
         ? (state.lang === "en" ? "Fingers" : "Dedos")
-        : (state.lang === "en" ? "Arabic" : "Árabe")));
+        : (state.lang === "en" ? "Arabic" : "Árabe");
+
 
   const v0 = document.getElementById("cmd-val-0");
   const v1 = document.getElementById("cmd-val-1");
