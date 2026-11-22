@@ -7,6 +7,13 @@ import {
   computeAnchoredOctavePath
 } from "./core/modalEngine.js";
 import { getInitialStateFromUrl, syncStateToUrl } from "./core/urlState.js";
+import {
+  escapeHtml,
+  safeStorageGet,
+  safeStorageSet,
+  safeStorageRemove,
+  createUiTimerRegistry
+} from "./core/uiRuntime.js";
 import { GLOSSARY_ENTRIES } from "./core/glossary.js";
 import {
   t,
@@ -4508,15 +4515,6 @@ window.addEventListener("beforeinstallprompt", (e) => {
  * @param {unknown} value
  * @returns {string}
  */
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 /** @type {Set<number>} */
 const uiTimeouts = new Set();
 
@@ -4562,48 +4560,17 @@ if (typeof document !== "undefined") {
  * @param {string | null} [fallback=null]
  * @returns {string | null}
  */
-function safeStorageGet(key, fallback = null) {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return fallback;
-    const val = window.localStorage.getItem(key);
-    return val !== null ? val : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 /**
  * Grava uma chave no localStorage com proteção contra bloqueio/quota.
  * @param {string} key
  * @param {string} value
  * @returns {boolean}
  */
-function safeStorageSet(key, value) {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return false;
-    window.localStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Remove uma chave do localStorage com proteção contra bloqueio.
  * @param {string} key
  * @returns {boolean}
  */
-function safeStorageRemove(key) {
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return false;
-    window.localStorage.removeItem(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-
 // --- Despachante Centralizado de Transições de Estado ---
 /**
  * Atualiza o estado global aplicando normalização pura e sincronizando UI/URL.
