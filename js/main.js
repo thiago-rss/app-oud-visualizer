@@ -4568,3 +4568,52 @@ if (typeof document !== "undefined") {
     }
   });
 }
+
+
+// --- Helpers Centralizados de localStorage (Seguro & Tolerante a Falhas) ---
+/**
+ * Lê uma chave do localStorage com proteção contra bloqueio/quota.
+ * @param {string} key
+ * @param {string | null} [fallback=null]
+ * @returns {string | null}
+ */
+function safeStorageGet(key, fallback = null) {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return fallback;
+    const val = window.localStorage.getItem(key);
+    return val !== null ? val : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Grava uma chave no localStorage com proteção contra bloqueio/quota.
+ * @param {string} key
+ * @param {string} value
+ * @returns {boolean}
+ */
+function safeStorageSet(key, value) {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return false;
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Remove uma chave do localStorage com proteção contra bloqueio.
+ * @param {string} key
+ * @returns {boolean}
+ */
+function safeStorageRemove(key) {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return false;
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
