@@ -83,6 +83,9 @@ import {
 } from "./ui/neckRenderer.js";
 import { renderMusicalStaffSVG } from "./ui/staffRenderer.js";
 import { applyStatePatch } from "./core/stateTransitions.js";
+import { initStringAtlasBridge } from "./ui/stringAtlasBridge.js";
+import { setReferenceA4Hz } from "./audio/synthEngine.js";
+import { setPitchReferenceA4Hz } from "./audio/pitchEngine.js";
 
 const state = getInitialStateFromUrl();
 
@@ -403,6 +406,7 @@ function handleLivePitchDetection(detection) {
     lastDetectedTunerCourse = detection.courseNumber;
   }
   updateLivePitchOverlayOnNeck(detection);
+  stringAtlasBridge?.updateLiveTelemetry(detection);
   renderLiveTunerReadout(detection);
 }
 
@@ -2991,5 +2995,51 @@ function commitStatePatch(patch, options = {}) {
   }
   if (options.refresh !== false) {
     refreshAll();
+  }
+}
+
+// --- Integração String Atlas Upgrade (A4, Estrobo ±4¢, Rastro, Clareza, Scordaturas & Toasts) ---
+let stringAtlasBridge = null;
+function ensureStringAtlasBridge() {
+  if (stringAtlasBridge) return stringAtlasBridge;
+  stringAtlasBridge = initStringAtlasBridge({
+    getState: () => state,
+    DB,
+    onA4Changed: (a4Hz) => {
+      setReferenceA4Hz(a4Hz);
+      setPitchReferenceA4Hz(a4Hz);
+      if (state.droneActive && typeof updateDronePitch === "function") {
+        const baseFreq = 130.81278 * Math.pow(2, (((state.rootQ % 24) + 24) % 24) / 24);
+        updateDronePitch(baseFreq);
+      }
+    },
+    onClarityChanged: (clarityMode) => {
+      if (clarityMode === "POSITION") {
+        commitStatePatch({ shapeMode: "OPEN_FIRST_POS", showGhostNotes: true }, { syncControls: true, refresh: true });
+      } else if (clarityMode === "FULL_NECK" || clarityMode === "FIRST_OCTAVE") {
+        commitStatePatch({ shapeMode: "FULL_NECK", showGhostNotes: false }, { syncControls: true, refresh: true });
+      } else {
+        refreshAll();
+      }
+    },
+    onCustomTuningsChanged: (selectedId) => {
+      if (selectedId) {
+        commitStatePatch({ tuningId: selectedId }, { syncControls: true, refresh: true });
+      } else {
+        syncControlsWithState();
+        refreshAll();
+      }
+    }
+  });
+  return stringAtlasBridge;
+}
+
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      window.setTimeout(ensureStringAtlasBridge, 0);
+    });
+  } else {
+    window.setTimeout(ensureStringAtlasBridge, 0);
   }
 }

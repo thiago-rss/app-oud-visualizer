@@ -1,4 +1,5 @@
 // @ts-check
+import { clampA4Hz, loadSavedA4Hz, PitchStabilizer, computeStrobeTelemetry } from "../core/pitchStabilizer.js";
 import { DB, PITCH_CLASSES_24 } from "../core/database.js";
 import { getActiveStructure } from "../core/modalEngine.js";
 import { setMicSessionActive } from "./synthEngine.js";
@@ -1098,4 +1099,24 @@ if (
       devicesChangeCallback?.(devs);
     }).catch(() => {});
   });
+}
+
+// --- Diapasão A4 & Estabilizador de Graves (String Atlas Upgrade) ---
+let pitchReferenceA4Hz = loadSavedA4Hz();
+const lowEndStabilizer = new PitchStabilizer();
+export function setPitchReferenceA4Hz(a4Hz) {
+  pitchReferenceA4Hz = clampA4Hz(a4Hz);
+  return pitchReferenceA4Hz;
+}
+export function getPitchReferenceA4Hz() {
+  return pitchReferenceA4Hz;
+}
+export function resetPitchStabilizer() {
+  lowEndStabilizer.reset();
+}
+export function stabilizeDetectedPitchHz(rawHz) {
+  return lowEndStabilizer.stabilizeFrequency(rawHz);
+}
+export function buildStrobeData(cents) {
+  return computeStrobeTelemetry(cents);
 }

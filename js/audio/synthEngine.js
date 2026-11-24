@@ -1,4 +1,5 @@
 // @ts-check
+import { clampA4Hz, scaleFreqToA4, loadSavedA4Hz } from "../core/pitchStabilizer.js";
 import { PITCH_CLASSES_24 } from "../core/database.js";
 
 /** @typedef {"syrian"|"egyptian"} OudTimbreProfile */
@@ -956,6 +957,7 @@ function synthesizeDoubleCourseOudBuffer(ctx, freq, durationSec) {
  * @param {number} [volume=0.38]
  */
 export function playPluckedNote(freq, duration = 1.45, volume = 0.38) {
+  freq = scaleFreqToA4(freq, currentReferenceA4Hz);
   if (!Number.isFinite(freq) || freq <= 20) return;
 
   withReadyAudio((ctx, _masterDest, bodyDest) => {
@@ -1229,6 +1231,7 @@ export function toggleDroneAudio(currentlyActive, rootQ, btnEl) {
  * @param {HTMLElement | null} btnEl
  */
 export function updateDronePitch(isActive, rootQ, btnEl) {
+  isActive = scaleFreqToA4(isActive, currentReferenceA4Hz);
   updateDroneButtonUI(isActive, rootQ, btnEl);
   if (!isActive || !droneNodes || !audioCtx) return;
 
@@ -1349,4 +1352,14 @@ export function stopIqaEngine() {
     iqaIntervalId = null;
   }
   scheduleIdleSuspend();
+}
+
+// --- Diapasão Global A4 (415–446 Hz) ---
+let currentReferenceA4Hz = loadSavedA4Hz();
+export function setReferenceA4Hz(a4Hz) {
+  currentReferenceA4Hz = clampA4Hz(a4Hz);
+  return currentReferenceA4Hz;
+}
+export function getReferenceA4Hz() {
+  return currentReferenceA4Hz;
 }
