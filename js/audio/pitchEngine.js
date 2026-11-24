@@ -1,5 +1,13 @@
 // @ts-check
-import { clampA4Hz, loadSavedA4Hz, PitchStabilizer, computeStrobeTelemetry } from "../core/pitchStabilizer.js";
+import {
+  DEFAULT_A4_HZ,
+  clampA4Hz,
+  loadSavedA4Hz,
+  scaleFreqToA4,
+  normalizeFreqFromA4To440,
+  PitchStabilizer,
+  computeStrobeTelemetry
+} from "../core/pitchStabilizer.js";
 import { DB, PITCH_CLASSES_24 } from "../core/database.js";
 import { getActiveStructure } from "../core/modalEngine.js";
 import { setMicSessionActive } from "./synthEngine.js";
@@ -626,6 +634,10 @@ function tickAnalysisLoop(nowTs) {
   }
 
   const medianFreq = computeMedian(recentFreqWindow);
+  const stabilizedHz = lowEndStabilizer.stabilizeFrequency(medianFreq);
+  const base440Hz = pitchReferenceA4Hz !== DEFAULT_A4_HZ
+    ? normalizeFreqFromA4To440(stabilizedHz, pitchReferenceA4Hz)
+    : stabilizedHz;
   const smoothAlpha = inputProfile === "LINE" ? 0.72 : 0.65;
   smoothedFreqHz = smoothedFreqHz > 0
     ? smoothedFreqHz * (1 - smoothAlpha) + medianFreq * smoothAlpha
@@ -633,7 +645,7 @@ function tickAnalysisLoop(nowTs) {
 
   const currentState = stateGetter();
   const resolved = resolvePitchTarget(
-    smoothedFreqHz,
+    base440Hz,
     currentState,
     detectionMode,
     lockedTunerCourse,
@@ -643,7 +655,9 @@ function tickAnalysisLoop(nowTs) {
 
   lastValidResult = resolved;
   lastValidTs = nowTs;
-  detectionCallback?.(resolved);
+  const enriched = applyStabilizerToDetection(resolved, stabilizedHz);
+  lastValidResult = enriched;
+  detectionCallback?.(enriched);
 }
 
 /**
@@ -900,6 +914,7 @@ export async function startPitchListening(config) {
  * Encerra imediatamente a captura de áudio e libera hardware/bateria do sistema operacional.
  */
 export function stopPitchListening() {
+  lowEndStabilizer.reset();
   const wasListening = listening;
   listening = false;
   starting = false;
@@ -982,6 +997,7 @@ export function isPitchListening() {
 
 /** @param {PitchDetectionMode} mode */
 export function setPitchDetectionMode(mode) {
+  lowEndStabilizer.reset();
   detectionMode = mode;
   recentFreqWindow = [];
   lastValidResult = null;
@@ -1104,19 +1120,77 @@ if (
 // --- Diapasão A4 & Estabilizador de Graves (String Atlas Upgrade) ---
 let pitchReferenceA4Hz = loadSavedA4Hz();
 const lowEndStabilizer = new PitchStabilizer();
+/** @type {string | null} */
+let lastStabilizedTargetKey = null;
+
+/**
+ * Define o diapasão global de referência A4 (415–446 Hz) para o detector e afinador.
+ * @param {number} a4Hz
+ */
 export function setPitchReferenceA4Hz(a4Hz) {
   pitchReferenceA4Hz = clampA4Hz(a4Hz);
   return pitchReferenceA4Hz;
 }
+
+/**
+ * Retorna o diapasão A4 ativo no detector (415–446 Hz).
+ * @returns {number}
+ */
 export function getPitchReferenceA4Hz() {
   return pitchReferenceA4Hz;
 }
+
+/**
+ * Reseta o estado do PitchStabilizer (ex.: ao iniciar/parar escuta ou trocar modo).
+ */
 export function resetPitchStabilizer() {
   lowEndStabilizer.reset();
+  lastStabilizedTargetKey = null;
 }
+
+/**
+ * Suaviza a frequência bruta detectada pelo YIN usando o PitchStabilizer
+ * (mediana adaptativa em graves < 115 Hz, snap imediato em saltos > 70¢).
+ * @param {number} rawHz
+ * @returns {number}
+ */
 export function stabilizeDetectedPitchHz(rawHz) {
   return lowEndStabilizer.stabilizeFrequency(rawHz);
 }
+
+/**
+ * Calcula a telemetria óptica do Modo Estroboscópico (±4¢).
+ * @param {number} cents
+ */
 export function buildStrobeData(cents) {
   return computeStrobeTelemetry(cents);
+}
+
+/**
+ * Aplica o PitchStabilizer e a referência A4 ao resultado resolvido do YIN,
+ * retornando um objeto enriquecido com `strobe` (±4¢) e `referenceA4Hz`.
+ * @param {any} rawResult
+ * @param {number} [rawHz]
+ */
+export function applyStabilizerToDetection(rawResult, rawHz) {
+  if (!rawResult || !rawResult.active) {
+    lastStabilizedTargetKey = null;
+    return rawResult;
+  }
+
+  const candidateKey = `${rawResult.mode}:${rawResult.targetAbsQ}:${rawResult.courseNumber ?? ""}`;
+  const stabilizedKey = lowEndStabilizer.stabilizeCandidateKey(candidateKey);
+  const stableTarget = stabilizedKey === candidateKey || !lastStabilizedTargetKey;
+  lastStabilizedTargetKey = stabilizedKey || candidateKey;
+
+  const centsVal = Number.isFinite(rawResult.centsOff) ? rawResult.centsOff : 0;
+  const strobe = computeStrobeTelemetry(centsVal);
+
+  return {
+    ...rawResult,
+    rawDetectedHz: Number.isFinite(rawHz) ? rawHz : rawResult.freqHz,
+    referenceA4Hz: pitchReferenceA4Hz,
+    isTargetStable: stableTarget,
+    strobe
+  };
 }
