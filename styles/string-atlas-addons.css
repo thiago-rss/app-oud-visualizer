@@ -1244,3 +1244,100 @@ body[data-theme="light"] .sa-header-controls-btn.is-active {
   color: var(--sa-text);
   font-size: 0.76rem;
 }
+
+/* --- Melógrafo ao Vivo & Raio-X de Taqsim (v3.17) --- */
+.sa-melograph-bar {
+  margin-top: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sa-melo-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+}
+
+.sa-melo-title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+}
+
+.sa-melo-metrics {
+  font-size: 0.74rem;
+  color: var(--sa-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-melo-metrics strong {
+  color: var(--sa-brass);
+}
+
+.sa-melo-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sa-melo-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sa-melo-svg {
+  flex: 1 1 240px;
+  max-width: 420px;
+  height: 54px;
+  border-radius: 8px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+}
+
+.sa-melo-empty {
+  flex: 1 1 240px;
+  font-size: 0.74rem;
+  color: var(--sa-muted);
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px dashed var(--sa-border);
+}
+
+.sa-melo-heatmap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sa-heat-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+  color: var(--sa-text);
+}
+
+.sa-heat-chip.is-micro {
+  border-color: var(--sa-plum);
+  color: var(--sa-plum);
+}
+
+.sa-heat-chip small {
+  color: var(--sa-muted);
+  font-variant-numeric: tabular-nums;
+}

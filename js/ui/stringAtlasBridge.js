@@ -39,6 +39,7 @@ import { createMobileSessionGuard } from "../core/mobileAudioGuard.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
 import { createEarTrainerController } from "./earTrainerView.js";
 import { createStudyCoachController } from "./studyCoachView.js";
+import { createMelographController } from "./melographView.js";
 import { createLiveNeckFxController } from "./liveNeckFx.js";
 import { exportPlateAsPng, exportPlateAsSvg } from "../core/plateExporter.js";
 import { loadSnapshots, saveSnapshot, deleteSnapshot, buildFullBackupJson, importFullBackupJson } from "../core/sessionSnapshots.js";
@@ -91,6 +92,7 @@ export function initStringAtlasBridge(deps) {
           paletteCtrl?.updateAudioTransportDock?.();
           liveFxCtrl?.renderInspectorStrip?.();
       coachCtrl?.renderCoachStrip?.();
+      meloCtrl?.renderMelographBar?.();
         }, 120);
       }
     });
@@ -102,6 +104,8 @@ export function initStringAtlasBridge(deps) {
   let earCtrl = null;
   /** @type {any} */
   let coachCtrl = null;
+  /** @type {any} */
+  let meloCtrl = null;
   /** @type {any} */
   let liveFxCtrl = null;
   let a4PopoverOpen = false;
@@ -515,6 +519,7 @@ export function initStringAtlasBridge(deps) {
 
     renderTrailChips(trailEl, trail.getAll());
     coachCtrl?.onLiveDetection?.(detection);
+    meloCtrl?.onLiveDetection?.(detection);
   }
 
   /**
@@ -996,6 +1001,13 @@ export function initStringAtlasBridge(deps) {
 
 
 
+
+  meloCtrl = createMelographController({
+    getState: deps.getState,
+    getPitchClasses24: deps.getPitchClasses24,
+    getA4Hz: () => currentA4
+  });
+
   coachCtrl = createStudyCoachController({
     getState: deps.getState,
     getPitchClasses24: deps.getPitchClasses24,
@@ -1045,6 +1057,7 @@ export function initStringAtlasBridge(deps) {
     onOpenExportSnapshots: openExportAndSnapshotsModal,
     onOpenEarTrainer: () => earCtrl?.openModal(),
     onStartWarmup10Min: () => coachCtrl?.startWarmup10Min(),
+    onToggleMelograph: () => meloCtrl?.toggleRecording(),
     onExportPng: triggerExportPng,
     onExportSvg: triggerExportSvg,
     onPanicStopAll: deps.onPanicStopAll,

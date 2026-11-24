@@ -143,6 +143,15 @@ export function createCommandPaletteController(deps) {
         run: () => deps.onOpenExportSnapshots?.()
       },
       {
+        id: "act_melograph_rec",
+        category: catAct,
+        icon: "📈",
+        title: en ? "Start / Pause Taqsim X-Ray & Melograph" : "Gravar / Pausar Raio-X de Taqsim & Melógrafo",
+        subtitle: "YIN · Heatmap",
+        keywords: "melografo raio x taqsim heatmap intonacao cents gravar",
+        run: () => deps.onToggleMelograph?.()
+      },
+      {
         id: "act_warmup_10m",
         category: catAct,
         icon: "⏱",
