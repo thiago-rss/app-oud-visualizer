@@ -143,6 +143,15 @@ export function createCommandPaletteController(deps) {
         run: () => deps.onOpenExportSnapshots?.()
       },
       {
+        id: "act_warmup_10m",
+        category: catAct,
+        icon: "⏱",
+        title: en ? "Start / Stop 10-Min Guided Practice Routine" : "Iniciar / Parar Rotina de Aquecimento (10 min)",
+        subtitle: "3m + 4m + 3m",
+        keywords: "aquecimento warmup rotina 10 min estudo guia licao",
+        run: () => deps.onStartWarmup10Min?.()
+      },
+      {
         id: "act_ear_trainer",
         category: catAct,
         icon: "🎧",

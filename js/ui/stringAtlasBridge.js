@@ -35,8 +35,10 @@ import {
   formatAbsQ24Label
 } from "../core/customTunings.js";
 import { showToast } from "./toastView.js";
+import { createMobileSessionGuard } from "../core/mobileAudioGuard.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
 import { createEarTrainerController } from "./earTrainerView.js";
+import { createStudyCoachController } from "./studyCoachView.js";
 import { createLiveNeckFxController } from "./liveNeckFx.js";
 import { exportPlateAsPng, exportPlateAsSvg } from "../core/plateExporter.js";
 import { loadSnapshots, saveSnapshot, deleteSnapshot, buildFullBackupJson, importFullBackupJson } from "../core/sessionSnapshots.js";
@@ -68,10 +70,38 @@ export function initStringAtlasBridge(deps) {
   }
 
   let strobePhase = 0;
+
+  const sessionGuard = createMobileSessionGuard();
+
+  const syncSessionWakeLock = () => {
+    const act = deps.getAudioActivity?.() || { drone: false, iqa: false, mic: false };
+    const active = Boolean(act.drone || act.iqa || act.mic);
+    sessionGuard.requestWakeLockIfNeeded(active);
+  };
+
+  if (typeof document !== "undefined" && document.body?.dataset.saSessionGuardBound !== "1") {
+    document.body.dataset.saSessionGuardBound = "1";
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        sessionGuard.releaseWakeLock();
+      } else if (document.visibilityState === "visible") {
+        sessionGuard.markResumedNow(performance.now());
+        window.setTimeout(() => {
+          syncSessionWakeLock();
+          paletteCtrl?.updateAudioTransportDock?.();
+          liveFxCtrl?.renderInspectorStrip?.();
+      coachCtrl?.renderCoachStrip?.();
+        }, 120);
+      }
+    });
+  }
+
   /** @type {any} */
   let paletteCtrl = null;
   /** @type {any} */
   let earCtrl = null;
+  /** @type {any} */
+  let coachCtrl = null;
   /** @type {any} */
   let liveFxCtrl = null;
   let a4PopoverOpen = false;
@@ -257,6 +287,7 @@ export function initStringAtlasBridge(deps) {
         <button type="button" id="sa-btn-save-tuning" class="sa-pill-btn" title="${en ? "Save or manage custom Oud tunings" : "Salvar ou gerenciar afinações customizadas do Oud"}">
           ✦ ${en ? "Scordaturas" : "Afinações Salvas"}
         </button>
+        <button type="button" id="sa-btn-rearm-audio" class="sa-mini-chip" title="${en ? "Re-arm audio engine (iOS / Bluetooth)" : "Reativar / destravar sessão de áudio"}">↻ ${en ? "Audio" : "Áudio"}</button>
         <button type="button" id="sa-btn-palette" class="sa-mini-chip" title="${en ? "Quick Search (⌘K / /)" : "Busca Rápida (⌘K / /)"}">⌘K</button>
         <button type="button" id="sa-btn-shortcuts" class="sa-mini-chip" title="${en ? "Keyboard Shortcuts (?)" : "Atalhos de Teclado (?)"}">?</button>
       </div>
@@ -346,6 +377,15 @@ export function initStringAtlasBridge(deps) {
             : (isEn() ? "24-TET Staff hidden" : "Pauta 24-TET oculta"),
           { type: "info", durationMs: 1500 }
         );
+      });
+    }
+    const btnRearm = document.getElementById("sa-btn-rearm-audio");
+    if (btnRearm) {
+      btnRearm.addEventListener("click", () => {
+        deps.onRearmAudio?.();
+        syncSessionWakeLock();
+        paletteCtrl?.updateAudioTransportDock?.();
+        showToast(isEn() ? "Audio session re-armed" : "Sessão de áudio reativada", { type: "success", icon: "↻", durationMs: 1700 });
       });
     }
     const btnPalette = document.getElementById("sa-btn-palette");
@@ -474,6 +514,7 @@ export function initStringAtlasBridge(deps) {
     }
 
     renderTrailChips(trailEl, trail.getAll());
+    coachCtrl?.onLiveDetection?.(detection);
   }
 
   /**
@@ -954,6 +995,16 @@ export function initStringAtlasBridge(deps) {
   }
 
 
+
+  coachCtrl = createStudyCoachController({
+    getState: deps.getState,
+    getPitchClasses24: deps.getPitchClasses24,
+    getActiveLessonId: deps.getActiveLessonId,
+    getAllStudyLessons: deps.getAllStudyLessons,
+    playFreq: (freqHz, durSec = 0.8) => deps.onPlayFreq?.(freqHz, durSec),
+    onApplyLesson: (lessonId) => deps.onApplyLesson?.(lessonId)
+  });
+
   earCtrl = createEarTrainerController({
     getState: deps.getState,
     getPitchClasses24: deps.getPitchClasses24,
@@ -993,6 +1044,7 @@ export function initStringAtlasBridge(deps) {
     onOpenCustomTunings: openCustomTuningsDrawer,
     onOpenExportSnapshots: openExportAndSnapshotsModal,
     onOpenEarTrainer: () => earCtrl?.openModal(),
+    onStartWarmup10Min: () => coachCtrl?.startWarmup10Min(),
     onExportPng: triggerExportPng,
     onExportSvg: triggerExportSvg,
     onPanicStopAll: deps.onPanicStopAll,
@@ -1097,6 +1149,7 @@ export function initStringAtlasBridge(deps) {
       mountHeaderControlsButton();
       mountStageClarityBar();
       syncFocusedStageLayout();
+      syncSessionWakeLock();
       syncFreeModeSummary();
       liveFxCtrl?.renderInspectorStrip?.();
     },

@@ -1159,3 +1159,88 @@ body[data-theme="light"] .sa-header-controls-btn.is-active {
   border-color: var(--sa-plum);
   color: var(--sa-plum);
 }
+
+/* --- Tutor Ativo do Guia de Estudos (v3.16: Domínio 3 Estágios, Checkpoints YIN, A/B, 10m & Caderno) --- */
+.sa-study-coach-strip {
+  margin-top: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sa-coach-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+}
+
+.sa-coach-lesson-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.sa-coach-title {
+  font-size: 0.82rem;
+  color: var(--sa-brass);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.sa-coach-mastery-group,
+.sa-coach-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.sa-cp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sa-cp-chip {
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+  color: var(--sa-muted);
+}
+
+.sa-cp-chip.is-cur {
+  border-color: var(--sa-plum);
+  color: var(--sa-plum);
+}
+
+.sa-cp-chip.is-done {
+  border-color: var(--sa-emerald);
+  color: var(--sa-emerald);
+}
+
+.sa-coach-note-row {
+  display: flex;
+}
+
+.sa-coach-note-input {
+  width: 100%;
+  padding: 0.36rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+  color: var(--sa-text);
+  font-size: 0.76rem;
+}

@@ -3031,7 +3031,8 @@ function ensureStringAtlasBridge() {
         refreshAll();
       }
     }    ,
-    getAllStudyLessons: () => (typeof getAllStudyLessons === "function" ? getAllStudyLessons() : []),
+    getActiveLessonId: () => (typeof activeStudyLessonId !== "undefined" ? activeStudyLessonId : null),
+        getAllStudyLessons: () => (typeof getAllStudyLessons === "function" ? getAllStudyLessons() : []),
     getGlossaryEntries: () => (typeof GLOSSARY_ENTRIES !== "undefined" ? GLOSSARY_ENTRIES : []),
     onApplyEntity: (mode, entityId) => {
       commitStatePatch({ mode, entityId }, { syncControls: true, refresh: true });
@@ -3121,6 +3122,14 @@ function ensureStringAtlasBridge() {
     onRestoreSnapshotState: (snapState) => {
       if (!snapState) return;
       commitStatePatch(snapState, { syncControls: true, refresh: true });
+    },
+    onRearmAudio: () => {
+      if (typeof unlockAudioEngine === "function") unlockAudioEngine();
+      if (typeof restartIqaIfPlaying === "function") restartIqaIfPlaying();
+      if (state.droneActive && typeof updateDronePitch === "function") {
+        const baseFreq = 130.81278 * Math.pow(2, (((state.rootQ % 24) + 24) % 24) / 24);
+        updateDronePitch(baseFreq);
+      }
     },
     onClearSelection: () => {
       if (typeof selectedStaffOrNeckPitch !== "undefined") selectedStaffOrNeckPitch = null;
