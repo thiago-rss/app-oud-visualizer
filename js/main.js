@@ -2109,7 +2109,7 @@ function refreshAll() {
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
   syncStateToUrl(state);
-  stringAtlasBridge?.syncFreeModeSummary?.();
+  stringAtlasBridge?.refreshUi?.();
 }
 
 function initApp() {
@@ -3106,6 +3106,21 @@ function ensureStringAtlasBridge() {
     onToggleZen: () => {
       const btn = document.getElementById("btn-zen-mode") || document.getElementById("btn-zen-exit");
       if (btn) btn.click();
+    },
+    getPitchClasses24: () => PITCH_CLASSES_24,
+    onPlayFreq: (freq) => {
+      if (typeof playPluckedNote === "function") playPluckedNote(freq, 1.35);
+    },
+    onMakeRootFromInspector: (info) => {
+      if (!info) return;
+      commitStatePatch(
+        { rootQ: info.pitchClassQ, anchorAbsQ: info.absQ, octavePathOnly: true },
+        { syncControls: true, refresh: true }
+      );
+    },
+    onClearSelection: () => {
+      if (typeof selectedStaffOrNeckPitch !== "undefined") selectedStaffOrNeckPitch = null;
+      refreshAll();
     },
     getAudioActivity: () => ({
       drone: Boolean(state?.droneActive),

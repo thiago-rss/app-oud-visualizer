@@ -36,6 +36,7 @@ import {
 } from "../core/customTunings.js";
 import { showToast } from "./toastView.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
+import { createLiveNeckFxController } from "./liveNeckFx.js";
 
 /**
  * @typedef {{
@@ -66,6 +67,12 @@ export function initStringAtlasBridge(deps) {
   let strobePhase = 0;
   /** @type {any} */
   let paletteCtrl = null;
+  /** @type {any} */
+  let liveFxCtrl = null;
+  let a4PopoverOpen = false;
+  let controlsDrawerOpen = false;
+  /** @type {boolean | null} */
+  let staffUserOverride = null;
 
   const isEn = () => deps.getState?.()?.lang === "en";
 
@@ -94,6 +101,106 @@ export function initStringAtlasBridge(deps) {
   /**
    * Monta ou atualiza a barra compacta de Clareza do Braço + Diapasão A4 acima do espelho.
    */
+
+  /**
+   * Padrão String Atlas v8.9 — Zero Menus Permanentes Acima do Braço:
+   * - Recolhe .command-bar-shell por padrão (abre via ⚙ Controles ou clicando no título da escala no palco).
+   * - No Modo Livre (FREE), recolhe #staff-stage-box até o usuário clicar em 🎼 Pauta ou escolher um Maqam/Lição.
+   */
+  function syncFocusedStageLayout() {
+    if (typeof document === "undefined" || !document.body) return;
+    document.body.setAttribute("data-sa-controls-open", controlsDrawerOpen ? "true" : "false");
+
+    const cmdShell = document.querySelector(".command-bar-shell");
+    if (cmdShell) {
+      cmdShell.classList.toggle("sa-controls-collapsed", !controlsDrawerOpen);
+    }
+
+    const headerBtn = document.getElementById("sa-btn-header-controls");
+    if (headerBtn) {
+      headerBtn.classList.toggle("is-active", controlsDrawerOpen);
+      headerBtn.setAttribute("aria-expanded", controlsDrawerOpen ? "true" : "false");
+    }
+
+    const stagePicker = document.getElementById("sa-stage-scale-trigger");
+    if (stagePicker) {
+      stagePicker.classList.toggle("is-open", controlsDrawerOpen);
+    }
+
+    const shouldHideStaff =
+      staffUserOverride !== null
+        ? !staffUserOverride
+        : currentClarity === NECK_CLARITY_MODES.FREE;
+    document.body.setAttribute("data-sa-staff-hidden", shouldHideStaff ? "true" : "false");
+
+    const btnStaff = document.getElementById("sa-btn-staff-toggle");
+    if (btnStaff) {
+      btnStaff.classList.toggle("is-active", !shouldHideStaff);
+    }
+  }
+
+  function toggleControlsDrawer(forceState) {
+    controlsDrawerOpen = typeof forceState === "boolean" ? forceState : !controlsDrawerOpen;
+    syncFocusedStageLayout();
+  }
+
+  /**
+   * Injeta o botão compacto "⚙ Controles" diretamente em .header-actions (modelo String Atlas v8.9).
+   */
+  function mountHeaderControlsButton() {
+    if (typeof document === "undefined") return;
+    const actions = document.querySelector(".studio-header .header-actions") || document.querySelector(".header-actions");
+    if (!actions) return;
+
+    let btn = document.getElementById("sa-btn-header-controls");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "sa-btn-header-controls";
+      btn.className = "sa-header-controls-btn";
+      btn.setAttribute("aria-expanded", controlsDrawerOpen ? "true" : "false");
+      btn.addEventListener("click", () => toggleControlsDrawer());
+      actions.prepend(btn);
+    }
+    const en = isEn();
+    btn.textContent = en ? "⚙ Controls" : "⚙ Controles";
+    btn.title = en ? "Show or hide instrument controls" : "Exibir ou ocultar controles do instrumento";
+    btn.classList.toggle("is-active", controlsDrawerOpen);
+  }
+
+  function getStageHeaderLabels() {
+    const en = isEn();
+    const st = deps.getState?.() || {};
+    const tuning = deps.DB?.tunings?.find((x) => x.id === st.tuningId) || deps.DB?.tunings?.[0];
+    const tuningShort = tuning?.name
+      ? String(tuning.name).split("—")[0].split("(")[0].trim().slice(0, 18)
+      : "Oud 6c";
+
+    if (currentClarity === NECK_CLARITY_MODES.FREE) {
+      return {
+        title: en ? "Free Exploration · 24-TET" : "Exploração Livre · 24-TET",
+        tuning: tuningShort
+      };
+    }
+
+    const pools = {
+      MAQAM: deps.DB?.maqamat || [],
+      JINS: deps.DB?.ajnas || [],
+      SCALE: deps.DB?.scales || [],
+      CHORD: deps.DB?.chords || [],
+      CADENCE: deps.DB?.cadences || []
+    };
+    const pool = pools[st.mode] || pools.MAQAM;
+    const ent = pool.find((x) => x.id === st.entityId) || pool[0];
+    const pcs = deps.getPitchClasses24?.() || [];
+    const rootName = pcs[((Number(st.rootQ) || 0) % 24 + 24) % 24]?.flat || "C";
+    const entName = ent?.name ? String(ent.name).replace(/^\[.*?\]\s*/, "") : "Maqam";
+    return {
+      title: `${entName} (${rootName})`,
+      tuning: tuningShort
+    };
+  }
+
   function mountStageClarityBar() {
     if (typeof document === "undefined") return;
     const host =
@@ -128,11 +235,18 @@ export function initStringAtlasBridge(deps) {
         <span class="sa-toolbar-label">${en ? "Clarity" : "Clareza"}</span>
         <div class="sa-segmented">${clarityButtonsHtml}</div>
       </div>
-      <div class="sa-toolbar-group sa-a4-group" role="group" aria-label="${en ? "Reference pitch A4" : "Diapasão A4"}">
-        <span class="sa-toolbar-label">A4</span>
-        <div class="sa-a4-presets">${a4PresetsHtml}</div>
-        <input type="range" id="sa-a4-slider" class="sa-a4-slider" min="${MIN_A4_HZ}" max="${MAX_A4_HZ}" step="0.5" value="${currentA4}" aria-label="A4 Hz" />
-        <span id="sa-a4-readout" class="sa-a4-readout">${currentA4.toFixed(1).replace(/\.0$/, "")} Hz</span>
+      <div class="sa-toolbar-group sa-a4-popover-wrap" role="group" aria-label="${en ? "Reference pitch A4" : "Diapasão A4"}">
+        <button type="button" id="sa-btn-a4-toggle" class="sa-pill-btn ${a4PopoverOpen ? "is-active" : ""}" aria-expanded="${a4PopoverOpen ? "true" : "false"}">
+          A4 · <span id="sa-a4-readout">${currentA4.toFixed(1).replace(/\.0$/, "")} Hz</span> ▾
+        </button>
+        <div id="sa-a4-popover" class="sa-a4-popover" ${a4PopoverOpen ? "" : "hidden"}>
+          <div class="sa-a4-popover-title">${en ? "Concert Pitch (A4)" : "Diapasão Global (A4)"}</div>
+          <div class="sa-a4-presets">${a4PresetsHtml}</div>
+          <div class="sa-a4-slider-row">
+            <input type="range" id="sa-a4-slider" class="sa-a4-slider" min="${MIN_A4_HZ}" max="${MAX_A4_HZ}" step="0.5" value="${currentA4}" aria-label="A4 Hz" />
+            <strong id="sa-a4-pop-val">${currentA4.toFixed(1).replace(/\.0$/, "")} Hz</strong>
+          </div>
+        </div>
       </div>
       <div class="sa-toolbar-group">
         <button type="button" id="sa-btn-save-tuning" class="sa-pill-btn" title="${en ? "Save or manage custom Oud tunings" : "Salvar ou gerenciar afinações customizadas do Oud"}">
@@ -153,6 +267,7 @@ export function initStringAtlasBridge(deps) {
         }
         mountStageClarityBar();
         mountTierMicroLegend();
+        syncFocusedStageLayout();
         window.setTimeout(syncFreeModeSummary, 25);
         const item = NECK_CLARITY_LIST.find((x) => x.id === currentClarity);
         showToast(
@@ -168,7 +283,11 @@ export function initStringAtlasBridge(deps) {
       currentA4 = saveA4Hz(clampA4Hz(hzValue));
       const readout = document.getElementById("sa-a4-readout");
       const slider = /** @type {HTMLInputElement | null} */ (document.getElementById("sa-a4-slider"));
-      if (readout) readout.textContent = `${currentA4.toFixed(1).replace(/\.0$/, "")} Hz`;
+      const hzTxt = `${currentA4.toFixed(1).replace(/\.0$/, "")} Hz`;
+      if (readout) readout.textContent = hzTxt;
+      const popVal = document.getElementById("sa-a4-pop-val");
+      if (popVal) popVal.textContent = hzTxt;
+      liveFxCtrl?.renderInspectorStrip?.();
       if (slider) slider.value = String(currentA4);
       bar.querySelectorAll("[data-sa-a4-preset]").forEach((el) => {
         const val = Number(el.getAttribute("data-sa-a4-preset"));
@@ -198,6 +317,24 @@ export function initStringAtlasBridge(deps) {
     if (btnSaveTuning) {
       btnSaveTuning.addEventListener("click", openCustomTuningsDrawer);
     }
+    const btnStageTrigger = document.getElementById("sa-stage-scale-trigger");
+    if (btnStageTrigger) {
+      btnStageTrigger.addEventListener("click", () => toggleControlsDrawer());
+    }
+    const btnStaffToggle = document.getElementById("sa-btn-staff-toggle");
+    if (btnStaffToggle) {
+      btnStaffToggle.addEventListener("click", () => {
+        const currentlyVisible = document.body?.getAttribute("data-sa-staff-hidden") !== "true";
+        staffUserOverride = !currentlyVisible;
+        syncFocusedStageLayout();
+        showToast(
+          staffUserOverride
+            ? (isEn() ? "24-TET Staff visible" : "Pauta 24-TET visível")
+            : (isEn() ? "24-TET Staff hidden" : "Pauta 24-TET oculta"),
+          { type: "info", durationMs: 1500 }
+        );
+      });
+    }
     const btnPalette = document.getElementById("sa-btn-palette");
     if (btnPalette) {
       btnPalette.addEventListener("click", () => paletteCtrl?.openPalette());
@@ -205,6 +342,17 @@ export function initStringAtlasBridge(deps) {
     const btnShortcuts = document.getElementById("sa-btn-shortcuts");
     if (btnShortcuts) {
       btnShortcuts.addEventListener("click", () => paletteCtrl?.openShortcutsModal());
+    }
+    const btnA4Toggle = document.getElementById("sa-btn-a4-toggle");
+    const popA4 = document.getElementById("sa-a4-popover");
+    if (btnA4Toggle && popA4) {
+      btnA4Toggle.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        a4PopoverOpen = !a4PopoverOpen;
+        popA4.hidden = !a4PopoverOpen;
+        btnA4Toggle.classList.toggle("is-active", a4PopoverOpen);
+        btnA4Toggle.setAttribute("aria-expanded", a4PopoverOpen ? "true" : "false");
+      });
     }
   }
 
@@ -650,9 +798,77 @@ export function initStringAtlasBridge(deps) {
     getAudioActivity: deps.getAudioActivity
   });
 
+
+  function bindNativeToastsAndFocusStage() {
+    if (typeof document === "undefined" || document.body?.dataset.saUxBound === "1") return;
+    if (document.body) document.body.dataset.saUxBound = "1";
+
+    document.addEventListener("click", (ev) => {
+      const target = /** @type {HTMLElement | null} */ (ev.target);
+      if (a4PopoverOpen && !target?.closest?.(".sa-a4-popover-wrap")) {
+        a4PopoverOpen = false;
+        const pop = document.getElementById("sa-a4-popover");
+        const btn = document.getElementById("sa-btn-a4-toggle");
+        if (pop) pop.hidden = true;
+        if (btn) {
+          btn.classList.remove("is-active");
+          btn.setAttribute("aria-expanded", "false");
+        }
+      }
+
+      if (!target) return;
+      if (target.closest("#btn-share") || target.closest("#btn-copy-link")) {
+        showToast(isEn() ? "Study link copied to clipboard" : "Link do estudo copiado!", { type: "success", icon: "🔗" });
+      } else if (target.closest("#btn-toggle-timbre")) {
+        window.setTimeout(() => {
+          showToast(isEn() ? "Oud tone profile switched" : "Timbre do Oud alternado (Sírio / Egípcio)", { type: "info", icon: "🎻", durationMs: 2000 });
+        }, 40);
+      } else if (target.closest("#btn-theme-toggle") || target.closest("#btn-toggle-theme")) {
+        window.setTimeout(() => {
+          const isL = deps.getState?.()?.theme === "light";
+          showToast(isL ? "Nahar · Pergaminho" : "Layl · Modo Escuro", { type: "info", icon: "🌗", durationMs: 1800 });
+        }, 40);
+      } else if (target.closest(".study-apply-btn") || target.closest("[data-lesson-apply]")) {
+        showToast(isEn() ? "Lesson preset applied to Oud" : "Preset da lição aplicado no Oud", { type: "success", icon: "🎓", durationMs: 2000 });
+      }
+    });
+
+    // Foco inicial limpo (String Atlas v8.9): recolhe o Deck inferior ao abrir em Modo Livre
+    if (currentClarity === NECK_CLARITY_MODES.FREE) {
+      window.setTimeout(() => {
+        const collapseBtn = document.getElementById("btn-deck-collapse");
+        if (collapseBtn && collapseBtn.getAttribute("aria-expanded") === "true") {
+          collapseBtn.click();
+        }
+      }, 90);
+    }
+  }
+
+  liveFxCtrl = createLiveNeckFxController({
+    getState: deps.getState,
+    getPitchClasses24: deps.getPitchClasses24,
+    getA4Hz: () => currentA4,
+    onPlayFreq: (freq) => deps.onPlayFreq?.(freq),
+    onMakeRoot: (info) => {
+      if (currentClarity === NECK_CLARITY_MODES.FREE) {
+        currentClarity = saveNeckClarityMode(NECK_CLARITY_MODES.POSITION);
+        applyClarityToDom(currentClarity);
+        mountStageClarityBar();
+        mountTierMicroLegend();
+      }
+      deps.onMakeRootFromInspector?.(info);
+      showToast(isEn() ? "New Qarar (Root) set" : "Nova Tônica (Qarar) definida", { type: "success", icon: "🎯", durationMs: 1800 });
+    },
+    onClearSelection: () => deps.onClearSelection?.()
+  });
+
+  mountHeaderControlsButton();
   mountStageClarityBar();
   mountTierMicroLegend();
+  syncFocusedStageLayout();
   ensureTunerAddonBar();
+  liveFxCtrl?.renderInspectorStrip?.();
+  bindNativeToastsAndFocusStage();
   bindAutoExitFreeMode();
   window.setTimeout(syncFreeModeSummary, 40);
 
@@ -670,7 +886,11 @@ export function initStringAtlasBridge(deps) {
       mountStageClarityBar();
       mountTierMicroLegend();
       ensureTunerAddonBar();
+      mountHeaderControlsButton();
+      mountStageClarityBar();
+      syncFocusedStageLayout();
       syncFreeModeSummary();
+      liveFxCtrl?.renderInspectorStrip?.();
     },
     showToast
   };

@@ -775,3 +775,275 @@ body[data-theme="light"] #oud-neck .note-node[data-jewel-free="1"] .free-hover-l
     max-width: calc(100vw - 1.5rem);
   }
 }
+
+/* --- Polimento UX v3.11 (String Atlas v8.8–v8.9): Color-Scheme, Focus Rings, Popover A4, Braço Vivo & Inspetor --- */
+html,
+body {
+  color-scheme: dark;
+}
+
+body[data-theme="light"],
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--sa-brass);
+  outline-offset: 2px;
+}
+
+.sa-a4-popover-wrap {
+  position: relative;
+}
+
+.sa-a4-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 980;
+  min-width: 224px;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+  color: var(--sa-text);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sa-a4-popover[hidden] {
+  display: none !important;
+}
+
+.sa-a4-popover-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sa-muted);
+}
+
+.sa-a4-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sa-a4-slider-row .sa-a4-slider {
+  flex: 1;
+  width: auto;
+}
+
+.sa-a4-slider-row strong {
+  font-size: 0.78rem;
+  color: var(--sa-brass);
+  min-width: 54px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes saPluckRipple {
+  0% {
+    r: 9;
+    opacity: 0.92;
+    stroke-width: 2.8;
+  }
+  100% {
+    r: 30;
+    opacity: 0;
+    stroke-width: 0.6;
+  }
+}
+
+@keyframes saPluckFlash {
+  0% {
+    r: 11;
+    opacity: 0.6;
+  }
+  100% {
+    r: 20;
+    opacity: 0;
+  }
+}
+
+.sa-pluck-ripple {
+  animation: saPluckRipple 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.sa-pluck-flash {
+  animation: saPluckFlash 0.34s ease-out forwards;
+}
+
+#oud-neck .note-node.is-octave-hover {
+  filter: drop-shadow(0 0 6px rgba(226, 185, 99, 0.85)) brightness(1.18);
+}
+
+#oud-neck .note-node.is-octave-hover .free-anchor-dot {
+  fill: var(--sa-brass);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.sa-stage-footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.9rem;
+  margin-top: 0.45rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+}
+
+.sa-stage-footer-bar .sa-tier-micro-legend {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.sa-inspector-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.76rem;
+}
+
+.sa-inspector-hint {
+  color: var(--sa-muted);
+  font-size: 0.74rem;
+}
+
+.sa-insp-main {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sa-insp-note {
+  font-size: 0.92rem;
+  color: var(--sa-brass);
+}
+
+.sa-insp-arabic {
+  color: var(--sa-plum);
+  font-weight: 700;
+}
+
+.sa-insp-badge--micro {
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  background: rgba(196, 155, 224, 0.16);
+  border: 1px solid var(--sa-plum);
+  color: var(--sa-plum);
+}
+
+.sa-insp-meta {
+  color: var(--sa-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-insp-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* --- Tela Inicial Limpa & Zero Menus Permanentes Acima do Braço (String Atlas v8.9 -> Oud v3.12) --- */
+.command-bar-shell.sa-controls-collapsed {
+  display: none !important;
+}
+
+body[data-sa-staff-hidden="true"] #staff-stage-box {
+  display: none !important;
+}
+
+.sa-header-controls-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.78rem;
+  border-radius: 999px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.sa-header-controls-btn:hover {
+  border-color: var(--sa-brass);
+  color: var(--sa-brass);
+}
+
+.sa-header-controls-btn.is-active {
+  background: var(--sa-brass);
+  border-color: var(--sa-brass);
+  color: #160e08;
+}
+
+body[data-theme="light"] .sa-header-controls-btn.is-active {
+  color: #fcfaf6;
+}
+
+.sa-stage-scale-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--sa-border);
+  background: rgba(226, 185, 99, 0.08);
+  color: var(--sa-text);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.sa-stage-scale-trigger:hover,
+.sa-stage-scale-trigger.is-open {
+  border-color: var(--sa-brass);
+  background: rgba(226, 185, 99, 0.16);
+}
+
+.sa-stage-title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--sa-brass);
+}
+
+.sa-stage-tuning-pill {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface-elevated);
+  color: var(--sa-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.sa-stage-caret {
+  font-size: 0.74rem;
+  color: var(--sa-muted);
+  transition: transform 0.16s ease;
+}
+
+.sa-stage-scale-trigger.is-open .sa-stage-caret {
+  transform: rotate(180deg);
+  color: var(--sa-brass);
+}

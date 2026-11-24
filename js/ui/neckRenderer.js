@@ -1472,6 +1472,14 @@ function appendNoteJewel(
   group.setAttribute("data-jewel-tier", String(tierInfo.tier));
   group.setAttribute("data-jewel-q", String(qFromNut));
   group.setAttribute("data-jewel-ghost", tierInfo.isGhost && !forceShow ? "1" : "0");
+  group.setAttribute("data-pcq", String(pitchClassQ));
+  group.setAttribute("data-absq", String(absQ));
+  group.setAttribute("data-course", String(courseNumber));
+  group.setAttribute("data-q", String(qFromNut));
+  group.setAttribute("data-nx", String(nx));
+  group.setAttribute("data-ny", String(ny));
+  group.setAttribute("data-freq", String(noteFreq));
+  group.setAttribute("data-micro", isMicroNote ? "1" : "0");
 
   group.addEventListener("click", (ev) => {
     playPluckedNote(noteFreq, 1.35);
@@ -1794,6 +1802,14 @@ function renderFreeChromaticLayer(svg, ctx) {
       g.setAttribute("class", "note-node free-chromatic-node");
       g.setAttribute("data-jewel-free", "1");
       g.setAttribute("data-free-micro", isMicro ? "1" : "0");
+      g.setAttribute("data-pcq", String(pitchClassQ));
+      g.setAttribute("data-absq", String(absQ));
+      g.setAttribute("data-course", String(cObj.course));
+      g.setAttribute("data-q", String(qFromNut));
+      g.setAttribute("data-nx", String(nx));
+      g.setAttribute("data-ny", String(ny));
+      g.setAttribute("data-freq", String(noteFreq));
+      g.setAttribute("data-micro", isMicro ? "1" : "0");
       g.setAttribute("data-free-selected", isExactSelected ? "exact" : (isOctaveSelected ? "octave" : "none"));
 
       // Área de clique contínua e sem sobreposição cobrindo [q-0.5, q+0.5] da ordem
