@@ -1047,3 +1047,32 @@ body[data-theme="light"] .sa-header-controls-btn.is-active {
   transform: rotate(180deg);
   color: var(--sa-brass);
 }
+
+/* --- Modal de Pranchas Didáticas (PNG/SVG) & Snapshots de Sessão (v3.13) --- */
+.sa-export-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sa-snap-create-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.sa-snap-create-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.44rem 0.68rem;
+  border-radius: 999px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+  font-size: 0.8rem;
+}
+
+.sa-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}

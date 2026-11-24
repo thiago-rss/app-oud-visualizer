@@ -3118,6 +3118,10 @@ function ensureStringAtlasBridge() {
         { syncControls: true, refresh: true }
       );
     },
+    onRestoreSnapshotState: (snapState) => {
+      if (!snapState) return;
+      commitStatePatch(snapState, { syncControls: true, refresh: true });
+    },
     onClearSelection: () => {
       if (typeof selectedStaffOrNeckPitch !== "undefined") selectedStaffOrNeckPitch = null;
       refreshAll();

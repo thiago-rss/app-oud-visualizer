@@ -116,6 +116,33 @@ export function createCommandPaletteController(deps) {
         run: () => deps.onToggleZen?.()
       },
       {
+        id: "act_export_png",
+        category: catAct,
+        icon: "🖼",
+        title: en ? "Export Fingerboard Plate (PNG 2× Retina)" : "Exportar Prancha do Braço (PNG 2× Retina)",
+        subtitle: "PNG 2×",
+        keywords: "exportar prancha imagem png foto download",
+        run: () => deps.onExportPng?.()
+      },
+      {
+        id: "act_export_svg",
+        category: catAct,
+        icon: "📐",
+        title: en ? "Export Fingerboard Plate (Vector SVG)" : "Exportar Prancha do Braço (SVG Vetorial)",
+        subtitle: "SVG",
+        keywords: "exportar prancha vetor svg download",
+        run: () => deps.onExportSvg?.()
+      },
+      {
+        id: "act_snapshots",
+        category: catAct,
+        icon: "💾",
+        title: en ? "Session Snapshots & JSON Backup" : "Snapshots de Sessão & Backup .json",
+        subtitle: "JSON",
+        keywords: "snapshot sessao backup json salvar restaurar",
+        run: () => deps.onOpenExportSnapshots?.()
+      },
+      {
         id: "act_custom_tunings",
         category: catAct,
         icon: "✦",
@@ -577,6 +604,12 @@ export function createCommandPaletteController(deps) {
         if (shortcutsOpen) {
           ev.preventDefault();
           closeShortcutsModal();
+          return;
+        }
+        const exportModal = document.getElementById("sa-export-snapshots-modal");
+        if (exportModal) {
+          ev.preventDefault();
+          exportModal.remove();
           return;
         }
         const customModal = document.getElementById("sa-custom-tunings-modal");

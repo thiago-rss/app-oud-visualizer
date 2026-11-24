@@ -37,6 +37,8 @@ import {
 import { showToast } from "./toastView.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
 import { createLiveNeckFxController } from "./liveNeckFx.js";
+import { exportPlateAsPng, exportPlateAsSvg } from "../core/plateExporter.js";
+import { loadSnapshots, saveSnapshot, deleteSnapshot, buildFullBackupJson, importFullBackupJson } from "../core/sessionSnapshots.js";
 
 /**
  * @typedef {{
@@ -317,6 +319,10 @@ export function initStringAtlasBridge(deps) {
     if (btnSaveTuning) {
       btnSaveTuning.addEventListener("click", openCustomTuningsDrawer);
     }
+    const btnExportSess = document.getElementById("sa-btn-export-sessions");
+    if (btnExportSess) {
+      btnExportSess.addEventListener("click", openExportAndSnapshotsModal);
+    }
     const btnStageTrigger = document.getElementById("sa-stage-scale-trigger");
     if (btnStageTrigger) {
       btnStageTrigger.addEventListener("click", () => toggleControlsDrawer());
@@ -485,6 +491,190 @@ export function initStringAtlasBridge(deps) {
   /**
    * Abre o modal leve de gerenciamento de Afinações Customizadas (6 ordens).
    */
+
+  function buildCurrentPlateMeta() {
+    const lbl = getStageHeaderLabels();
+    const st = deps.getState?.() || {};
+    const tradMap = { damascus: "Damasco", cairo: "Cairo / Bagdá", istanbul: "Istambul" };
+    const tradName = tradMap[st.tradition] || st.tradition || "Damasco";
+    return {
+      title: lbl.title,
+      subtitle: `${lbl.tuning} · A4 = ${currentA4} Hz · ${tradName}`,
+      footerNote: `App Oud Visualizer · ${new Date().toLocaleDateString(isEn() ? "en-US" : "pt-BR")}`,
+      isLight: st.theme === "light"
+    };
+  }
+
+  async function triggerExportPng() {
+    try {
+      const fname = await exportPlateAsPng(buildCurrentPlateMeta(), 2);
+      showToast(isEn() ? `PNG exported: ${fname}` : `Prancha PNG (2×) salva: ${fname}`, { type: "success", icon: "📸" });
+    } catch (err) {
+      showToast(String(err?.message || err), { type: "error" });
+    }
+  }
+
+  function triggerExportSvg() {
+    try {
+      const fname = exportPlateAsSvg(buildCurrentPlateMeta());
+      showToast(isEn() ? `SVG exported: ${fname}` : `Prancha SVG salva: ${fname}`, { type: "success", icon: "📐" });
+    } catch (err) {
+      showToast(String(err?.message || err), { type: "error" });
+    }
+  }
+
+  function openExportAndSnapshotsModal() {
+    if (typeof document === "undefined") return;
+    let modal = document.getElementById("sa-export-snapshots-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "sa-export-snapshots-modal";
+      modal.className = "sa-modal-backdrop";
+      document.body.appendChild(modal);
+    }
+
+    const renderBody = () => {
+      const en = isEn();
+      const lbl = getStageHeaderLabels();
+      const snaps = loadSnapshots();
+
+      const snapsHtml = snaps.length
+        ? snaps
+            .map(
+              (s) => `
+          <div class="sa-saved-tuning-row">
+            <div>
+              <strong>${s.name}</strong>
+              <div class="sa-saved-tuning-sub">${s.state.mode} · A4 ${s.a4Hz} Hz · ${s.state.bpm} BPM</div>
+            </div>
+            <div class="sa-saved-tuning-actions">
+              <button type="button" class="sa-mini-chip" data-sa-load-snap="${s.id}">${en ? "Load" : "Carregar"}</button>
+              <button type="button" class="sa-mini-chip sa-danger-chip" data-sa-del-snap="${s.id}">✕</button>
+            </div>
+          </div>`
+            )
+            .join("")
+        : `<p class="sa-empty-hint">${en ? "No saved session snapshots yet." : "Nenhum snapshot de sessão salvo ainda."}</p>`;
+
+      modal.innerHTML = `
+        <div class="sa-modal-card" role="dialog" aria-modal="true" aria-label="${en ? "Editorial Plates & Session Snapshots" : "Pranchas Didáticas & Snapshots de Sessão"}">
+          <div class="sa-modal-header">
+            <h3>📸 ${en ? "Editorial Plates & Session Snapshots" : "Pranchas Didáticas & Snapshots de Sessão"}</h3>
+            <button type="button" id="sa-close-export-modal" class="sa-mini-chip">✕</button>
+          </div>
+
+          <div class="sa-modal-section">
+            <div class="sa-toolbar-label">${en ? "Export Fingerboard Plate" : "Exportar Prancha do Braço"} · ${lbl.title}</div>
+            <div class="sa-export-btn-row">
+              <button type="button" id="sa-do-export-png" class="sa-pill-btn is-active">🖼 ${en ? "Download PNG (2× Retina)" : "Baixar PNG (2× Retina)"}</button>
+              <button type="button" id="sa-do-export-svg" class="sa-pill-btn">📐 ${en ? "Download Vector SVG" : "Baixar SVG Vetorial"}</button>
+            </div>
+          </div>
+
+          <div class="sa-modal-section">
+            <div class="sa-toolbar-label">${en ? "Session Snapshots" : "Snapshots da Sessão Atual"}</div>
+            <div class="sa-snap-create-row">
+              <input type="text" id="sa-new-snap-name" placeholder="${en ? "e.g. Hijaz D · Aleppo Practice" : "ex.: Hijaz D · Estudo Alepo"}" maxlength="64" />
+              <button type="button" id="sa-btn-save-snap" class="sa-pill-btn is-active">＋ ${en ? "Save" : "Salvar"}</button>
+            </div>
+            <div class="sa-saved-tuning-list">${snapsHtml}</div>
+          </div>
+
+          <div class="sa-modal-section">
+            <div class="sa-toolbar-label">${en ? "Full Studio Backup (.json)" : "Backup Completo do Estúdio (.json)"}</div>
+            <div class="sa-export-btn-row">
+              <button type="button" id="sa-btn-backup-json" class="sa-pill-btn">⬇ ${en ? "Export Backup .json" : "Exportar Backup .json"}</button>
+              <label class="sa-pill-btn sa-file-label">
+                ⬆ ${en ? "Import .json" : "Importar .json"}
+                <input type="file" id="sa-input-import-json" accept="application/json,.json" hidden />
+              </label>
+            </div>
+          </div>
+        </div>
+      `;
+
+      modal.querySelector("#sa-close-export-modal")?.addEventListener("click", () => modal.remove());
+      modal.addEventListener("click", (ev) => {
+        if (ev.target === modal) modal.remove();
+      });
+
+      modal.querySelector("#sa-do-export-png")?.addEventListener("click", triggerExportPng);
+      modal.querySelector("#sa-do-export-svg")?.addEventListener("click", triggerExportSvg);
+
+      modal.querySelector("#sa-btn-save-snap")?.addEventListener("click", () => {
+        const inp = /** @type {HTMLInputElement | null} */ (modal.querySelector("#sa-new-snap-name"));
+        const name = (inp?.value || "").trim() || lbl.title;
+        saveSnapshot({
+          name,
+          state: deps.getState?.() || {},
+          a4Hz: currentA4,
+          clarityMode: currentClarity
+        });
+        showToast(en ? `Snapshot saved: ${name}` : `Snapshot salvo: ${name}`, { type: "success", icon: "💾" });
+        renderBody();
+      });
+
+      modal.querySelectorAll("[data-sa-load-snap]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-sa-load-snap");
+          const snap = loadSnapshots().find((x) => x.id === id);
+          if (!snap) return;
+          currentA4 = saveA4Hz(clampA4Hz(snap.a4Hz));
+          deps.onA4Changed?.(currentA4);
+          setClarityProgrammatically(snap.clarityMode || NECK_CLARITY_MODES.POSITION);
+          deps.onRestoreSnapshotState?.(snap.state);
+          showToast(en ? `Loaded: ${snap.name}` : `Sessão carregada: ${snap.name}`, { type: "success", icon: "✦" });
+          modal.remove();
+        });
+      });
+
+      modal.querySelectorAll("[data-sa-del-snap]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-sa-del-snap") || "";
+          deleteSnapshot(id);
+          showToast(en ? "Snapshot deleted" : "Snapshot removido", { type: "info" });
+          renderBody();
+        });
+      });
+
+      modal.querySelector("#sa-btn-backup-json")?.addEventListener("click", () => {
+        const json = buildFullBackupJson();
+        const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `oud-visualizer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+        showToast(en ? "Backup JSON exported" : "Backup .json exportado!", { type: "success", icon: "⬇" });
+      });
+
+      modal.querySelector("#sa-input-import-json")?.addEventListener("change", async (ev) => {
+        const file = /** @type {HTMLInputElement} */ (ev.target).files?.[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const res = importFullBackupJson(text);
+          if (deps.DB?.tunings) mergeCustomTuningsIntoDb(deps.DB.tunings);
+          deps.onCustomTuningsChanged?.();
+          showToast(
+            en
+              ? `Imported ${res.snapshotsImported} snapshots & ${res.tuningsImported} tunings`
+              : `Importados: ${res.snapshotsImported} snapshots e ${res.tuningsImported} afinações`,
+            { type: "success", icon: "⬆" }
+          );
+          renderBody();
+        } catch {
+          showToast(en ? "Invalid JSON backup file" : "Arquivo JSON inválido", { type: "error" });
+        }
+      });
+    };
+
+    renderBody();
+  }
+
   function openCustomTuningsDrawer() {
     if (typeof document === "undefined") return;
     let modal = document.getElementById("sa-custom-tunings-modal");
@@ -787,6 +977,9 @@ export function initStringAtlasBridge(deps) {
       showToast(isEn() ? `Clarity: ${mode}` : `Clareza: ${mode}`, { type: "info", durationMs: 1600 });
     },
     onOpenCustomTunings: openCustomTuningsDrawer,
+    onOpenExportSnapshots: openExportAndSnapshotsModal,
+    onExportPng: triggerExportPng,
+    onExportSvg: triggerExportSvg,
     onPanicStopAll: deps.onPanicStopAll,
     onToggleDrone: deps.onToggleDrone,
     onToggleIqa: deps.onToggleIqa,
