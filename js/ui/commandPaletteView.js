@@ -143,6 +143,15 @@ export function createCommandPaletteController(deps) {
         run: () => deps.onOpenExportSnapshots?.()
       },
       {
+        id: "act_ear_trainer",
+        category: catAct,
+        icon: "🎧",
+        title: en ? "Open 24-TET Ear Training Lab" : "Abrir Treinador Auditivo 24-TET",
+        subtitle: "b3 · 3- · 3 · Ajnas",
+        keywords: "ear ouvido treino auditivo terca neutra sikah bayati hijaz rast",
+        run: () => deps.onOpenEarTrainer?.()
+      },
+      {
         id: "act_custom_tunings",
         category: catAct,
         icon: "✦",
@@ -604,6 +613,12 @@ export function createCommandPaletteController(deps) {
         if (shortcutsOpen) {
           ev.preventDefault();
           closeShortcutsModal();
+          return;
+        }
+        const earModal = document.getElementById("sa-ear-trainer-modal");
+        if (earModal) {
+          ev.preventDefault();
+          earModal.remove();
           return;
         }
         const exportModal = document.getElementById("sa-export-snapshots-modal");

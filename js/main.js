@@ -3108,8 +3108,8 @@ function ensureStringAtlasBridge() {
       if (btn) btn.click();
     },
     getPitchClasses24: () => PITCH_CLASSES_24,
-    onPlayFreq: (freq) => {
-      if (typeof playPluckedNote === "function") playPluckedNote(freq, 1.35);
+    onPlayFreq: (freq, dur = 1.35) => {
+      if (typeof playPluckedNote === "function") playPluckedNote(freq, dur);
     },
     onMakeRootFromInspector: (info) => {
       if (!info) return;

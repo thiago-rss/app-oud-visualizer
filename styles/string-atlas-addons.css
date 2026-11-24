@@ -1076,3 +1076,86 @@ body[data-theme="light"] .sa-header-controls-btn.is-active {
   align-items: center;
   gap: 0.3rem;
 }
+
+/* --- Treinador Auditivo 24-TET (v3.14) --- */
+.sa-ear-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.78rem;
+  color: var(--sa-muted);
+}
+
+.sa-ear-stats-bar strong {
+  color: var(--sa-brass);
+}
+
+.sa-ear-drill-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.sa-ear-drill-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--sa-text);
+}
+
+.sa-ear-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  margin-top: 0.25rem;
+}
+
+.sa-ear-opt-btn {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.78rem;
+  border-radius: 10px;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  color: var(--sa-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.sa-ear-opt-btn:hover {
+  border-color: var(--sa-brass);
+  background: rgba(226, 185, 99, 0.12);
+}
+
+.sa-ear-opt-btn.is-correct {
+  border-color: var(--sa-emerald);
+  background: rgba(101, 201, 149, 0.18);
+  color: var(--sa-emerald);
+}
+
+.sa-ear-opt-btn.is-wrong {
+  border-color: var(--sa-ruby);
+  background: rgba(224, 108, 108, 0.16);
+  color: var(--sa-ruby);
+}
+
+.sa-ear-feedback {
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid var(--sa-border);
+}
+
+.sa-ear-feedback.is-ok {
+  border-color: var(--sa-emerald);
+  color: var(--sa-emerald);
+}
+
+.sa-ear-feedback.is-err {
+  border-color: var(--sa-plum);
+  color: var(--sa-plum);
+}

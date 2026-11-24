@@ -36,6 +36,7 @@ import {
 } from "../core/customTunings.js";
 import { showToast } from "./toastView.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
+import { createEarTrainerController } from "./earTrainerView.js";
 import { createLiveNeckFxController } from "./liveNeckFx.js";
 import { exportPlateAsPng, exportPlateAsSvg } from "../core/plateExporter.js";
 import { loadSnapshots, saveSnapshot, deleteSnapshot, buildFullBackupJson, importFullBackupJson } from "../core/sessionSnapshots.js";
@@ -69,6 +70,8 @@ export function initStringAtlasBridge(deps) {
   let strobePhase = 0;
   /** @type {any} */
   let paletteCtrl = null;
+  /** @type {any} */
+  let earCtrl = null;
   /** @type {any} */
   let liveFxCtrl = null;
   let a4PopoverOpen = false;
@@ -318,6 +321,10 @@ export function initStringAtlasBridge(deps) {
     const btnSaveTuning = document.getElementById("sa-btn-save-tuning");
     if (btnSaveTuning) {
       btnSaveTuning.addEventListener("click", openCustomTuningsDrawer);
+    }
+    const btnEarLab = document.getElementById("sa-btn-ear-trainer");
+    if (btnEarLab) {
+      btnEarLab.addEventListener("click", () => earCtrl?.openModal());
     }
     const btnExportSess = document.getElementById("sa-btn-export-sessions");
     if (btnExportSess) {
@@ -946,6 +953,13 @@ export function initStringAtlasBridge(deps) {
     window.setTimeout(syncFreeModeSummary, 25);
   }
 
+
+  earCtrl = createEarTrainerController({
+    getState: deps.getState,
+    getPitchClasses24: deps.getPitchClasses24,
+    playFreq: (freqHz, durSec = 0.8) => deps.onPlayFreq?.(freqHz, durSec)
+  });
+
   paletteCtrl = createCommandPaletteController({
     getState: deps.getState,
     DB: deps.DB,
@@ -978,6 +992,7 @@ export function initStringAtlasBridge(deps) {
     },
     onOpenCustomTunings: openCustomTuningsDrawer,
     onOpenExportSnapshots: openExportAndSnapshotsModal,
+    onOpenEarTrainer: () => earCtrl?.openModal(),
     onExportPng: triggerExportPng,
     onExportSvg: triggerExportSvg,
     onPanicStopAll: deps.onPanicStopAll,
