@@ -11,7 +11,7 @@ export const NECK_CLARITY_MODES = Object.freeze({
   FULL_NECK: "FULL_NECK"
 });
 
-export const NECK_CLARITY_STORAGE_KEY = "oud_neck_clarity_mode";
+export const NECK_CLARITY_STORAGE_KEY = "oud_neck_clarity_mode_v2";
 
 export const NECK_CLARITY_LIST = Object.freeze([
   {
@@ -80,11 +80,19 @@ export function normalizeNeckClarityMode(value) {
  * @returns {"FREE"|"POSITION"|"FIRST_OCTAVE"|"FULL_NECK"}
  */
 export function loadNeckClarityMode() {
+  const hash = (typeof window !== "undefined" && typeof window.location?.hash === "string")
+    ? window.location.hash
+    : "";
+  const idMatch = hash.match(/(?:^|[#&])id=([^&]+)/);
+  const hasExplicitNonDefaultEntity = Boolean(idMatch && idMatch[1] && idMatch[1] !== "maqam_rast");
+  const defaultMode = hasExplicitNonDefaultEntity ? NECK_CLARITY_MODES.POSITION : NECK_CLARITY_MODES.FREE;
   try {
-    if (typeof window === "undefined" || !window.localStorage) return NECK_CLARITY_MODES.POSITION;
-    return normalizeNeckClarityMode(window.localStorage.getItem(NECK_CLARITY_STORAGE_KEY));
+    if (typeof window === "undefined" || !window.localStorage) return defaultMode;
+    const saved = window.localStorage.getItem(NECK_CLARITY_STORAGE_KEY);
+    if (!saved) return defaultMode;
+    return normalizeNeckClarityMode(saved);
   } catch {
-    return NECK_CLARITY_MODES.POSITION;
+    return defaultMode;
   }
 }
 

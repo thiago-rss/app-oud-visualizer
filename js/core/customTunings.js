@@ -46,7 +46,8 @@ export function normalizeCustomTuning(raw) {
 
   const courses = raw.courses.map((c, idx) => {
     const courseNum = Number.isFinite(Number(c.course)) ? Number(c.course) : idx + 1;
-    const openQ = Number.isFinite(Number(c.open_q)) ? Math.round(Number(c.open_q)) : 48;
+    const rawQ = Number.isFinite(Number(c.abs_q)) ? Number(c.abs_q) : Number(c.open_q);
+    const openQ = Number.isFinite(rawQ) ? Math.round(rawQ) : 48;
     const clampedOpenQ = Math.min(144, Math.max(24, openQ));
     const freqHz = Number.isFinite(Number(c.freq_hz)) && Number(c.freq_hz) > 25
       ? Number(Number(c.freq_hz).toFixed(3))
@@ -55,6 +56,7 @@ export function normalizeCustomTuning(raw) {
     return {
       course: courseNum,
       label,
+      abs_q: clampedOpenQ,
       open_q: clampedOpenQ,
       freq_hz: freqHz
     };

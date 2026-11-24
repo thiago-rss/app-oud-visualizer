@@ -10,6 +10,7 @@ import {
   selectBestChordVoicingPerCourse
 } from "../core/modalEngine.js";
 import { playPluckedNote } from "../audio/synthEngine.js";
+import { computeJewelVisualTier, loadNeckClarityMode } from "../core/neckClarity.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -88,6 +89,9 @@ let lastNeckRenderContext = null;
 
 /** @type {import("../audio/pitchEngine.js").PitchDetectionResult | null} */
 let lastLiveDetection = null;
+/** @type {{ selectedPitch: any, onNeckJewelSelect: any, labelMode: string, highlightedStep: number }} */
+let lastFreeExploreMeta = { selectedPitch: null, onNeckJewelSelect: null, labelMode: "NOTE_NAME", highlightedStep: -1 };
+
 
 function createOctagramStarPath(cx, cy, outerR, innerR) {
   const points = [];
@@ -1318,6 +1322,8 @@ function renderHandShiftOverlay(svg, state, shiftOverlay, coordLookup, nutCoord,
 }
 
 function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, baseColor = "#e2b963") {
+  const _saClarity = (typeof document !== "undefined" && document.body?.getAttribute("data-neck-clarity")) || loadNeckClarityMode();
+  if (_saClarity === "FREE" && (highlightedStepIdx === undefined || highlightedStepIdx < 0)) return;
   if (orderedPoints.length < 2) return;
 
   const trailGroup = document.createElementNS(SVG_NS, "g");
@@ -1379,6 +1385,8 @@ function renderConnectedVectorTrail(svg, orderedPoints, highlightedStepIdx, base
 }
 
 function renderSayrMelodicPaths(svg, visibleActiveNodes, sayrSteps, highlightedStepIdx) {
+  const _saClarity = (typeof document !== "undefined" && document.body?.getAttribute("data-neck-clarity")) || loadNeckClarityMode();
+  if (_saClarity === "FREE" && (highlightedStepIdx === undefined || highlightedStepIdx < 0)) return;
   if (!visibleActiveNodes.length || !sayrSteps || !sayrSteps.length) return;
 
   /** @type {{ x: number, y: number, absQ: number, stepIdx: number }[]} */
@@ -1435,30 +1443,35 @@ function appendNoteJewel(
   onNeckJewelSelect,
   onPivotAction
 ) {
-  let fillGrad = "url(#fixedGem)";
-  let strokeColor = "#cbd5e1";
-  if (isRoot) {
-    fillGrad = "url(#rootGem)";
-    strokeColor = "#f5deb3";
-  } else if (isGhammaz) {
-    fillGrad = "url(#ghammazGem)";
-    strokeColor = "#fde68a";
-  } else if (isMicroNote) {
-    fillGrad = "url(#microGem)";
-    strokeColor = "#e9d5ff";
-  }
+  const clarityMode =
+    (typeof document !== "undefined" && document.body?.getAttribute("data-neck-clarity")) ||
+    loadNeckClarityMode();
 
   const isExactStaffMatch = (selectedPitch !== null && selectedPitch.absQ === absQ) || isPlaybackStepHit;
   const isOctaveStaffMatch = selectedPitch !== null && !isExactStaffMatch && selectedPitch.pitchClassQ === pitchClassQ;
+  const forceShow = Boolean(isExactStaffMatch || isPlaybackStepHit);
 
-  let nodeOpacity = isSelectedActiveNote ? "1.0" : "0.18";
-  if (selectedPitch !== null && isSelectedActiveNote) {
-    nodeOpacity = (isExactStaffMatch || isOctaveStaffMatch) ? "1.0" : "0.35";
+  const tierInfo = computeJewelVisualTier({
+    isRoot,
+    isGhammaz,
+    isMicrotone: isMicroNote,
+    inBox: isSelectedActiveNote,
+    qFromNut,
+    clarityMode
+  });
+
+  const isFreeMode = clarityMode === "FREE";
+
+  // Em "1ª Oitava" (acima de q=12), oculta notas agudas preservando playback/inspeção
+  if (!isFreeMode && !tierInfo.visible && !forceShow) {
+    return;
   }
 
   const group = document.createElementNS(SVG_NS, "g");
   group.setAttribute("class", "note-node");
-  group.setAttribute("opacity", nodeOpacity);
+  group.setAttribute("data-jewel-tier", String(tierInfo.tier));
+  group.setAttribute("data-jewel-q", String(qFromNut));
+  group.setAttribute("data-jewel-ghost", tierInfo.isGhost && !forceShow ? "1" : "0");
 
   group.addEventListener("click", (ev) => {
     playPluckedNote(noteFreq, 1.35);
@@ -1492,15 +1505,94 @@ function appendNoteJewel(
     }
   });
 
+  // Modo Livre ("FREE"): sem viés de Maqam — todas as notas 24-TET ficam clicáveis em #free-chromatic-layer
+  if (isFreeMode && !isPlaybackStepHit) {
+    return;
+  }
+
+  // Pontos-fantasma mínimos fora da posição ativa (conceito String Atlas v8.9)
+  if ((tierInfo.isGhost || !isSelectedActiveNote) && !forceShow) {
+    const ghostR = Math.max(3.6, tierInfo.radius || 4.2);
+    const ghostFill = isRoot
+      ? "rgba(239, 107, 107, 0.50)"
+      : (isGhammaz ? "rgba(243, 201, 105, 0.48)" : (isMicroNote ? "rgba(196, 155, 224, 0.48)" : "rgba(226, 217, 200, 0.34)"));
+    const ghostStroke = isRoot
+      ? "rgba(245, 222, 179, 0.55)"
+      : (isMicroNote ? "rgba(216, 180, 248, 0.45)" : "rgba(226, 217, 200, 0.32)");
+
+    const hitArea = document.createElementNS(SVG_NS, "circle");
+    hitArea.setAttribute("cx", String(nx));
+    hitArea.setAttribute("cy", String(ny));
+    hitArea.setAttribute("r", "11");
+    hitArea.setAttribute("fill", "transparent");
+    group.appendChild(hitArea);
+
+    const ghostDot = document.createElementNS(SVG_NS, "circle");
+    ghostDot.setAttribute("cx", String(nx));
+    ghostDot.setAttribute("cy", String(ny));
+    ghostDot.setAttribute("r", String(ghostR));
+    ghostDot.setAttribute("fill", ghostFill);
+    ghostDot.setAttribute("stroke", ghostStroke);
+    ghostDot.setAttribute("stroke-width", "1");
+    group.appendChild(ghostDot);
+
+    if (isOctaveStaffMatch) {
+      const octRing = document.createElementNS(SVG_NS, "circle");
+      octRing.setAttribute("cx", String(nx));
+      octRing.setAttribute("cy", String(ny));
+      octRing.setAttribute("r", String((ghostR + 4.5).toFixed(1)));
+      octRing.setAttribute("fill", "none");
+      octRing.setAttribute("stroke", "#d4a84f");
+      octRing.setAttribute("stroke-width", "1.4");
+      octRing.setAttribute("stroke-dasharray", "2,2");
+      group.appendChild(octRing);
+    }
+
+    svg.appendChild(group);
+    return;
+  }
+
+  const effectiveTier = tierInfo.tier > 0
+    ? tierInfo
+    : computeJewelVisualTier({
+        isRoot,
+        isGhammaz,
+        isMicrotone: isMicroNote,
+        inBox: true,
+        qFromNut,
+        clarityMode: "FULL_NECK"
+      });
+
+  const baseR = effectiveTier.radius || (isRoot ? 13.0 : (isGhammaz || isMicroNote ? 10.9 : 9.2));
+
+  let fillGrad = "url(#fixedGem)";
+  let strokeColor = "#93b4db";
+  if (isRoot) {
+    fillGrad = "url(#rootGem)";
+    strokeColor = "#f5deb3";
+  } else if (isGhammaz) {
+    fillGrad = "url(#ghammazGem)";
+    strokeColor = "#fde68a";
+  } else if (isMicroNote) {
+    fillGrad = "url(#microGem)";
+    strokeColor = "#e9d5ff";
+  }
+
+  let nodeOpacity = "1.0";
+  if (selectedPitch !== null && isSelectedActiveNote) {
+    nodeOpacity = (isExactStaffMatch || isOctaveStaffMatch) ? "1.0" : "0.34";
+  }
+  group.setAttribute("opacity", nodeOpacity);
+
   if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const pivotRing = document.createElementNS(SVG_NS, "circle");
     pivotRing.setAttribute("cx", String(nx));
     pivotRing.setAttribute("cy", String(ny));
-    pivotRing.setAttribute("r", "16.2");
+    pivotRing.setAttribute("r", String((baseR + 3.4).toFixed(1)));
     pivotRing.setAttribute("fill", isUnisonBridge ? "rgba(196, 155, 224, 0.16)" : "rgba(212, 168, 79, 0.14)");
     pivotRing.setAttribute("stroke", isUnisonBridge ? "#c49be0" : "#d4a84f");
-    pivotRing.setAttribute("stroke-width", "1.6");
+    pivotRing.setAttribute("stroke-width", "1.5");
     pivotRing.setAttribute("stroke-dasharray", isUnisonBridge ? "4,2" : "2,2");
     group.appendChild(pivotRing);
   }
@@ -1509,10 +1601,10 @@ function appendNoteJewel(
     const halo = document.createElementNS(SVG_NS, "circle");
     halo.setAttribute("cx", String(nx));
     halo.setAttribute("cy", String(ny));
-    halo.setAttribute("r", isExactStaffMatch ? "20" : "18");
+    halo.setAttribute("r", String((baseR + (isExactStaffMatch ? 6.2 : 4.5)).toFixed(1)));
     halo.setAttribute("fill", isExactStaffMatch ? "rgba(196, 155, 224, 0.28)" : "rgba(212, 168, 79, 0.14)");
     halo.setAttribute("stroke", isExactStaffMatch ? (isLight ? "#6b3f8c" : "#c49be0") : "#d4a84f");
-    halo.setAttribute("stroke-width", isExactStaffMatch ? "2.6" : "1.8");
+    halo.setAttribute("stroke-width", isExactStaffMatch ? "2.4" : "1.7");
     if (isOctaveStaffMatch) halo.setAttribute("stroke-dasharray", "3,2");
     group.appendChild(halo);
   }
@@ -1521,59 +1613,65 @@ function appendNoteJewel(
     const openHalo = document.createElementNS(SVG_NS, "circle");
     openHalo.setAttribute("cx", String(nx));
     openHalo.setAttribute("cy", String(ny));
-    openHalo.setAttribute("r", "15.5");
+    openHalo.setAttribute("r", String((baseR + 2.8).toFixed(1)));
     openHalo.setAttribute("fill", "none");
     openHalo.setAttribute("stroke", "#e2d9c8");
-    openHalo.setAttribute("stroke-width", "1.1");
+    openHalo.setAttribute("stroke-width", "1.05");
     openHalo.setAttribute("stroke-dasharray", "2,2");
-    openHalo.setAttribute("opacity", "0.75");
+    openHalo.setAttribute("opacity", "0.72");
     group.appendChild(openHalo);
   }
 
+  // --- Hierarquia Gráfica em 3 Camadas ---
   if (isMicroNote) {
-    const outerR = isRoot ? 15.5 : 13.8;
-    const innerR = isRoot ? 11.2 : 9.8;
+    const outerR = Number((baseR * 1.13).toFixed(2));
+    const innerR = Number((baseR * 0.80).toFixed(2));
     const star = document.createElementNS(SVG_NS, "polygon");
     star.setAttribute("points", createOctagramStarPath(nx, ny, outerR, innerR));
     star.setAttribute("fill", fillGrad);
     star.setAttribute("stroke", isExactStaffMatch ? "#ffffff" : strokeColor);
-    star.setAttribute("stroke-width", isExactStaffMatch ? "2.6" : (isRoot ? "2.2" : "1.4"));
+    star.setAttribute("stroke-width", isExactStaffMatch ? "2.4" : String(effectiveTier.strokeWidth || 1.6));
     group.appendChild(star);
-  } else {
-    const radius = isRoot ? 13.5 : (isGhammaz ? 12.6 : 11.5);
+  } else if (effectiveTier.ringOnly) {
+    // Nível 3 (Demais graus estruturais): centro translúcido + anel nítido
     const circle = document.createElementNS(SVG_NS, "circle");
     circle.setAttribute("cx", String(nx));
     circle.setAttribute("cy", String(ny));
-    circle.setAttribute("r", String(radius));
+    circle.setAttribute("r", String(baseR));
+    circle.setAttribute("fill", "rgba(18, 26, 38, 0.74)");
+    circle.setAttribute("stroke", isExactStaffMatch ? "#ffffff" : strokeColor);
+    circle.setAttribute("stroke-width", isExactStaffMatch ? "2.4" : String(effectiveTier.strokeWidth || 2.0));
+    group.appendChild(circle);
+  } else {
+    // Nível 1 (Qarar / Tônica) & Nível 2 (Ghammaz): sólidos com anel fino único
+    const circle = document.createElementNS(SVG_NS, "circle");
+    circle.setAttribute("cx", String(nx));
+    circle.setAttribute("cy", String(ny));
+    circle.setAttribute("r", String(baseR));
     circle.setAttribute("fill", fillGrad);
     circle.setAttribute("stroke", isExactStaffMatch ? "#ffffff" : strokeColor);
-    circle.setAttribute("stroke-width", isExactStaffMatch ? "2.8" : (isRoot ? "2.4" : "1.4"));
+    circle.setAttribute("stroke-width", isExactStaffMatch ? "2.6" : String(effectiveTier.strokeWidth || (isRoot ? 1.9 : 1.6)));
     group.appendChild(circle);
-
-    if (isRoot || isGhammaz) {
-      const innerRing = document.createElementNS(SVG_NS, "circle");
-      innerRing.setAttribute("cx", String(nx));
-      innerRing.setAttribute("cy", String(ny));
-      innerRing.setAttribute("r", String(radius - 3));
-      innerRing.setAttribute("fill", "none");
-      innerRing.setAttribute("stroke", "rgba(255,255,255,0.42)");
-      innerRing.setAttribute("stroke-width", "0.8");
-      group.appendChild(innerRing);
-    }
   }
+
+  // Tipografia adaptativa ao raio da camada e comprimento do texto
+  const rawLen = String(displayText || "").length;
+  const lenFactor = rawLen >= 4 ? 0.84 : (rawLen === 3 ? 0.92 : 1.0);
+  const baseFont = labelMode === "ARABIC" ? baseR * 0.68 : baseR * 0.80;
+  const fontSize = Math.max(6.8, Math.min(10.4, baseFont * lenFactor));
 
   const textEl = document.createElementNS(SVG_NS, "text");
   textEl.setAttribute("x", String(nx));
-  textEl.setAttribute("y", String(ny + 3.6));
+  textEl.setAttribute("y", String((ny + fontSize * 0.35).toFixed(2)));
   textEl.setAttribute("text-anchor", "middle");
-  textEl.setAttribute("fill", "#ffffff");
-  textEl.setAttribute("font-size", labelMode === "ARABIC" ? "8.2" : "10");
-  textEl.setAttribute("font-weight", "700");
+  textEl.setAttribute("fill", effectiveTier.ringOnly ? "#eef4fc" : "#ffffff");
+  textEl.setAttribute("font-size", fontSize.toFixed(1));
+  textEl.setAttribute("font-weight", effectiveTier.tier === 1 ? "800" : "700");
   textEl.setAttribute("pointer-events", "none");
   textEl.textContent = displayText;
   group.appendChild(textEl);
 
-  if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
+if (showPositionsMap && isSelectedActiveNote && pivotInfo && pivotInfo.isPivot) {
     const isUnisonBridge = pivotInfo.type === "UNISON_BRIDGE";
     const bx = nx - 14;
     const by = ny - 13;
@@ -1646,7 +1744,212 @@ function appendNoteJewel(
  * Anexa a camada dedicada `#live-pitch-layer` no topo do SVG e reaplica o último frame
  * caso a escuta pelo microfone esteja ativa durante um redesenho do espelho.
  */
+
+/**
+ * Renderiza a camada cromática 24-TET completa no Modo Livre (FREE):
+ * permite clicar/tocar em QUALQUER semitom ou quarto de tom nas 6 ordens,
+ * revelando o nome da nota, acendendo oitavas/uníssonos e tocando o Oud sem filtro de Maqam.
+ */
+function renderFreeChromaticLayer(svg, ctx) {
+  const clarityMode =
+    (typeof document !== "undefined" && document.body?.getAttribute("data-neck-clarity")) ||
+    loadNeckClarityMode();
+  if (clarityMode !== "FREE") return;
+
+  const { isVert, isLeftHanded, isLight, tuning, nutCoord, neckLengthPx, coursePositions } = ctx;
+  if (!tuning || !Array.isArray(tuning.courses)) return;
+
+  const { selectedPitch, onNeckJewelSelect, labelMode } = lastFreeExploreMeta;
+
+  const layer = document.createElementNS(SVG_NS, "g");
+  layer.setAttribute("id", "free-chromatic-layer");
+
+  tuning.courses.forEach((/** @type {any} */ cObj) => {
+    const perp = coursePositions.get(cObj.course);
+    if (perp === undefined) return;
+    const openAbsQ = Number.isFinite(cObj.abs_q) ? cObj.abs_q : (Number.isFinite(cObj.open_q) ? cObj.open_q : 0);
+    const openFreq = Number.isFinite(cObj.freq_hz) && cObj.freq_hz > 20
+      ? cObj.freq_hz
+      : 65.40639 * Math.pow(2, openAbsQ / 24);
+
+    for (let qFromNut = 0; qFromNut <= MAX_NECK_Q; qFromNut++) {
+      const absQ = openAbsQ + qFromNut;
+      const pitchClassQ = ((absQ % 24) + 24) % 24;
+      const pc = PITCH_CLASSES_24[pitchClassQ] || PITCH_CLASSES_24[0];
+      const isMicro = Boolean(pc.micro);
+      const noteFreq = openFreq * Math.pow(2, qFromNut / 24);
+      const displayText = labelMode === "ARABIC" ? pc.arabic : pc.flat;
+
+      const axis = getPhysicalX(qFromNut, nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+      const prevAxis = getPhysicalX(Math.max(0, qFromNut - 0.5), nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+      const nextAxis = getPhysicalX(Math.min(MAX_NECK_Q, qFromNut + 0.5), nutCoord, neckLengthPx, isVert ? false : isLeftHanded);
+
+      const nx = isVert ? perp : axis;
+      const ny = isVert ? axis : perp;
+
+      const isExactSelected = selectedPitch !== null && selectedPitch.absQ === absQ;
+      const isOctaveSelected = selectedPitch !== null && !isExactSelected && selectedPitch.pitchClassQ === pitchClassQ;
+
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "note-node free-chromatic-node");
+      g.setAttribute("data-jewel-free", "1");
+      g.setAttribute("data-free-micro", isMicro ? "1" : "0");
+      g.setAttribute("data-free-selected", isExactSelected ? "exact" : (isOctaveSelected ? "octave" : "none"));
+
+      // Área de clique contínua e sem sobreposição cobrindo [q-0.5, q+0.5] da ordem
+      const hitRect = document.createElementNS(SVG_NS, "rect");
+      const aMin = Math.min(prevAxis, nextAxis);
+      const aSpan = Math.max(10, Math.abs(nextAxis - prevAxis));
+      const pHalf = 14;
+      if (isVert) {
+        hitRect.setAttribute("x", String((nx - pHalf).toFixed(1)));
+        hitRect.setAttribute("y", String(aMin.toFixed(1)));
+        hitRect.setAttribute("width", String((pHalf * 2).toFixed(1)));
+        hitRect.setAttribute("height", String(aSpan.toFixed(1)));
+      } else {
+        hitRect.setAttribute("x", String(aMin.toFixed(1)));
+        hitRect.setAttribute("y", String((ny - pHalf).toFixed(1)));
+        hitRect.setAttribute("width", String(aSpan.toFixed(1)));
+        hitRect.setAttribute("height", String((pHalf * 2).toFixed(1)));
+      }
+      hitRect.setAttribute("fill", "transparent");
+      g.appendChild(hitRect);
+
+      const highScale = qFromNut >= 16 ? 0.84 : (qFromNut >= 12 ? 0.92 : 1.0);
+
+      if (isExactSelected) {
+        const halo = document.createElementNS(SVG_NS, "circle");
+        halo.setAttribute("cx", String(nx));
+        halo.setAttribute("cy", String(ny));
+        halo.setAttribute("r", String((16.5 * highScale).toFixed(1)));
+        halo.setAttribute("fill", isMicro ? "rgba(196, 155, 224, 0.28)" : "rgba(226, 185, 99, 0.28)");
+        halo.setAttribute("stroke", isMicro ? "#c49be0" : "#e2b963");
+        halo.setAttribute("stroke-width", "2.2");
+        g.appendChild(halo);
+
+        const gem = document.createElementNS(SVG_NS, "circle");
+        gem.setAttribute("cx", String(nx));
+        gem.setAttribute("cy", String(ny));
+        gem.setAttribute("r", String((11.5 * highScale).toFixed(1)));
+        gem.setAttribute("fill", isMicro ? "url(#microGem)" : "url(#ghammazGem)");
+        gem.setAttribute("stroke", "#ffffff");
+        gem.setAttribute("stroke-width", "2");
+        g.appendChild(gem);
+
+        const lbl = document.createElementNS(SVG_NS, "text");
+        lbl.setAttribute("x", String(nx));
+        lbl.setAttribute("y", String((ny + 3.4 * highScale).toFixed(1)));
+        lbl.setAttribute("text-anchor", "middle");
+        lbl.setAttribute("fill", "#ffffff");
+        lbl.setAttribute("font-size", (9.4 * highScale).toFixed(1));
+        lbl.setAttribute("font-weight", "800");
+        lbl.setAttribute("pointer-events", "none");
+        lbl.textContent = displayText;
+        g.appendChild(lbl);
+      } else if (isOctaveSelected) {
+        const octRing = document.createElementNS(SVG_NS, "circle");
+        octRing.setAttribute("cx", String(nx));
+        octRing.setAttribute("cy", String(ny));
+        octRing.setAttribute("r", String((12.6 * highScale).toFixed(1)));
+        octRing.setAttribute("fill", "rgba(212, 168, 79, 0.16)");
+        octRing.setAttribute("stroke", "#d4a84f");
+        octRing.setAttribute("stroke-width", "1.5");
+        octRing.setAttribute("stroke-dasharray", "3,2");
+        g.appendChild(octRing);
+
+        const gem = document.createElementNS(SVG_NS, "circle");
+        gem.setAttribute("cx", String(nx));
+        gem.setAttribute("cy", String(ny));
+        gem.setAttribute("r", String((9.4 * highScale).toFixed(1)));
+        gem.setAttribute("fill", isMicro ? "url(#microGem)" : "rgba(26, 32, 42, 0.88)");
+        gem.setAttribute("stroke", isMicro ? "#e9d5ff" : "#e2b963");
+        gem.setAttribute("stroke-width", "1.6");
+        g.appendChild(gem);
+
+        const lbl = document.createElementNS(SVG_NS, "text");
+        lbl.setAttribute("x", String(nx));
+        lbl.setAttribute("y", String((ny + 3.0 * highScale).toFixed(1)));
+        lbl.setAttribute("text-anchor", "middle");
+        lbl.setAttribute("fill", "#f8f1e5");
+        lbl.setAttribute("font-size", (8.3 * highScale).toFixed(1));
+        lbl.setAttribute("font-weight", "700");
+        lbl.setAttribute("pointer-events", "none");
+        lbl.textContent = displayText;
+        g.appendChild(lbl);
+      } else {
+        const dotR = qFromNut === 0 ? 3.8 : (isMicro ? 2.0 : 3.0);
+        const dotFill = qFromNut === 0
+          ? "rgba(226, 185, 99, 0.62)"
+          : (isMicro ? "rgba(196, 155, 224, 0.42)" : "rgba(226, 217, 200, 0.42)");
+        const dotStroke = isMicro ? "rgba(196, 155, 224, 0.55)" : "rgba(226, 217, 200, 0.45)";
+
+        const dot = document.createElementNS(SVG_NS, "circle");
+        dot.setAttribute("class", "free-anchor-dot");
+        dot.setAttribute("cx", String(nx));
+        dot.setAttribute("cy", String(ny));
+        dot.setAttribute("r", String((dotR * highScale).toFixed(2)));
+        dot.setAttribute("fill", dotFill);
+        dot.setAttribute("stroke", dotStroke);
+        dot.setAttribute("stroke-width", "0.9");
+        g.appendChild(dot);
+
+        const hoverLbl = document.createElementNS(SVG_NS, "text");
+        hoverLbl.setAttribute("class", "free-hover-label");
+        hoverLbl.setAttribute("x", String(nx));
+        hoverLbl.setAttribute("y", String((ny - 8.8).toFixed(1)));
+        hoverLbl.setAttribute("text-anchor", "middle");
+        hoverLbl.setAttribute("fill", isLight ? "#2b1e14" : "#f8f1e5");
+        hoverLbl.setAttribute("font-size", "9.2");
+        hoverLbl.setAttribute("font-weight", "800");
+        hoverLbl.setAttribute("pointer-events", "none");
+        hoverLbl.textContent = displayText;
+        g.appendChild(hoverLbl);
+      }
+
+      const fingerEst = qFromNut === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil(qFromNut / 2)));
+
+      g.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        playPluckedNote(noteFreq, 1.35);
+        if (onNeckJewelSelect) {
+          onNeckJewelSelect({
+            absQ,
+            pitchClassQ,
+            qFromNut,
+            course: cObj.course,
+            finger: fingerEst,
+            freq: noteFreq,
+            makeRoot: Boolean(ev.shiftKey)
+          });
+        }
+      });
+
+      g.addEventListener("dblclick", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        playPluckedNote(noteFreq, 1.5);
+        if (onNeckJewelSelect) {
+          onNeckJewelSelect({
+            absQ,
+            pitchClassQ,
+            qFromNut,
+            course: cObj.course,
+            finger: fingerEst,
+            freq: noteFreq,
+            makeRoot: true
+          });
+        }
+      });
+
+      layer.appendChild(g);
+    }
+  });
+
+  svg.appendChild(layer);
+}
+
 function finalizeLivePitchLayer(svg, contextSnapshot) {
+  renderFreeChromaticLayer(svg, contextSnapshot);
   lastNeckRenderContext = contextSnapshot;
 
   const liveLayer = document.createElementNS(SVG_NS, "g");
@@ -1678,6 +1981,7 @@ export function renderOudNeckSVG(
   octavePathNodes = [],
   regionInteractions = {}
 ) {
+  lastFreeExploreMeta = { selectedPitch, onNeckJewelSelect, labelMode: state?.labelMode || "NOTE_NAME", highlightedStep };
   const svg = /** @type {SVGElement} */ (/** @type {unknown} */ (document.getElementById("oud-neck")));
   svg.innerHTML = "";
   /** @type {{ course: number, freq: number }[]} */

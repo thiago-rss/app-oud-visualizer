@@ -2109,6 +2109,7 @@ function refreshAll() {
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
   syncStateToUrl(state);
+  stringAtlasBridge?.syncFreeModeSummary?.();
 }
 
 function initApp() {
@@ -3016,7 +3017,7 @@ function ensureStringAtlasBridge() {
     onClarityChanged: (clarityMode) => {
       if (clarityMode === "POSITION") {
         commitStatePatch({ shapeMode: "OPEN_FIRST_POS", showGhostNotes: true }, { syncControls: true, refresh: true });
-      } else if (clarityMode === "FULL_NECK" || clarityMode === "FIRST_OCTAVE") {
+      } else if (clarityMode === "FULL_NECK" || clarityMode === "FIRST_OCTAVE" || clarityMode === "FREE") {
         commitStatePatch({ shapeMode: "FULL_NECK", showGhostNotes: false }, { syncControls: true, refresh: true });
       } else {
         refreshAll();
@@ -3029,7 +3030,88 @@ function ensureStringAtlasBridge() {
         syncControlsWithState();
         refreshAll();
       }
-    }
+    }    ,
+    getAllStudyLessons: () => (typeof getAllStudyLessons === "function" ? getAllStudyLessons() : []),
+    getGlossaryEntries: () => (typeof GLOSSARY_ENTRIES !== "undefined" ? GLOSSARY_ENTRIES : []),
+    onApplyEntity: (mode, entityId) => {
+      commitStatePatch({ mode, entityId }, { syncControls: true, refresh: true });
+    },
+    onApplyTuning: (tuningId) => {
+      commitStatePatch({ tuningId }, { syncControls: true, refresh: true });
+    },
+    onApplyIqa: (iqaId) => {
+      const found = DB.iqaat?.find((x) => x.id === iqaId);
+      commitStatePatch({ iqaId, bpm: found?.default_bpm || state.bpm }, { syncControls: true, refresh: true });
+    },
+    onApplyLesson: (lessonId) => {
+      if (typeof applyStudyLessonPreset === "function") {
+        applyStudyLessonPreset(lessonId);
+      }
+      if (typeof setActiveDeckTab === "function") {
+        setActiveDeckTab("study");
+      }
+    },
+    onOpenGlossary: (query) => {
+      if (typeof openGlossary === "function") {
+        openGlossary(query || "");
+      } else {
+        document.getElementById("btn-open-glossary")?.click();
+      }
+    },
+    onPanicStopAll: () => {
+      if (typeof clearSequenceTimers === "function") clearSequenceTimers();
+      if (typeof stopIqaEngine === "function") stopIqaEngine();
+      if (typeof isIqaPlaying !== "undefined") isIqaPlaying = false;
+      if (state.droneActive && typeof toggleDroneAudio === "function") {
+        toggleDroneAudio(false);
+        state.droneActive = false;
+      }
+      if (typeof isPitchListening === "function" && isPitchListening() && typeof stopPitchListening === "function") {
+        stopPitchListening();
+      }
+      if (typeof clearLivePitchOverlayOnNeck === "function") {
+        clearLivePitchOverlayOnNeck();
+      }
+      syncControlsWithState();
+      refreshAll();
+    },
+    onToggleDrone: () => {
+      const btn = document.getElementById("btn-toggle-drone") || document.getElementById("btn-zen-drone");
+      if (btn) btn.click();
+    },
+    onToggleIqa: () => {
+      const btn = document.getElementById("btn-toggle-iqa") || document.getElementById("btn-zen-iqa");
+      if (btn) btn.click();
+    },
+    onToggleMic: () => {
+      const btn =
+        document.getElementById("btn-tuner-toggle") ||
+        document.getElementById("btn-mob-mic") ||
+        document.getElementById("btn-open-tuner");
+      if (btn) btn.click();
+    },
+    onPlayActive: () => {
+      const btn = document.getElementById("btn-play-main") || document.getElementById("btn-play-scale");
+      if (btn) btn.click();
+    },
+    onToggleTheme: () => {
+      const nextTheme = state.theme === "light" ? "dark" : "light";
+      try { window.localStorage.setItem("oud_theme_pref", nextTheme); } catch {}
+      commitStatePatch({ theme: nextTheme }, { syncControls: true, refresh: true });
+    },
+    onToggleTimbre: () => {
+      const btn = document.getElementById("btn-toggle-timbre");
+      if (btn) btn.click();
+    },
+    onToggleZen: () => {
+      const btn = document.getElementById("btn-zen-mode") || document.getElementById("btn-zen-exit");
+      if (btn) btn.click();
+    },
+    getAudioActivity: () => ({
+      drone: Boolean(state?.droneActive),
+      iqa: Boolean(typeof isIqaPlaying !== "undefined" && isIqaPlaying),
+      mic: Boolean(typeof isPitchListening === "function" && isPitchListening())
+    })
   });
   return stringAtlasBridge;
 }

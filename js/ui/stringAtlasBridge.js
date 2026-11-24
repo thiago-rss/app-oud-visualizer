@@ -35,6 +35,7 @@ import {
   formatAbsQ24Label
 } from "../core/customTunings.js";
 import { showToast } from "./toastView.js";
+import { createCommandPaletteController } from "./commandPaletteView.js";
 
 /**
  * @typedef {{
@@ -63,6 +64,8 @@ export function initStringAtlasBridge(deps) {
   }
 
   let strobePhase = 0;
+  /** @type {any} */
+  let paletteCtrl = null;
 
   const isEn = () => deps.getState?.()?.lang === "en";
 
@@ -135,6 +138,8 @@ export function initStringAtlasBridge(deps) {
         <button type="button" id="sa-btn-save-tuning" class="sa-pill-btn" title="${en ? "Save or manage custom Oud tunings" : "Salvar ou gerenciar afinações customizadas do Oud"}">
           ✦ ${en ? "Scordaturas" : "Afinações Salvas"}
         </button>
+        <button type="button" id="sa-btn-palette" class="sa-mini-chip" title="${en ? "Quick Search (⌘K / /)" : "Busca Rápida (⌘K / /)"}">⌘K</button>
+        <button type="button" id="sa-btn-shortcuts" class="sa-mini-chip" title="${en ? "Keyboard Shortcuts (?)" : "Atalhos de Teclado (?)"}">?</button>
       </div>
     `;
 
@@ -147,6 +152,8 @@ export function initStringAtlasBridge(deps) {
           deps.onClarityChanged(currentClarity);
         }
         mountStageClarityBar();
+        mountTierMicroLegend();
+        window.setTimeout(syncFreeModeSummary, 25);
         const item = NECK_CLARITY_LIST.find((x) => x.id === currentClarity);
         showToast(
           en
@@ -190,6 +197,14 @@ export function initStringAtlasBridge(deps) {
     const btnSaveTuning = document.getElementById("sa-btn-save-tuning");
     if (btnSaveTuning) {
       btnSaveTuning.addEventListener("click", openCustomTuningsDrawer);
+    }
+    const btnPalette = document.getElementById("sa-btn-palette");
+    if (btnPalette) {
+      btnPalette.addEventListener("click", () => paletteCtrl?.openPalette());
+    }
+    const btnShortcuts = document.getElementById("sa-btn-shortcuts");
+    if (btnShortcuts) {
+      btnShortcuts.addEventListener("click", () => paletteCtrl?.openShortcutsModal());
     }
   }
 
@@ -474,8 +489,172 @@ export function initStringAtlasBridge(deps) {
     renderModalBody();
   }
 
+
+  /**
+   * Monta uma micro-legenda contextual das 3 camadas visuais no rodapé do espelho.
+   */
+  function mountTierMicroLegend() {
+    if (typeof document === "undefined") return;
+    const host =
+      document.querySelector(".neck-showcase") ||
+      document.querySelector(".fretboard-panel") ||
+      document.querySelector("main");
+    if (!host) return;
+
+    let leg = document.getElementById("sa-tier-micro-legend");
+    if (!leg) {
+      leg = document.createElement("div");
+      leg.id = "sa-tier-micro-legend";
+      leg.className = "sa-tier-micro-legend";
+      host.appendChild(leg);
+    }
+
+    const en = isEn();
+    if (currentClarity === NECK_CLARITY_MODES.FREE) {
+      leg.innerHTML = `
+        <span class="sa-legend-item"><i class="sa-dot sa-dot--free-semi"></i>${en ? "Free 24-TET · Semitones (click any note)" : "Livre 24-TET · Semitons (clique em qualquer nota)"}</span>
+        <span class="sa-legend-item"><i class="sa-dot sa-dot--free-micro"></i>${en ? "Quarter-tones (50¢)" : "Quartos de tom (50¢)"}</span>
+        <span class="sa-legend-item">${en ? "Pick a Maqam/Lesson or click Position to map a mode" : "Escolha um Maqam/Lição ou clique em Posição para mapear um modo"}</span>
+      `;
+      return;
+    }
+    const showGhostItem = currentClarity === NECK_CLARITY_MODES.POSITION;
+    leg.innerHTML = `
+      <span class="sa-legend-item"><i class="sa-dot sa-dot--t1"></i>${en ? "Tier 1 · Qarar (Root)" : "Nível 1 · Qarar (Tônica)"}</span>
+      <span class="sa-legend-item"><i class="sa-dot sa-dot--t2"></i>${en ? "Tier 2 · Ghammaz / Microtone" : "Nível 2 · Ghammaz / Microtom"}</span>
+      <span class="sa-legend-item"><i class="sa-dot sa-dot--t3"></i>${en ? "Tier 3 · Scale Degrees" : "Nível 3 · Demais Graus"}</span>
+      ${showGhostItem ? `<span class="sa-legend-item"><i class="sa-dot sa-dot--ghost"></i>${en ? "Outside Position" : "Fora da Posição"}</span>` : ""}
+    `;
+  }
+
+
+  /**
+   * Enquanto estiver no Modo Livre (FREE), exibe rótulos neutros ("Livre · 24-TET")
+   * na Barra de Comando, Deck e Zen HUD para não parecer que Maqam Rast C está selecionado.
+   */
+  function syncFreeModeSummary() {
+    if (typeof document === "undefined") return;
+    if (currentClarity !== NECK_CLARITY_MODES.FREE) return;
+    const en = isEn();
+    const shortFree = en ? "Free · 24-TET" : "Livre · 24-TET";
+    const fullFree = en ? "Free Exploration • 24-TET" : "Exploração Livre • 24-TET";
+
+    const v1 = document.getElementById("cmd-val-1");
+    if (v1) v1.textContent = shortFree;
+
+    const v2 = document.getElementById("cmd-val-2");
+    if (v2) v2.textContent = en ? "Clean • 24-TET" : "Livre • 24-TET";
+
+    const deckStatus = document.getElementById("deck-mini-status");
+    if (deckStatus) deckStatus.textContent = fullFree;
+
+    const zenEntity = document.getElementById("zen-badge-entity");
+    if (zenEntity) zenEntity.textContent = fullFree;
+  }
+
+  /**
+   * Sai automaticamente do Modo Livre para "Posição" quando o usuário escolhe
+   * explicitamente um Maqam, Jins, Escala, Acorde, Modulação ou Lição do Guia.
+   */
+  function bindAutoExitFreeMode() {
+    if (typeof document === "undefined" || document.body?.dataset.saAutoExitBound === "1") return;
+    if (document.body) document.body.dataset.saAutoExitBound = "1";
+
+    const exitToPosition = () => {
+      if (currentClarity !== NECK_CLARITY_MODES.FREE) return;
+      currentClarity = saveNeckClarityMode(NECK_CLARITY_MODES.POSITION);
+      applyClarityToDom(currentClarity);
+      mountStageClarityBar();
+      mountTierMicroLegend();
+      if (typeof deps.onClarityChanged === "function") {
+        deps.onClarityChanged(currentClarity);
+      }
+    };
+
+    document.addEventListener("change", (ev) => {
+      const target = /** @type {HTMLElement | null} */ (ev.target);
+      if (!target) return;
+      if (target.id === "select-entity" || target.id === "select-root") {
+        window.setTimeout(exitToPosition, 0);
+      }
+    });
+
+    document.addEventListener("click", (ev) => {
+      const target = /** @type {HTMLElement | null} */ (ev.target);
+      if (!target) return;
+      if (
+        target.closest(".tab-btn") ||
+        target.closest(".btn-apply-mod") ||
+        target.closest(".study-apply-btn") ||
+        target.closest("[data-lesson-apply]") ||
+        target.closest("#btn-play-taqsim") ||
+        target.closest("#btn-set-root-from-selection") ||
+        target.closest("#btn-dock-set-tonic")
+      ) {
+        window.setTimeout(exitToPosition, 0);
+      }
+    });
+  }
+
+
+  function setClarityProgrammatically(nextMode) {
+    currentClarity = saveNeckClarityMode(nextMode);
+    applyClarityToDom(currentClarity);
+    if (typeof deps.onClarityChanged === "function") {
+      deps.onClarityChanged(currentClarity);
+    }
+    mountStageClarityBar();
+    mountTierMicroLegend();
+    window.setTimeout(syncFreeModeSummary, 25);
+  }
+
+  paletteCtrl = createCommandPaletteController({
+    getState: deps.getState,
+    DB: deps.DB,
+    getAllStudyLessons: deps.getAllStudyLessons,
+    getGlossaryEntries: deps.getGlossaryEntries,
+    onApplyEntity: (mode, entityId) => {
+      if (currentClarity === NECK_CLARITY_MODES.FREE) {
+        currentClarity = saveNeckClarityMode(NECK_CLARITY_MODES.POSITION);
+        applyClarityToDom(currentClarity);
+      }
+      deps.onApplyEntity?.(mode, entityId);
+      mountStageClarityBar();
+      mountTierMicroLegend();
+    },
+    onApplyTuning: (tuningId) => deps.onApplyTuning?.(tuningId),
+    onApplyIqa: (iqaId) => deps.onApplyIqa?.(iqaId),
+    onApplyLesson: (lessonId) => {
+      if (currentClarity === NECK_CLARITY_MODES.FREE) {
+        currentClarity = saveNeckClarityMode(NECK_CLARITY_MODES.POSITION);
+        applyClarityToDom(currentClarity);
+      }
+      deps.onApplyLesson?.(lessonId);
+      mountStageClarityBar();
+      mountTierMicroLegend();
+    },
+    onOpenGlossary: (q) => deps.onOpenGlossary?.(q),
+    onSetClarity: (mode) => {
+      setClarityProgrammatically(mode);
+      showToast(isEn() ? `Clarity: ${mode}` : `Clareza: ${mode}`, { type: "info", durationMs: 1600 });
+    },
+    onOpenCustomTunings: openCustomTuningsDrawer,
+    onPanicStopAll: deps.onPanicStopAll,
+    onToggleDrone: deps.onToggleDrone,
+    onToggleIqa: deps.onToggleIqa,
+    onToggleMic: deps.onToggleMic,
+    onPlayActive: deps.onPlayActive,
+    onToggleTheme: deps.onToggleTheme,
+    onToggleTimbre: deps.onToggleTimbre,
+    onToggleZen: deps.onToggleZen,
+    getAudioActivity: deps.getAudioActivity
+  });
+
   mountStageClarityBar();
+  mountTierMicroLegend();
   ensureTunerAddonBar();
+  bindAutoExitFreeMode();
+  window.setTimeout(syncFreeModeSummary, 40);
 
   return {
     getA4Hz: () => currentA4,
@@ -486,9 +665,12 @@ export function initStringAtlasBridge(deps) {
       trail.clear();
       renderTrailChips(document.getElementById("sa-note-trail"), []);
     },
+    syncFreeModeSummary,
     refreshUi: () => {
       mountStageClarityBar();
+      mountTierMicroLegend();
       ensureTunerAddonBar();
+      syncFreeModeSummary();
     },
     showToast
   };

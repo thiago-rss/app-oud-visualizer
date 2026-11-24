@@ -1,5 +1,5 @@
 // @ts-nocheck
-const CACHE_NAME = "oud-visualizer-v3.8.0";
+const CACHE_NAME = "oud-visualizer-v3.10.0";
 
 const CORE_ASSETS = [
   "./",
@@ -32,7 +32,8 @@ const CORE_ASSETS = [
   "./js/core/neckClarity.js",
   "./js/core/customTunings.js",
   "./js/ui/toastView.js",
-  "./js/ui/stringAtlasBridge.js"
+  "./js/ui/stringAtlasBridge.js",
+  "./js/ui/commandPaletteView.js"
 ];
 
 self.addEventListener("install", (event) => {
