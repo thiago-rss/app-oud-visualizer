@@ -1,10 +1,10 @@
-# App Oud Visualizer — v3.17.0 Studio & PWA
+# App Oud Visualizer — v3.21.0 Studio & PWA
 
 Estúdio interativo 24-TET para Oud com guia de estudos progressivo (17 capítulos, 51 lições, 51 dossiês bilíngues, estudos técnicos procedurais e tutor ativo), detector de intonação em tempo real (microfone e modo linha DI), afinador de 6 ordens, diapasão A4 configurável (415–446 Hz), estabilizador de graves e modo estroboscópico (±4¢).
 
 Acesso online (GitHub Pages): https://thiago-rss.github.io/app-oud-visualizer/
 
-## Principais Recursos (v3.17.0)
+## Principais Recursos (v3.21.0)
 
 ### 1. Guia de Estudos, Dossiês, Estudos Técnicos e Tutor Ativo (PT / EN)
 - Trilha com 5 filtros rápidos (Todos, Base, Intermediário, Avançado, Mestre e Mundo & Fusão) e progresso salvo em localStorage:
@@ -38,7 +38,14 @@ Acesso online (GitHub Pages): https://thiago-rss.github.io/app-oud-visualizer/
 ### 5. Paleta de Comandos, Guardião Mobile e PWA Offline
 - Paleta de comandos (Cmd+K / Ctrl+K / /), modal de atalhos (?) e mini-dock flutuante de áudio com parada geral (Esc) em js/ui/commandPaletteView.js.
 - Guardião mobile (js/core/mobileAudioGuard.js) com Screen Wake Lock, recuperação ao voltar da visibilidade/bloqueio e botão de reativação rápida de áudio.
-- Service Worker (sw.js) com cache versionado (oud-visualizer-v3.17.0) e script de validação pré-commit (scripts/check.mjs).
+- Service Worker (sw.js) com cache versionado (oud-visualizer-v3.21.0) e script de validação pré-commit (scripts/check.mjs).
+
+
+## Novidades da v3.21.0 (Studio & PWA)
+- **Prática Deliberada no Instrumento (`studyCoachView.js`, `studyGuideView.js`):** trava de afinação física no Guia (`🔒 Afinação Travada`), modo *Call & Response* em 3 velocidades (`0.65×`, `0.85×`, `1.0×`) com avaliação YIN ao vivo e Checkpoints YIN com precisão média em *cents*.
+- **Retenção & Fluxo de Aula (`spacedReview.js`, `urlState.js`, `stringAtlasBridge.js`):** fila de Revisão Espaçada (`↻ Revisar`) baseada no histórico prático, Link Direto de Lição (`#les=...`) e 4 Perfis de Estúdio (*Afinação & Luthieria*, *Improviso / Taqsim*, *Ritmo & Ouvido*, *Palco / Zen*).
+- **Engenharia & Observabilidade (`diagnostics.js`, `synthEngine.js`, `main.js`, `scripts/check.mjs`):** coalescência `requestAnimationFrame` com `FrameBudgetTracker`, Painel de Diagnóstico Local (`🩺` / `⌘K`) e suíte unitária core + auditoria das 51 lições e dossiês.
+- **Acabamento, `a11y` & PWA (`onboardingView.js`, `toastView.js`, `sw.js`):** anéis `:focus-visible`, suporte a `prefers-reduced-motion` e teclado, Tour Rápido de 3 Passos e atualização controlada do Service Worker (`oud-visualizer-v3.21.0`) via toast interativo.
 
 ## Execução Local e Validação
 
