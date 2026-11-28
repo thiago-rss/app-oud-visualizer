@@ -199,8 +199,26 @@ if (p.has("lh")) state.leftHanded = p.get("lh") === "1";
 return state;
 }
 
-/** @param {OudAppState} state */
-export function syncStateToUrl(state) {
+/**
+ * Extrai o identificador de lição (?/#les=...) do hash atual, se presente.
+ * @returns {string | null}
+ */
+export function getStudyLessonIdFromHash() {
+  if (typeof window === "undefined" || !window.location?.hash) return null;
+  const rawHash = window.location.hash.replace(/^#/, "");
+  if (!rawHash) return null;
+  const p = new URLSearchParams(rawHash);
+  const les = p.get("les");
+  if (!les) return null;
+  const clean = les.trim();
+  return clean.length > 0 && clean.length <= 80 ? clean : null;
+}
+
+/**
+ * @param {OudAppState} state
+ * @param {{ lessonId?: string | null }} [opts]
+ */
+export function syncStateToUrl(state, opts = {}) {
 const p = new URLSearchParams();
 p.set("lang", state.lang);
 p.set("tr", state.tradition);
@@ -231,6 +249,9 @@ p.set("bpm", String(parseBoundedInt(String(state.bpm), 96, 50, 175)));
 p.set("st", state.showStaff ? "1" : "0");
 p.set("sm", state.staffMode);
 if (state.leftHanded) p.set("lh", "1");
+if (opts?.lessonId && typeof opts.lessonId === "string" && opts.lessonId.trim().length > 0) {
+  p.set("les", opts.lessonId.trim().slice(0, 80));
+}
 
 const fullHash = `#${p.toString()}`;
 try {

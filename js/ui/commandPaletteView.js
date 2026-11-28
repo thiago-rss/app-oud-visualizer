@@ -215,6 +215,60 @@ export function createCommandPaletteController(deps) {
         run: () => deps.onSetClarity?.("FULL_NECK")
       },
       {
+        id: "act_wf_tuning",
+        category: catAct,
+        icon: "🪕",
+        title: en ? "Studio Profile: Tuning & Luthier" : "Perfil de Estúdio: Afinação & Luthieria",
+        subtitle: en ? "6-Course Tuner + Clean Free Neck" : "Afinador 6 Ordens + Espelho Livre",
+        keywords: "perfil studio afinacao luthieria tuner",
+        run: () => deps.onApplyWorkflowPreset?.("TUNING")
+      },
+      {
+        id: "act_wf_taqsim",
+        category: catAct,
+        icon: "🎶",
+        title: en ? "Studio Profile: Improvisation / Taqsim" : "Perfil de Estúdio: Improviso / Taqsim",
+        subtitle: en ? "Position Clarity + Sayr Staff + Theory" : "Posição + Pauta Sayr + Teoria",
+        keywords: "perfil studio improviso taqsim sayr",
+        run: () => deps.onApplyWorkflowPreset?.("TAQSIM")
+      },
+      {
+        id: "act_wf_rhythm",
+        category: catAct,
+        icon: "🥁",
+        title: en ? "Studio Profile: Rhythm & Ear Training" : "Perfil de Estúdio: Ritmo & Ouvido",
+        subtitle: en ? "1st Octave + Positions + Study Guide" : "1ª Oitava + Posições + Guia",
+        keywords: "perfil studio ritmo iqa ouvido ear",
+        run: () => deps.onApplyWorkflowPreset?.("RHYTHM_EAR")
+      },
+      {
+        id: "act_wf_zen",
+        category: catAct,
+        icon: "🪷",
+        title: en ? "Studio Profile: Stage / Zen Focus" : "Perfil de Estúdio: Palco / Zen",
+        subtitle: en ? "Position Clarity + Zen Stage (F)" : "Posição + Modo Imersivo (F)",
+        keywords: "perfil studio palco stage zen foco",
+        run: () => deps.onApplyWorkflowPreset?.("ZEN")
+      },
+      {
+        id: "act_onboarding",
+        category: catAct,
+        icon: "✨",
+        title: en ? "Quick Tour (3-Step Onboarding)" : "Tour Rápido (Guia Inicial em 3 Passos)",
+        subtitle: en ? "Interactive neck, Live 24-TET & Study Guide" : "Braço Vivo, Escuta 24-TET e Guia de Estudos",
+        keywords: "tour onboarding inicio guia introducao ajuda welcome",
+        run: () => deps.onOpenOnboarding?.()
+      },
+      {
+        id: "act_diagnostics",
+        category: catAct,
+        icon: "🩺",
+        title: en ? "Studio Diagnostics (Audio / PWA / Frame Budget)" : "Diagnóstico do Estúdio (Áudio / PWA / Performance)",
+        subtitle: en ? "Latency, AudioContext, Service Worker & Storage" : "Latência, AudioContext, Cache SW e Armazenamento",
+        keywords: "diagnostico diagnostics audio latencia pwa cache performance fps",
+        run: () => deps.onOpenDiagnostics?.()
+      },
+      {
         id: "act_shortcuts",
         category: catAct,
         icon: "⌨",

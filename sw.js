@@ -1,5 +1,5 @@
 // @ts-nocheck
-const CACHE_NAME = "oud-visualizer-v3.17.0";
+const CACHE_NAME = "oud-visualizer-v3.21.0";
 
 const CORE_ASSETS = [
   "./",
@@ -11,6 +11,8 @@ const CORE_ASSETS = [
   "./js/core/database.js",
   "./js/core/modalEngine.js",
   "./js/core/urlState.js",
+  "./js/core/spacedReview.js",
+  "./js/core/diagnostics.js",
   "./js/core/glossary.js",
   "./js/core/i18n.js",
   "./js/core/studyGuide.js",
@@ -40,14 +42,20 @@ const CORE_ASSETS = [
   "./js/ui/earTrainerView.js",
   "./js/core/mobileAudioGuard.js",
   "./js/ui/studyCoachView.js",
-  "./js/ui/melographView.js"
+  "./js/ui/melographView.js",
+  "./js/ui/onboardingView.js"
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
   );
-  self.skipWaiting();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {

@@ -94,3 +94,76 @@ export function clearAllToasts() {
   const container = document.getElementById(CONTAINER_ID);
   if (container) container.innerHTML = "";
 }
+
+
+/**
+ * Exibe um toast persistente (ou de longa duração) com botão de ação acessível.
+ * Ideal para atualização controlada do Service Worker sem perder a sessão.
+ * @param {string} message
+ * @param {{
+ *   actionLabel: string,
+ *   onAction: () => void,
+ *   dismissLabel?: string,
+ *   icon?: string,
+ *   type?: "info" | "success" | "warn" | "error"
+ * }} options
+ */
+export function showActionToast(message, options) {
+  const container = ensureToastContainer();
+  if (!container || !message || !options?.actionLabel) return;
+
+  const existing = container.querySelector('[data-toast-kind="action-update"]');
+  if (existing) existing.remove();
+
+  const type = options.type || "info";
+  const toast = document.createElement("div");
+  toast.className = `oud-toast oud-toast--${type} oud-toast--action`;
+  toast.dataset.toastKind = "action-update";
+  toast.setAttribute("role", "status");
+
+  const iconEl = document.createElement("span");
+  iconEl.className = "oud-toast__icon";
+  iconEl.setAttribute("aria-hidden", "true");
+  iconEl.textContent = options.icon || "↻";
+
+  const textEl = document.createElement("span");
+  textEl.className = "oud-toast__text";
+  textEl.textContent = String(message);
+
+  const actBtn = document.createElement("button");
+  actBtn.type = "button";
+  actBtn.className = "oud-toast__action-btn";
+  actBtn.textContent = options.actionLabel;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "oud-toast__close-btn";
+  closeBtn.setAttribute("aria-label", options.dismissLabel || "Fechar");
+  closeBtn.textContent = "✕";
+
+  const dismiss = () => {
+    if (!toast.isConnected || toast.classList.contains("is-leaving")) return;
+    toast.classList.add("is-leaving");
+    window.setTimeout(() => toast.remove(), 220);
+  };
+
+  actBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    options.onAction?.();
+    dismiss();
+  });
+  closeBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    dismiss();
+  });
+
+  toast.appendChild(iconEl);
+  toast.appendChild(textEl);
+  toast.appendChild(actBtn);
+  toast.appendChild(closeBtn);
+  container.appendChild(toast);
+
+  window.requestAnimationFrame(() => {
+    toast.classList.add("is-visible");
+  });
+}

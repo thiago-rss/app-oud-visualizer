@@ -10,7 +10,8 @@ import {
   computePositionRegionSequence,
   computeAnchoredOctavePath
 } from "./core/modalEngine.js";
-import { getInitialStateFromUrl, syncStateToUrl } from "./core/urlState.js";
+import { getInitialStateFromUrl, syncStateToUrl, getStudyLessonIdFromHash } from "./core/urlState.js";
+import { createFrameBudgetTracker, collectStudioDiagnostics } from "./core/diagnostics.js";
 import {
   normalizeStudyKey,
   normalizeDeckTab,
@@ -55,7 +56,8 @@ import {
   toggleDroneAudio,
   updateDronePitch,
   startIqaEngine,
-  stopIqaEngine
+  stopIqaEngine,
+  getAudioEngineDiagnostics,
 } from "./audio/synthEngine.js";
 import {
   startPitchListening,
@@ -245,11 +247,17 @@ function loadStudyProgress() {
       }
     }
 
+    const urlLessonId = getStudyLessonIdFromHash();
+    const urlLesson = urlLessonId ? getStudyLessonById(urlLessonId) : null;
     const savedActive = localStorage.getItem(STORAGE_STUDY_ACTIVE);
-    const savedLesson = savedActive ? getStudyLessonById(savedActive) : null;
+    const savedLesson = urlLesson || (savedActive ? getStudyLessonById(savedActive) : null);
     if (savedLesson) {
       activeStudyLessonId = savedLesson.id;
       activeStudyModuleId = savedLesson.moduleId;
+      if (urlLesson) {
+        appliedStudyLessonId = urlLesson.id;
+        activeDeckTab = "study";
+      }
     } else {
       const firstPending = allLessons.find(l => !completedStudyLessons.has(l.id)) || allLessons[0];
       if (firstPending) {
@@ -320,6 +328,7 @@ function clearAllActivePlayback() {
   clearSequenceTimers();
   stopRegionPlayback(false);
   highlightedSequenceStep = -1;
+  stringAtlasBridge?.stopCoachPractice?.();
 }
 
 // ==========================================================================
@@ -400,7 +409,17 @@ const {
   syncLiveTunerUI,
 } = tunerController;
 
-function handleLivePitchDetection(detection) {
+const livePitchBudget = createFrameBudgetTracker(40);
+/** @type {number | null} */
+let livePitchRafId = null;
+/** @type {any} */
+let pendingLivePitchDetection = null;
+
+function flushLivePitchFrame() {
+  livePitchRafId = null;
+  const detection = pendingLivePitchDetection;
+  pendingLivePitchDetection = null;
+  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
   latestPitchDetection = detection;
   if (detection && detection.courseNumber !== null) {
     lastDetectedTunerCourse = detection.courseNumber;
@@ -408,6 +427,16 @@ function handleLivePitchDetection(detection) {
   updateLivePitchOverlayOnNeck(detection);
   stringAtlasBridge?.updateLiveTelemetry(detection);
   renderLiveTunerReadout(detection);
+  if (typeof performance !== "undefined") {
+    livePitchBudget.recordFrame(performance.now() - t0);
+  }
+}
+
+function handleLivePitchDetection(detection) {
+  pendingLivePitchDetection = detection;
+  if (livePitchRafId === null) {
+    livePitchRafId = requestAnimationFrame(flushLivePitchFrame);
+  }
 }
 
 async function startLiveMicCapture() {
@@ -703,6 +732,94 @@ function toggleOudTimbreProfileWithPreview() {
  * @param {string} lessonId
  * @param {{ playConfirmTone?: boolean, scrollToStage?: boolean }} [opts]
  */
+const STUDY_LOCK_TUNING_KEY = "oud_study_lock_tuning_v1";
+let lockStudyPhysicalTuning = (() => {
+  try { return localStorage.getItem(STUDY_LOCK_TUNING_KEY) === "1"; } catch { return false; }
+})();
+
+function buildActiveCoachMotif() {
+  const activeStruct = getActiveStructure(state);
+  const effRootQ = ((activeStruct.effectiveRootQ % 24) + 24) % 24;
+  const a4Scale = (typeof getReferenceA4Hz === "function" ? getReferenceA4Hz() : 440) / 440;
+  const baseOctQ = 24; // C3..C4 confortável no Oud
+
+  /** @type {number[]} */
+  let relIntervals = [];
+  const entity = activeStruct.entity;
+  if (state.mode === "MAQAM" && entity?.sayr_phrases?.[state.sayrPhraseIndex]?.steps?.length) {
+    relIntervals = entity.sayr_phrases[state.sayrPhraseIndex].steps
+      .slice(0, 4)
+      .map((/** @type {any} */ s) => Number(s.interval_q) || 0);
+  } else if (Array.isArray(activeStruct.intervals) && activeStruct.intervals.length) {
+    relIntervals = activeStruct.intervals.slice(0, 4);
+  } else {
+    relIntervals = [0, 4, 7, 10];
+  }
+
+  return relIntervals.map((intQ) => {
+    const modQ = ((intQ % 24) + 24) % 24;
+    const pcQ = (effRootQ + modQ) % 24;
+    const absQ = baseOctQ + effRootQ + intQ;
+    const centsDev = activeStruct.centsMap?.[intQ] ?? activeStruct.centsMap?.[modQ] ?? 0;
+    const pc = PITCH_CLASSES_24[pcQ] || PITCH_CLASSES_24[0];
+    const freqHz = 65.40639132514966 * a4Scale * Math.pow(2, (absQ * 50 + centsDev) / 1200);
+    return { pcQ, absQ, label: pc.flat, freqHz };
+  });
+}
+
+/**
+ * Gera e copia um link direto (#hash) com o preset da lição + les=<lessonId>.
+ * @param {string} lessonId
+ */
+function copyStudyLessonLink(lessonId) {
+  const lesson = getStudyLessonById(lessonId);
+  if (!lesson) return;
+  if (appliedStudyLessonId !== lesson.id) {
+    applyStudyLessonPreset(lesson.id, { playConfirmTone: false, scrollToStage: false });
+  }
+  const url = syncStateToUrl(state, { lessonId: lesson.id });
+  const loc = localizeStudyLesson(state.lang, lesson);
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    navigator.clipboard.writeText(url).catch(() => {});
+  }
+  stringAtlasBridge?.notifyLessonLinkCopied?.(loc.title);
+}
+
+/**
+ * Aplica um dos 4 Perfis de Estúdio (Afinação, Taqsim, Ritmo & Ouvido ou Palco/Zen).
+ * @param {string} profileId
+ */
+function applyStudioWorkflowPreset(profileId) {
+  if (profileId === "TUNING") {
+    toggleZenMode(false);
+    commitStatePatch({ showStaff: false, showSayr: false }, { syncControls: true, refresh: true });
+    openLiveTunerBar("TUNER_6", true);
+    return;
+  }
+  if (profileId === "TAQSIM") {
+    toggleZenMode(false);
+    commitStatePatch(
+      { showStaff: true, staffMode: "SAYR", showSayr: true, showPositionsMap: true },
+      { syncControls: true, refresh: true }
+    );
+    setActiveDeckTab("theory");
+    return;
+  }
+  if (profileId === "RHYTHM_EAR") {
+    toggleZenMode(false);
+    commitStatePatch(
+      { showStaff: true, staffMode: "SCALE", showPositionsMap: true },
+      { syncControls: true, refresh: true }
+    );
+    setActiveDeckTab("study");
+    return;
+  }
+  if (profileId === "ZEN") {
+    commitStatePatch({ showPositionsMap: true }, { syncControls: true, refresh: true });
+    toggleZenMode(true);
+  }
+}
+
 function applyStudyLessonPreset(lessonId, opts = {}) {
   const lesson = getStudyLessonById(lessonId);
   if (!lesson) return;
@@ -716,7 +833,8 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   const resolvedTuning = (typeof resolveStudyTuningId === "function" && (p.tuningId || p.tuningKeywords))
     ? resolveStudyTuningId(p.tuningId, p.tuningKeywords)
     : p.tuningId;
-  if (resolvedTuning && typeof setLockedTunerCourse === "function") {
+  const keptPhysicalTuning = Boolean(lockStudyPhysicalTuning && resolvedTuning && resolvedTuning !== state.tuningId);
+  if (resolvedTuning && !lockStudyPhysicalTuning && typeof setLockedTunerCourse === "function") {
     setLockedTunerCourse(null);
   }
 
@@ -745,7 +863,7 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
     cadenceStepIndex: 0,
   };
 
-  if (resolvedTuning) patch.tuningId = resolvedTuning;
+  if (resolvedTuning && !lockStudyPhysicalTuning) patch.tuningId = resolvedTuning;
   if (p.tradition) patch.tradition = p.tradition;
   if (resolvedEntity) patch.entityId = resolvedEntity;
   if (typeof p.chordVoicingOnly === "boolean") patch.chordVoicingOnly = p.chordVoicingOnly;
@@ -773,6 +891,14 @@ function applyStudyLessonPreset(lessonId, opts = {}) {
   saveStudyProgress();
   syncControlsWithState();
   refreshAll();
+  stringAtlasBridge?.refreshCoach?.();
+  if (keptPhysicalTuning) {
+    const curTuningObj = DB.tunings.find((tObj) => tObj.id === state.tuningId);
+    const tLabel = curTuningObj
+      ? (state.lang === "en" ? (curTuningObj.nameEn || curTuningObj.name) : curTuningObj.name)
+      : state.tuningId;
+    stringAtlasBridge?.notifyTuningLocked?.(tLabel);
+  }
 
   if (opts.playConfirmTone !== false) {
     suspendPitchDetection(650);
@@ -1223,6 +1349,12 @@ const studyGuideView = createStudyGuideView({
   getActiveStudyLessonId: () => activeStudyLessonId,
   setActiveStudyLessonId: (v) => { activeStudyLessonId = v; },
   getAppliedStudyLessonId: () => appliedStudyLessonId,
+  getLockPhysicalTuning: () => lockStudyPhysicalTuning,
+  setLockPhysicalTuning: (v) => {
+    lockStudyPhysicalTuning = Boolean(v);
+    try { localStorage.setItem(STUDY_LOCK_TUNING_KEY, lockStudyPhysicalTuning ? "1" : "0"); } catch {}
+  },
+  copyStudyLessonLink: (lessonId) => copyStudyLessonLink(lessonId),
   getCompletedStudyLessons: () => completedStudyLessons,
   getEtudePlaybackTimers: () => etudePlaybackTimers,
   setEtudePlaybackTimers: (v) => { etudePlaybackTimers = v; },
@@ -2108,7 +2240,7 @@ function refreshAll() {
   syncLiveTunerUI();
   const droneBtn = document.getElementById("btn-drone");
   if (droneBtn) updateDronePitch(state.droneActive, state.rootQ, droneBtn);
-  syncStateToUrl(state);
+  syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
   stringAtlasBridge?.refreshUi?.();
 }
 
@@ -2597,7 +2729,7 @@ function initApp() {
     activeIqaBeatIdx = -1;
     restartIqaIfPlaying();
     syncCommandBarSummaries();
-    syncStateToUrl(state);
+    syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
   });
 
   sliderBpm?.addEventListener("input", (e) => {
@@ -2605,7 +2737,7 @@ function initApp() {
     if (labelBpm) labelBpm.textContent = String(state.bpm);
     restartIqaIfPlaying();
     syncCommandBarSummaries();
-    syncStateToUrl(state);
+    syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
   });
 
   document.getElementById("btn-toggle-iqa")?.addEventListener("click", () => {
@@ -2795,7 +2927,7 @@ function initApp() {
 
   const btnShare = document.getElementById("btn-share");
   btnShare?.addEventListener("click", async () => {
-    const shareUrl = syncStateToUrl(state);
+    const shareUrl = syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
     try {
       await navigator.clipboard.writeText(shareUrl);
       btnShare.textContent = t(state.lang, "btnShareCopied");
@@ -2887,7 +3019,36 @@ window.addEventListener("DOMContentLoaded", initApp);
 const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 if ("serviceWorker" in navigator && !isLocalhost) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {
+    let swReloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (swReloading) return;
+      swReloading = true;
+      syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
+      window.location.reload();
+    });
+
+    const promptWaitingWorker = (worker) => {
+      if (!worker) return;
+      ensureStringAtlasBridge()?.notifyPwaUpdateAvailable?.(() => {
+        syncStateToUrl(state, appliedStudyLessonId ? { lessonId: appliedStudyLessonId } : undefined);
+        worker.postMessage({ type: "SKIP_WAITING" });
+      });
+    };
+
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        promptWaitingWorker(reg.waiting);
+      }
+      reg.addEventListener("updatefound", () => {
+        const installing = reg.installing;
+        if (!installing) return;
+        installing.addEventListener("statechange", () => {
+          if (installing.state === "installed" && navigator.serviceWorker.controller) {
+            promptWaitingWorker(reg.waiting || installing);
+          }
+        });
+      });
+    }).catch(() => {
       // Ignora em ambientes sem suporte a Service Worker
     });
   });
@@ -3032,7 +3193,12 @@ function ensureStringAtlasBridge() {
       }
     }    ,
     getActiveLessonId: () => (typeof activeStudyLessonId !== "undefined" ? activeStudyLessonId : null),
-        getAllStudyLessons: () => (typeof getAllStudyLessons === "function" ? getAllStudyLessons() : []),
+    getAllStudyLessons: () => (typeof getAllStudyLessons === "function" ? getAllStudyLessons() : []),
+    getActiveMotif: () => buildActiveCoachMotif(),
+    onSuspendPitch: (ms) => suspendPitchDetection(ms),
+    isPitchListening: () => isPitchListening(),
+    onOpenLivePitch: () => openLiveTunerBar("MAQAM_24TET", true),
+    onOpenStudyTab: () => setActiveDeckTab("study"),
     getGlossaryEntries: () => (typeof GLOSSARY_ENTRIES !== "undefined" ? GLOSSARY_ENTRIES : []),
     onApplyEntity: (mode, entityId) => {
       commitStatePatch({ mode, entityId }, { syncControls: true, refresh: true });
@@ -3044,6 +3210,13 @@ function ensureStringAtlasBridge() {
       const found = DB.iqaat?.find((x) => x.id === iqaId);
       commitStatePatch({ iqaId, bpm: found?.default_bpm || state.bpm }, { syncControls: true, refresh: true });
     },
+    collectDiagnostics: () => collectStudioDiagnostics({
+      getAudioDiag: () => getAudioEngineDiagnostics(),
+      getFrameStats: () => livePitchBudget.getStats(),
+      getState: () => state,
+      isPitchListening: () => isPitchListening()
+    }),
+    onApplyWorkflowPreset: (profileId) => applyStudioWorkflowPreset(profileId),
     onApplyLesson: (lessonId) => {
       if (typeof applyStudyLessonPreset === "function") {
         applyStudyLessonPreset(lessonId);

@@ -34,7 +34,8 @@ import {
   calcFreq440FromAbsQ,
   formatAbsQ24Label
 } from "../core/customTunings.js";
-import { showToast } from "./toastView.js";
+import { showToast, showActionToast } from "./toastView.js";
+import { createOnboardingController } from "./onboardingView.js";
 import { createMobileSessionGuard } from "../core/mobileAudioGuard.js";
 import { createCommandPaletteController } from "./commandPaletteView.js";
 import { createEarTrainerController } from "./earTrainerView.js";
@@ -109,6 +110,8 @@ export function initStringAtlasBridge(deps) {
   /** @type {any} */
   let liveFxCtrl = null;
   let a4PopoverOpen = false;
+  let workflowPopoverOpen = false;
+  let onboardingCtrl = null;
   let controlsDrawerOpen = false;
   /** @type {boolean | null} */
   let staffUserOverride = null;
@@ -287,12 +290,39 @@ export function initStringAtlasBridge(deps) {
           </div>
         </div>
       </div>
+      <div class="sa-toolbar-group sa-workflow-popover-wrap" role="group" aria-label="${en ? "Studio workflow profiles" : "Perfis de Estúdio"}">
+        <button type="button" id="sa-btn-workflow-toggle" class="sa-pill-btn ${workflowPopoverOpen ? "is-active" : ""}" aria-expanded="${workflowPopoverOpen ? "true" : "false"}" title="${en ? "Switch studio workflow profile" : "Alternar perfil rápido de estúdio"}">
+          🎛 ${en ? "Profiles" : "Perfis"} ▾
+        </button>
+        <div id="sa-workflow-popover" class="sa-a4-popover sa-workflow-popover" ${workflowPopoverOpen ? "" : "hidden"}>
+          <div class="sa-a4-popover-title">${en ? "Studio Profiles" : "Perfis de Estúdio"}</div>
+          <div class="sa-workflow-list">
+            <button type="button" class="sa-workflow-item" data-sa-workflow="TUNING">
+              <span>🪕 <strong>${en ? "Tuning & Luthier" : "Afinação & Luthieria"}</strong></span>
+              <small>${en ? "6-Course Tuner + Free Neck" : "Afinador 6 Ordens + Espelho Livre"}</small>
+            </button>
+            <button type="button" class="sa-workflow-item" data-sa-workflow="TAQSIM">
+              <span>🎶 <strong>${en ? "Improvisation / Taqsim" : "Improviso / Taqsim"}</strong></span>
+              <small>${en ? "Position + Sayr Staff" : "Posição + Pauta Sayr"}</small>
+            </button>
+            <button type="button" class="sa-workflow-item" data-sa-workflow="RHYTHM_EAR">
+              <span>🥁 <strong>${en ? "Rhythm & Ear" : "Ritmo & Ouvido"}</strong></span>
+              <small>${en ? "1st Octave + Iqa' & Guide" : "1ª Oitava + Iqa' e Estudo"}</small>
+            </button>
+            <button type="button" class="sa-workflow-item" data-sa-workflow="ZEN">
+              <span>🪷 <strong>${en ? "Stage / Zen" : "Palco / Zen"}</strong></span>
+              <small>${en ? "Position + Fullscreen Zen" : "Posição + Palco Imersivo"}</small>
+            </button>
+          </div>
+        </div>
+      </div>
       <div class="sa-toolbar-group">
         <button type="button" id="sa-btn-save-tuning" class="sa-pill-btn" title="${en ? "Save or manage custom Oud tunings" : "Salvar ou gerenciar afinações customizadas do Oud"}">
           ✦ ${en ? "Scordaturas" : "Afinações Salvas"}
         </button>
         <button type="button" id="sa-btn-rearm-audio" class="sa-mini-chip" title="${en ? "Re-arm audio engine (iOS / Bluetooth)" : "Reativar / destravar sessão de áudio"}">↻ ${en ? "Audio" : "Áudio"}</button>
         <button type="button" id="sa-btn-palette" class="sa-mini-chip" title="${en ? "Quick Search (⌘K / /)" : "Busca Rápida (⌘K / /)"}">⌘K</button>
+        <button type="button" id="sa-btn-diagnostics" class="sa-mini-chip" title="${en ? "Studio Diagnostics (Audio / PWA / Storage)" : "Diagnóstico do Estúdio (Áudio / PWA / Armazenamento)"}" aria-label="${en ? "Studio Diagnostics" : "Diagnóstico do Estúdio"}">🩺</button>
         <button type="button" id="sa-btn-shortcuts" class="sa-mini-chip" title="${en ? "Keyboard Shortcuts (?)" : "Atalhos de Teclado (?)"}">?</button>
       </div>
     `;
@@ -353,6 +383,41 @@ export function initStringAtlasBridge(deps) {
       a4Slider.addEventListener("change", () => commitA4(Number(a4Slider.value), false));
     }
 
+    bar.querySelector("#sa-btn-workflow-toggle")?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      workflowPopoverOpen = !workflowPopoverOpen;
+      if (workflowPopoverOpen) a4PopoverOpen = false;
+      const wPop = document.getElementById("sa-workflow-popover");
+      const wBtn = document.getElementById("sa-btn-workflow-toggle");
+      const aPop = document.getElementById("sa-a4-popover");
+      const aBtn = document.getElementById("sa-btn-a4-toggle");
+      if (wPop) wPop.hidden = !workflowPopoverOpen;
+      if (wBtn) {
+        wBtn.classList.toggle("is-active", workflowPopoverOpen);
+        wBtn.setAttribute("aria-expanded", workflowPopoverOpen ? "true" : "false");
+      }
+      if (aPop && workflowPopoverOpen) aPop.hidden = true;
+      if (aBtn && workflowPopoverOpen) {
+        aBtn.classList.remove("is-active");
+        aBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    bar.querySelectorAll("[data-sa-workflow]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const wfId = btn.getAttribute("data-sa-workflow") || "TAQSIM";
+        workflowPopoverOpen = false;
+        const wPop = document.getElementById("sa-workflow-popover");
+        const wBtn = document.getElementById("sa-btn-workflow-toggle");
+        if (wPop) wPop.hidden = true;
+        if (wBtn) {
+          wBtn.classList.remove("is-active");
+          wBtn.setAttribute("aria-expanded", "false");
+        }
+        applyWorkflowFromBridge(wfId);
+      });
+    });
+
     const btnSaveTuning = document.getElementById("sa-btn-save-tuning");
     if (btnSaveTuning) {
       btnSaveTuning.addEventListener("click", openCustomTuningsDrawer);
@@ -395,6 +460,10 @@ export function initStringAtlasBridge(deps) {
     const btnPalette = document.getElementById("sa-btn-palette");
     if (btnPalette) {
       btnPalette.addEventListener("click", () => paletteCtrl?.openPalette());
+    }
+    const btnDiag = document.getElementById("sa-btn-diagnostics");
+    if (btnDiag) {
+      btnDiag.addEventListener("click", () => openStudioDiagnosticsModal());
     }
     const btnShortcuts = document.getElementById("sa-btn-shortcuts");
     if (btnShortcuts) {
@@ -574,6 +643,105 @@ export function initStringAtlasBridge(deps) {
     } catch (err) {
       showToast(String(err?.message || err), { type: "error" });
     }
+  }
+
+  async function openStudioDiagnosticsModal() {
+    if (typeof document === "undefined") return;
+    document.getElementById("sa-diagnostics-modal")?.remove();
+    const en = isEn();
+
+    const modal = document.createElement("div");
+    modal.id = "sa-diagnostics-modal";
+    modal.className = "sa-modal-backdrop";
+    modal.innerHTML = `
+      <div class="sa-modal-card sa-diag-card" role="dialog" aria-modal="true" aria-label="${en ? "Studio Diagnostics" : "Diagnóstico do Estúdio"}">
+        <div class="sa-modal-header">
+          <h3>🩺 ${en ? "Studio Diagnostics" : "Diagnóstico do Estúdio"}</h3>
+          <button type="button" class="sa-modal-close" id="sa-diag-close" aria-label="${en ? "Close" : "Fechar"}">✕</button>
+        </div>
+        <div class="sa-modal-body" id="sa-diag-body">
+          <p class="sa-empty-hint">${en ? "Collecting local telemetry..." : "Coletando telemetria local..."}</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.querySelector("#sa-diag-close")?.addEventListener("click", closeModal);
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closeModal();
+    });
+
+    const renderData = async () => {
+      const body = modal.querySelector("#sa-diag-body");
+      if (!body) return;
+      const report = typeof deps.collectDiagnostics === "function"
+        ? await deps.collectDiagnostics()
+        : null;
+      if (!report) {
+        body.innerHTML = `<p class="sa-empty-hint">${en ? "Diagnostics provider unavailable." : "Coletor de diagnóstico indisponível."}</p>`;
+        return;
+      }
+
+      const latStr = report.audio.baseLatencyMs !== null
+        ? `${report.audio.baseLatencyMs} ms${report.audio.outputLatencyMs !== null ? ` / out ${report.audio.outputLatencyMs} ms` : ""}`
+        : (en ? "N/A (starts on first sound)" : "N/D (inicia ao tocar)");
+      const srStr = report.audio.sampleRate ? `${report.audio.sampleRate} Hz` : "—";
+      const cachesStr = report.pwa.cacheKeys.length ? report.pwa.cacheKeys.join(", ") : (en ? "None" : "Nenhum");
+      const fb = report.frameBudget;
+
+      body.innerHTML = `
+        <div class="sa-diag-grid">
+          <div class="sa-diag-box">
+            <h4>🔊 ${en ? "Web Audio Engine" : "Motor Web Audio"}</h4>
+            <dl class="sa-diag-list">
+              <dt>AudioContext</dt><dd>${report.audio.state}</dd>
+              <dt>${en ? "Sample Rate" : "Taxa Amostragem"}</dt><dd>${srStr}</dd>
+              <dt>${en ? "Latency" : "Latência"}</dt><dd>${latStr}</dd>
+              <dt>A4 / Timbre</dt><dd>${report.audio.a4Hz} Hz · ${report.audio.timbreProfile}</dd>
+              <dt>${en ? "Active" : "Ativos"}</dt><dd>Mic: ${report.audio.pitchListening ? "ON" : "OFF"} · Drone: ${report.audio.droneActive ? "ON" : "OFF"} · Iqa': ${report.audio.iqaActive ? "ON" : "OFF"}</dd>
+            </dl>
+          </div>
+          <div class="sa-diag-box">
+            <h4>⚡ ${en ? "Render Budget (rAF)" : "Orçamento de Quadro (rAF)"}</h4>
+            <dl class="sa-diag-list">
+              <dt>${en ? "Live Frames" : "Quadros YIN"}</dt><dd>${fb.totalRecorded} (${fb.samples} ${en ? "window" : "janela"})</dd>
+              <dt>${en ? "Avg / Peak" : "Média / Pico"}</dt><dd>${fb.avgMs} ms / ${fb.maxMs} ms</dd>
+              <dt>${en ? "Over 16.7ms" : "Acima 16.7ms"}</dt><dd>${fb.overBudgetTotal}</dd>
+              <dt>Viewport</dt><dd>${report.viewport}</dd>
+            </dl>
+          </div>
+          <div class="sa-diag-box">
+            <h4>📦 ${en ? "PWA & Offline Cache" : "PWA & Cache Offline"}</h4>
+            <dl class="sa-diag-list">
+              <dt>${en ? "Network" : "Rede"}</dt><dd>${report.online ? "Online" : "Offline"}</dd>
+              <dt>Service Worker</dt><dd>${report.pwa.swStatus}${report.pwa.swScript ? ` (${report.pwa.swScript})` : ""}</dd>
+              <dt>Caches</dt><dd class="sa-diag-mono">${cachesStr}</dd>
+            </dl>
+          </div>
+          <div class="sa-diag-box">
+            <h4>💾 localStorage</h4>
+            <dl class="sa-diag-list">
+              <dt>${en ? "App Keys" : "Chaves do App"}</dt><dd>${report.storage.oudKeys} / ${report.storage.totalKeys}</dd>
+              <dt>${en ? "App Usage" : "Uso do App"}</dt><dd>${report.storage.oudBytesLabel} (total ${report.storage.totalBytesLabel})</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="sa-diag-actions">
+          <button type="button" class="sa-pill-btn" id="sa-diag-refresh">↻ ${en ? "Refresh" : "Atualizar"}</button>
+          <button type="button" class="sa-pill-btn is-active" id="sa-diag-copy">📋 ${en ? "Copy JSON Report" : "Copiar Relatório JSON"}</button>
+        </div>
+      `;
+
+      body.querySelector("#sa-diag-refresh")?.addEventListener("click", () => { renderData(); });
+      body.querySelector("#sa-diag-copy")?.addEventListener("click", () => {
+        const json = JSON.stringify(report, null, 2);
+        navigator.clipboard?.writeText?.(json).catch(() => {});
+        showToast(en ? "Diagnostics JSON copied" : "Relatório de diagnóstico copiado", { type: "success", icon: "📋", durationMs: 1800 });
+      });
+    };
+
+    await renderData();
   }
 
   function openExportAndSnapshotsModal() {
@@ -988,6 +1156,32 @@ export function initStringAtlasBridge(deps) {
   }
 
 
+  /**
+   * Aplica um dos 4 Perfis de Estúdio coordenando clareza do braço e controlador principal.
+   * @param {string} profileId
+   */
+  function applyWorkflowFromBridge(profileId) {
+    const en = isEn();
+    if (profileId === "TUNING") {
+      setClarityProgrammatically(NECK_CLARITY_MODES.FREE);
+    } else if (profileId === "RHYTHM_EAR") {
+      setClarityProgrammatically(NECK_CLARITY_MODES.FIRST_OCTAVE);
+    } else {
+      setClarityProgrammatically(NECK_CLARITY_MODES.POSITION);
+    }
+    deps.onApplyWorkflowPreset?.(profileId);
+    const names = {
+      TUNING: en ? "Tuning & Luthier" : "Afinação & Luthieria",
+      TAQSIM: en ? "Improvisation / Taqsim" : "Improviso / Taqsim",
+      RHYTHM_EAR: en ? "Rhythm & Ear" : "Ritmo & Ouvido",
+      ZEN: en ? "Stage / Zen" : "Palco / Zen"
+    };
+    showToast(
+      en ? `Studio profile: ${names[profileId] || profileId}` : `Perfil de Estúdio: ${names[profileId] || profileId}`,
+      { type: "success", icon: "🎛", durationMs: 2000 }
+    );
+  }
+
   function setClarityProgrammatically(nextMode) {
     currentClarity = saveNeckClarityMode(nextMode);
     applyClarityToDom(currentClarity);
@@ -1013,8 +1207,20 @@ export function initStringAtlasBridge(deps) {
     getPitchClasses24: deps.getPitchClasses24,
     getActiveLessonId: deps.getActiveLessonId,
     getAllStudyLessons: deps.getAllStudyLessons,
+    getA4Hz: () => currentA4,
+    getActiveMotif: deps.getActiveMotif,
+    onSuspendPitch: (ms) => deps.onSuspendPitch?.(ms),
+    isPitchListening: () => Boolean(deps.isPitchListening?.()),
+    onOpenLivePitch: () => deps.onOpenLivePitch?.(),
     playFreq: (freqHz, durSec = 0.8) => deps.onPlayFreq?.(freqHz, durSec),
     onApplyLesson: (lessonId) => deps.onApplyLesson?.(lessonId)
+  });
+
+  onboardingCtrl = createOnboardingController({
+    getState: deps.getState,
+    onOpenLivePitch: () => deps.onOpenLivePitch?.(),
+    onOpenStudyTab: () => deps.onOpenStudyTab?.(),
+    onOpenPalette: () => paletteCtrl?.openPalette?.()
   });
 
   earCtrl = createEarTrainerController({
@@ -1053,6 +1259,9 @@ export function initStringAtlasBridge(deps) {
       setClarityProgrammatically(mode);
       showToast(isEn() ? `Clarity: ${mode}` : `Clareza: ${mode}`, { type: "info", durationMs: 1600 });
     },
+    onApplyWorkflowPreset: (profileId) => applyWorkflowFromBridge(profileId),
+    onOpenOnboarding: () => onboardingCtrl?.open(0),
+    onOpenDiagnostics: openStudioDiagnosticsModal,
     onOpenCustomTunings: openCustomTuningsDrawer,
     onOpenExportSnapshots: openExportAndSnapshotsModal,
     onOpenEarTrainer: () => earCtrl?.openModal(),
@@ -1086,6 +1295,16 @@ export function initStringAtlasBridge(deps) {
         if (btn) {
           btn.classList.remove("is-active");
           btn.setAttribute("aria-expanded", "false");
+        }
+      }
+      if (workflowPopoverOpen && !target?.closest?.(".sa-workflow-popover-wrap")) {
+        workflowPopoverOpen = false;
+        const wPop = document.getElementById("sa-workflow-popover");
+        const wBtn = document.getElementById("sa-btn-workflow-toggle");
+        if (wPop) wPop.hidden = true;
+        if (wBtn) {
+          wBtn.classList.remove("is-active");
+          wBtn.setAttribute("aria-expanded", "false");
         }
       }
 
@@ -1135,6 +1354,28 @@ export function initStringAtlasBridge(deps) {
     onClearSelection: () => deps.onClearSelection?.()
   });
 
+  function bindA11yKeyboardSupport() {
+    if (typeof document === "undefined" || document.body?.dataset.saA11yBound === "1") return;
+    if (document.body) document.body.dataset.saA11yBound = "1";
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        document.getElementById("sa-diagnostics-modal")?.remove();
+        onboardingCtrl?.close(true);
+        return;
+      }
+      if (ev.key === "Enter" || ev.key === " ") {
+        const active = /** @type {HTMLElement | null} */ (document.activeElement);
+        if (active && active.matches('svg [tabindex="0"], .note-node[tabindex="0"], .peg-btn[tabindex="0"]')) {
+          ev.preventDefault();
+          active.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        }
+      }
+    });
+  }
+
+  bindA11yKeyboardSupport();
+  onboardingCtrl?.maybeAutoShow();
   mountHeaderControlsButton();
   mountStageClarityBar();
   mountTierMicroLegend();
@@ -1150,6 +1391,41 @@ export function initStringAtlasBridge(deps) {
     getClarityMode: () => currentClarity,
     isStrobeEnabled: () => strobeEnabled,
     updateLiveTelemetry,
+    stopCoachPractice: () => coachCtrl?.stopCallResponse?.(true),
+    refreshCoach: () => coachCtrl?.renderCoachStrip?.(),
+    notifyPwaUpdateAvailable: (onApplyUpdate) => {
+      const en = isEn();
+      showActionToast(
+        en
+          ? "New studio version ready offline"
+          : "Nova versão do estúdio pronta em segundo plano",
+        {
+          actionLabel: en ? "Reload now" : "Atualizar agora",
+          dismissLabel: en ? "Later" : "Depois",
+          icon: "↻",
+          type: "info",
+          onAction: () => onApplyUpdate?.()
+        }
+      );
+    },
+    notifyLessonLinkCopied: (lessonTitle) => {
+      const en = isEn();
+      showToast(
+        en
+          ? `Direct link copied: ${lessonTitle}`
+          : `Link direto da lição copiado: ${lessonTitle}`,
+        { type: "success", icon: "🔗", durationMs: 2200 }
+      );
+    },
+    notifyTuningLocked: (tuningName) => {
+      const en = isEn();
+      showToast(
+        en
+          ? `Physical tuning locked (${tuningName}) — lesson applied without retuning`
+          : `Afinação física mantida (${tuningName}) — lição aplicada sem trocar afinação`,
+        { type: "info", icon: "🔒", durationMs: 2400 }
+      );
+    },
     clearTrail: () => {
       trail.clear();
       renderTrailChips(document.getElementById("sa-note-trail"), []);

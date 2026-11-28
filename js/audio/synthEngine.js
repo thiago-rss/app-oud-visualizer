@@ -1363,3 +1363,27 @@ export function setReferenceA4Hz(a4Hz) {
 export function getReferenceA4Hz() {
   return currentReferenceA4Hz;
 }
+
+
+/**
+ * Retorna telemetria local do motor Web Audio (estado, taxa de amostragem e latências).
+ */
+export function getAudioEngineDiagnostics() {
+  const ctx = audioCtx;
+  const baseLat = ctx && typeof ctx.baseLatency === "number" ? Number((ctx.baseLatency * 1000).toFixed(1)) : null;
+  const outLat = ctx && typeof /** @type {any} */ (ctx).outputLatency === "number"
+    ? Number((/** @type {any} */ (ctx).outputLatency * 1000).toFixed(1))
+    : null;
+  return {
+    state: ctx ? ctx.state : "idle-uninitialized",
+    sampleRate: ctx ? ctx.sampleRate : null,
+    baseLatencyMs: baseLat,
+    outputLatencyMs: outLat,
+    timbreProfile: activeTimbreProfile,
+    a4Hz: typeof getReferenceA4Hz === "function" ? getReferenceA4Hz() : 440,
+    droneActive: droneNodes !== null,
+    iqaActive: iqaIntervalId !== null,
+    micSessionActive: Boolean(isMicSessionActive),
+    needsRebuild: Boolean(needsContextRebuild)
+  };
+}

@@ -164,7 +164,117 @@ async function runUnitChecks() {
   }
 }
 
+async function runCoreAndCurriculumTests() {
+  console.log("\n=== 5. Testes Unitários Core & Integridade Curricular ===");
+
+  const { DB } = await import(`file://${path.join(ROOT, "js/core/database.js")}`);
+  const { getDefaultState } = await import(`file://${path.join(ROOT, "js/core/urlState.js")}`);
+  const { getActiveStructure, getPhysicalX, getPositionBounds } =
+    await import(`file://${path.join(ROOT, "js/core/modalEngine.js")}`);
+  const { clampInt, applyStatePatch } =
+    await import(`file://${path.join(ROOT, "js/core/stateTransitions.js")}`);
+  const { normalizeStudyKey, normalizeDeckTab, resolveStudyTuningId, resolveStudyEntityId, resolveStudyIqaId } =
+    await import(`file://${path.join(ROOT, "js/core/studyResolver.js")}`);
+  const { computeLessonReviewInfo, getDueReviews } =
+    await import(`file://${path.join(ROOT, "js/core/spacedReview.js")}`);
+  const { formatBytes, createFrameBudgetTracker } =
+    await import(`file://${path.join(ROOT, "js/core/diagnostics.js")}`);
+  const { getAllStudyLessons } =
+    await import(`file://${path.join(ROOT, "js/core/studyGuide.js")}`);
+  const { STUDY_DOSSIERS } =
+    await import(`file://${path.join(ROOT, "js/core/studyDossiers.js")}`);
+
+  // 5.1 modalEngine.js
+  const baseState = getDefaultState();
+  const rastStruct = getActiveStructure({ ...baseState, mode: "MAQAM", entityId: "maqam_rast", rootQ: 0 });
+  const x0 = getPhysicalX(0, 100, 600, false);
+  const x12 = getPhysicalX(12, 100, 600, false);
+  const bounds = getPositionBounds("OPEN_FIRST_POS", 2);
+  if (!rastStruct?.intervals?.includes(7) || x0 !== 68 || !(x12 > 100) || bounds?.startQ !== 0 || bounds?.endQ !== 8) {
+    fail("modalEngine.js falhou na validação de Maqam Rast (3-), geometria física ou limites de posição");
+  } else {
+    ok("modalEngine.js (Maqam Rast 24-TET, geometria física e limites de posição) OK");
+  }
+
+  // 5.2 stateTransitions.js
+  const clamped = clampInt("999", 96, 50, 175);
+  const patched = applyStatePatch(
+    { ...baseState, mode: "MAQAM", shapeMode: "FULL_NECK", sayrPhraseIndex: 2, cadenceStepIndex: 3 },
+    { mode: "CHORD", bpm: 300 }
+  );
+  if (clamped !== 175 || patched.mode !== "CHORD" || patched.shapeMode !== "OPEN_FIRST_POS" || patched.sayrPhraseIndex !== 0 || patched.cadenceStepIndex !== 0) {
+    fail("stateTransitions.js falhou em clampInt / applyStatePatch");
+  } else {
+    ok("stateTransitions.js (clampInt e invariantes de modo/posição/cadência) OK");
+  }
+
+  // 5.3 studyResolver.js
+  const nk = normalizeStudyKey("Maqām Bayātī");
+  const tab = normalizeDeckTab("guide");
+  const tId = resolveStudyTuningId(DB, "syrian_arabic_c_c", ["syrian"]);
+  const eId = resolveStudyEntityId(DB, "MAQAM", "maqam_hijaz", ["hijaz"]);
+  const iId = resolveStudyIqaId(DB, "iqa_maqsum", "maqsum", null);
+  if (nk !== "maqam bayati" || tab !== "study" || !tId || !eId || !iId) {
+    fail("studyResolver.js falhou na normalização/resolução de catálogo");
+  } else {
+    ok("studyResolver.js (normalização, tabs, afinação, entidade e Iqa') OK");
+  }
+
+  // 5.4 spacedReview.js
+  const now = 1_700_000_000_000;
+  const stats = {
+    les_old: { sessions: 2, lastPracticedAt: now - 6 * 86400000, bestAvgCents: 6.2 },
+    les_fresh: { sessions: 1, lastPracticedAt: now - 1 * 86400000, bestAvgCents: 9.0 }
+  };
+  const mastery = { les_old: "PRACTICING", les_fresh: "PRACTICING" };
+  const due = getDueReviews([{ id: "les_old" }, { id: "les_fresh" }], stats, mastery, new Set(), now);
+  const oldInfo = computeLessonReviewInfo("les_old", stats, mastery, new Set(), now);
+  if (due.length !== 1 || due[0].lesson.id !== "les_old" || !oldInfo.isDue) {
+    fail("spacedReview.js falhou no cálculo de lições vencidas");
+  } else {
+    ok("spacedReview.js (intervalos de revisão e fila ordenada) OK");
+  }
+
+  // 5.5 diagnostics.js
+  const tracker = createFrameBudgetTracker(10);
+  tracker.recordFrame(4.0);
+  tracker.recordFrame(20.0);
+  const fStats = tracker.getStats();
+  if (formatBytes(2048) !== "2.0 KB" || fStats.avgMs !== 12 || fStats.maxMs !== 20 || fStats.overBudgetTotal !== 1) {
+    fail("diagnostics.js falhou em formatBytes / createFrameBudgetTracker");
+  } else {
+    ok("diagnostics.js (formatBytes e FrameBudgetTracker) OK");
+  }
+
+  // 5.6 Integridade Referencial das 51 Lições & Dossiês
+  const lessons = getAllStudyLessons();
+  const seenIds = new Set();
+  let refErrors = 0;
+  for (const les of lessons) {
+    if (!les.id || seenIds.has(les.id)) {
+      fail(`ID de lição ausente ou duplicado: ${les.id}`);
+      refErrors++;
+      continue;
+    }
+    seenIds.add(les.id);
+    if (!STUDY_DOSSIERS[les.id]) {
+      fail(`Lição ${les.id} sem dossiê correspondente em STUDY_DOSSIERS`);
+      refErrors++;
+    }
+    const p = les.preset || {};
+    const entOk = resolveStudyEntityId(DB, p.mode, p.entityId, p.entityKeywords);
+    if (!entOk) {
+      fail(`Preset da lição ${les.id} não resolve entidade válida (${p.mode} / ${p.entityId})`);
+      refErrors++;
+    }
+  }
+  if (refErrors === 0) {
+    ok(`Integridade curricular: ${lessons.length} lições únicas, ${lessons.length} dossiês e presets resolvidos OK`);
+  }
+}
+
 await runUnitChecks();
+await runCoreAndCurriculumTests();
 
 console.log("");
 if (failures > 0) {

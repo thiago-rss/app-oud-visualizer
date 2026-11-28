@@ -1,4 +1,11 @@
 // @ts-check
+import {
+  loadPracticeStats,
+  loadMasteryMap,
+  computeLessonReviewInfo,
+  getDueReviews,
+  formatRelativePracticeAge
+} from "../core/spacedReview.js";
 
 /**
  * Cria view de renderização do Guia de Estudos, dossiês teóricos e estudos técnicos.
@@ -28,6 +35,9 @@ export function createStudyGuideView(deps) {
     setEtudeKindFilter,
     getEtudeRootOverrideQ,
     setEtudeRootOverrideQ,
+    getLockPhysicalTuning,
+    setLockPhysicalTuning,
+    copyStudyLessonLink,
     applyStudyLessonPreset,
     playStudyLessonExample,
     toggleStudyLessonComplete,
@@ -339,12 +349,16 @@ function renderStudyGuidePane() {
   if (typeof deps?.getAppliedStudyLessonId === "function") appliedStudyLessonId = deps.getAppliedStudyLessonId();
   completedStudyLessons = getCompletedStudyLessons();
   const isIqaPlaying = typeof deps?.getIsIqaPlaying === "function" ? Boolean(deps.getIsIqaPlaying()) : false;
+  const isTuningLocked = typeof getLockPhysicalTuning === "function" ? Boolean(getLockPhysicalTuning()) : false;
 
   const isEn = state.lang === "en";
   const allLessons = getAllStudyLessons();
   const totalCount = allLessons.length;
   const doneCount = completedStudyLessons.size;
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const practiceStatsMap = loadPracticeStats();
+  const masteryStageMap = loadMasteryMap();
+  const dueReviews = getDueReviews(allLessons, practiceStatsMap, masteryStageMap, completedStudyLessons);
 
   const studyCountBadge =
     document.getElementById("deck-study-count") ||
@@ -411,15 +425,31 @@ function renderStudyGuidePane() {
     const isSelected = currentLesson && rawLes.id === currentLesson.id;
     const isDone = completedStudyLessons.has(rawLes.id);
     const isApplied = appliedStudyLessonId === rawLes.id;
+    const revInfo = computeLessonReviewInfo(rawLes.id, practiceStatsMap, masteryStageMap, completedStudyLessons);
+    const ageLabel = formatRelativePracticeAge(revInfo.daysSince, isEn);
+    const metricsBits = [];
+    if (revInfo.isDue) {
+      metricsBits.push(`<span class="study-review-badge is-due">↻ ${isEn ? "Review" : "Revisar"}</span>`);
+    }
+    if (revInfo.bestAvgCents !== null) {
+      metricsBits.push(`<span class="study-review-badge">🎯 ±${revInfo.bestAvgCents}¢</span>`);
+    }
+    if (ageLabel) {
+      metricsBits.push(`<span class="study-review-badge is-muted">${ageLabel}</span>`);
+    }
+    const cardMetricsHtml = metricsBits.length
+      ? `<div class="study-card-metrics">${metricsBits.join("")}</div>`
+      : "";
 
     return `
-      <article class="mod-route-card study-lesson-card ${isSelected ? "is-selected-lesson" : ""} ${isDone ? "is-done-lesson" : ""}" data-study-select="${rawLes.id}">
-        <div class="mod-route-top" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+      <article class="mod-route-card study-lesson-card ${isSelected ? "is-selected-lesson" : ""} ${isDone ? "is-done-lesson" : ""} ${revInfo.isDue ? "is-due-review" : ""}" data-study-select="${rawLes.id}">
+        <div class="mod-route-top" style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
           <span class="mod-pivot-badge ${isDone ? "is-ghammaz-pivot" : ""}">
             ${isDone ? "✓" : `#${les.number}`} · ${les.duration}
           </span>
           ${isApplied ? `<span class="badge">${isEn ? "Active on Neck" : "Ativa no Braço"}</span>` : ""}
         </div>
+        ${cardMetricsHtml}
         <div class="mod-target-title">${les.title}</div>
         <div class="mod-route-desc">${les.summary}</div>
         <div class="mod-route-actions">
@@ -452,8 +482,14 @@ function renderStudyGuidePane() {
           <button type="button" class="primary compact-btn btn-study-apply" data-lesson-id="${currentLesson.id}">
             ${isCurrentApplied ? (isEn ? "↺ Reapply Preset" : "↺ Reaplicar no Oud") : (isEn ? "▶ Apply to Oud" : "▶ Aplicar no Oud")}
           </button>
+          <button type="button" class="ghost-btn compact-btn btn-study-lock-tuning ${isTuningLocked ? "selected active-toggle" : ""}" aria-pressed="${isTuningLocked ? "true" : "false"}" title="${isEn ? "Keep your physical Oud tuning when applying lesson presets" : "Mantém a afinação física do seu Oud ao aplicar presets das lições"}">
+            ${isTuningLocked ? (isEn ? "🔒 Tuning Locked" : "🔒 Afinação Travada") : (isEn ? "🔓 Keep Tuning" : "🔓 Manter Afinação")}
+          </button>
           <button type="button" class="plum-btn compact-btn btn-study-audio" data-lesson-id="${currentLesson.id}">
             ${isEn ? "🔊 Play Example" : "🔊 Ouvir Exemplo"}
+          </button>
+          <button type="button" class="ghost-btn compact-btn btn-study-copy-link" data-lesson-id="${currentLesson.id}" title="${isEn ? "Copy direct link to this lesson" : "Copiar link direto para esta lição"}">
+            ${isEn ? "🔗 Lesson Link" : "🔗 Link da Lição"}
           </button>
           <button type="button" class="ghost-btn compact-btn btn-study-toggle-done ${isCurrentDone ? "selected" : ""}" data-lesson-id="${currentLesson.id}">
             ${isCurrentDone ? (isEn ? "✓ Completed" : "✓ Concluída") : (isEn ? "✓ Mark Done" : "✓ Concluir Lição")}
@@ -541,6 +577,11 @@ function renderStudyGuidePane() {
             <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, var(--accent), var(--plum)); transition:width 0.25s ease;"></div>
           </div>
         </div>
+        ${dueReviews.length > 0 ? `
+          <button type="button" class="plum-btn compact-btn btn-study-jump-review" data-review-lesson-id="${dueReviews[0].lesson.id}" title="${isEn ? "Jump to most urgent spaced-review lesson" : "Ir para a lição mais urgente na revisão espaçada"}">
+            ↻ ${isEn ? `Review (${dueReviews.length})` : `Revisar (${dueReviews.length})`}
+          </button>
+        ` : ""}
         ${doneCount > 0 ? `
           <button type="button" class="ghost-btn compact-btn btn-study-reset" title="${isEn ? "Reset progress" : "Reiniciar progresso"}">
             ↺ ${isEn ? "Reset" : "Zerar"}
@@ -658,6 +699,35 @@ function renderStudyGuidePane() {
       saveStudyProgress();
       renderStudyGuidePane();
     });
+  });
+
+  pane.querySelector(".btn-study-lock-tuning")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (typeof setLockPhysicalTuning === "function") {
+      setLockPhysicalTuning(!isTuningLocked);
+    }
+    renderStudyGuidePane();
+  });
+
+  pane.querySelector(".btn-study-copy-link")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const lesId = /** @type {HTMLElement | null} */ (ev.currentTarget)?.dataset.lessonId;
+    if (lesId && typeof copyStudyLessonLink === "function") {
+      copyStudyLessonLink(lesId);
+    }
+  });
+
+  pane.querySelector(".btn-study-jump-review")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const lesId = /** @type {HTMLElement | null} */ (ev.currentTarget)?.dataset.reviewLessonId;
+    if (!lesId) return;
+    const targetLesson = getStudyLessonById(lesId);
+    if (!targetLesson) return;
+    activeStudyLevelFilter = "ALL";
+    if (typeof deps?.setActiveStudyLevelFilter === "function") deps.setActiveStudyLevelFilter("ALL");
+    setActiveStudyModuleId(targetLesson.moduleId);
+    setActiveStudyLessonId(targetLesson.id);
+    applyStudyLessonPreset(targetLesson.id, { playConfirmTone: true, scrollToStage: false });
   });
 
   pane.querySelectorAll(".btn-study-apply").forEach(btn => {
